@@ -327,4 +327,16 @@ query SearchMcpServers($first: Int = 10, $after: String, $filters: MCPServerFilt
 ${MCP_SERVER_FRAGMENT}
 `;
 
+export const CALL_MCP_SERVER_TOOL_MUTATION = `
+  mutation CallMcpServerTool($serverName: String!, $toolName: String!, $toolInput: JSON!) {
+    callMcpServerTool(serverName: $serverName, toolName: $toolName, toolInput: $toolInput) {
+      success
+      message
+      toolName
+      serverName
+      result
+      error
+    }
+  }
+`;
 

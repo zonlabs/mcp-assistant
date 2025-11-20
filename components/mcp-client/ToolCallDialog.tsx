@@ -1,0 +1,230 @@
+"use client";
+
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ToolInfo } from "@/types/mcp";
+import { toast } from "react-hot-toast";
+import { AlertCircle, CheckCircle, Loader } from "lucide-react";
+
+interface ToolCallDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  serverName: string;
+  tool: ToolInfo;
+}
+
+export default function ToolCallDialog({
+  isOpen,
+  onClose,
+  serverName,
+  tool
+}: ToolCallDialogProps) {
+  const [inputJson, setInputJson] = useState("{}");
+  const [result, setResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const parseSchema = (schema: unknown) => {
+    if (typeof schema === 'object' && schema !== null) {
+      return schema;
+    }
+    if (typeof schema === 'string') {
+      try {
+        return JSON.parse(schema);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const handleCall = async () => {
+    setIsSubmitting(true);
+    setResult(null);
+
+    try {
+      // Validate JSON input
+      let toolInput: Record<string, unknown>;
+      try {
+        toolInput = JSON.parse(inputJson);
+      } catch {
+        toast.error("Invalid JSON input");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Call the API endpoint
+      const response = await fetch('/api/mcp/call-tool', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serverName,
+          toolName: tool.name,
+          toolInput
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.errors) {
+        const errorMessage = result.errors?.[0]?.message || 'Failed to call tool';
+        toast.error(errorMessage);
+        setResult({
+          success: false,
+          message: errorMessage,
+          error: errorMessage
+        });
+        return;
+      }
+
+      const toolResult = result.data?.callMcpServerTool;
+
+      if (!toolResult) {
+        throw new Error('Invalid response from server');
+      }
+
+      if (!toolResult.success) {
+        toast.error(toolResult.message);
+      } else {
+        toast.success(toolResult.message);
+      }
+
+      setResult(toolResult);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to call tool";
+      toast.error(errorMessage);
+      setResult({
+        success: false,
+        message: errorMessage,
+        error: errorMessage
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setInputJson("{}");
+    setResult(null);
+    onClose();
+  };
+
+  const schema = parseSchema(tool.schema);
+  const schemaProperties = schema?.properties || {};
+
+  // Generate example input based on schema
+  const generateExampleInput = () => {
+    const example: Record<string, unknown> = {};
+    Object.entries(schemaProperties).forEach(([key, prop]: [string, any]) => {
+      if (prop.type === 'string') {
+        example[key] = `example_${key}`;
+      } else if (prop.type === 'number' || prop.type === 'integer') {
+        example[key] = 0;
+      } else if (prop.type === 'boolean') {
+        example[key] = true;
+      } else if (prop.type === 'array') {
+        example[key] = [];
+      } else {
+        example[key] = null;
+      }
+    });
+    setInputJson(JSON.stringify(example, null, 2));
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Call Tool: {tool.name}</DialogTitle>
+          <DialogDescription>
+            {tool.description}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Schema Info */}
+          {schema && (
+            <div>
+              <label className="text-sm font-medium">Schema</label>
+              <div className="bg-muted rounded-md p-3 mt-2 max-h-40 overflow-y-auto">
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                  {JSON.stringify(schema, null, 2)}
+                </pre>
+              </div>
+              {Object.keys(schemaProperties).length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={generateExampleInput}
+                  className="mt-2"
+                >
+                  Generate Example Input
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Input */}
+          <div>
+            <label className="text-sm font-medium">Tool Input (JSON)</label>
+            <Textarea
+              value={inputJson}
+              onChange={(e) => setInputJson(e.target.value)}
+              placeholder='{"key": "value"}'
+              className="mt-2 font-mono text-xs h-32"
+            />
+          </div>
+
+          {/* Result */}
+          {result && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Result</label>
+              {result.success ? (
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    {result.message}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {result.message}
+                    {result.error && <div className="text-xs mt-2">{result.error}</div>}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {result.result && (
+                <div className="bg-muted rounded-md p-3 mt-2 max-h-48 overflow-y-auto">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Response:</p>
+                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                    {typeof result.result === 'string'
+                      ? result.result
+                      : JSON.stringify(result.result, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={handleClose}>
+              Close
+            </Button>
+            <Button onClick={handleCall} disabled={isSubmitting}>
+              {isSubmitting && <Loader className="h-4 w-4 mr-2 animate-spin" />}
+              {isSubmitting ? "Calling..." : "Call Tool"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

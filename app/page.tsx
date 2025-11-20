@@ -111,9 +111,9 @@ export default function Home() {
           {/* Tagline */}
           <motion.h1
             variants={item}
-            className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-5 tracking-tight leading-[1.1]"
+            className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground mb-4 sm:mb-5 tracking-tight leading-[1.1]"
           >
-           A Web-Based MCP Client to access
+           A Web Based MCP Client to access
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-primary bg-[length:200%_auto] animate-gradient">
               {/* without the hassle */}
               <br/> remote MCP&apos;s
@@ -289,7 +289,7 @@ export default function Home() {
             variants={fadeInUp}
             className="max-w-xl mx-auto text-center md:text-left"
           >
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-br from-primary via-blue-500 to-foreground">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-br from-primary via-blue-500 to-foreground">
               Direct Access to MCP Servers, Simplified
             </h2>
             <p className="text-base md:text-lg text-muted-foreground mb-10 leading-relaxed">

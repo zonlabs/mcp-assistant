@@ -9,7 +9,8 @@ import {
   Grid3X3,
   List,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { McpServer } from "@/types/mcp";
+import { McpServer, ToolInfo } from "@/types/mcp";
+import ToolCallDialog from "./ToolCallDialog";
 
 interface ToolsExplorerProps {
   server: McpServer;
@@ -31,6 +33,8 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'unavailable'>('all');
+  const [toolCallDialogOpen, setToolCallDialogOpen] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<ToolInfo | null>(null);
 
   // Handle different tools formats
   const tools = Array.isArray(server.tools) ? server.tools : [];
@@ -47,6 +51,16 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
 
   const toggleToolExpansion = (toolName: string) => {
     setExpandedTool(expandedTool === toolName ? null : toolName);
+  };
+
+  const handleCallTool = (tool: ToolInfo) => {
+    setSelectedTool(tool);
+    setToolCallDialogOpen(true);
+  };
+
+  const handleCloseToolDialog = () => {
+    setToolCallDialogOpen(false);
+    setSelectedTool(null);
   };
 
   const parseSchema = (schema: unknown) => {
@@ -224,9 +238,19 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                       <p className="text-xs text-muted-foreground mb-3 line-clamp-3 break-words" title={tool.description}>
                         {tool.description}
                       </p>
-                      
-                      {schema && (
-                        <div className="space-y-2">
+
+                      <div className="space-y-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleCallTool(tool)}
+                          className="w-full"
+                          disabled={server.connectionStatus !== 'CONNECTED'}
+                        >
+                          <Play className="h-3 w-3 mr-2" />
+                          Call Tool
+                        </Button>
+
+                        {schema && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -240,26 +264,26 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                             )}
                             <span className="text-xs">View Schema</span>
                           </Button>
-                          
-                          <AnimatePresence>
-                            {expandedTool === tool.name && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="bg-muted rounded-md p-3">
-                                  <pre className="text-xs text-muted-foreground overflow-x-auto">
-                                    {JSON.stringify(schema, null, 2)}
-                                  </pre>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
+                        )}
+
+                        <AnimatePresence>
+                          {expandedTool === tool.name && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="bg-muted rounded-md p-3">
+                                <pre className="text-xs text-muted-foreground overflow-x-auto">
+                                  {JSON.stringify(schema, null, 2)}
+                                </pre>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -288,8 +312,8 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                 >
                   <Card className="hover:shadow-md transition-shadow duration-200">
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 min-w-0">
                             <Wrench className="h-4 w-4 text-primary flex-shrink-0" />
                             <h4 className="font-medium text-truncate min-w-0 flex-1" title={tool.name}>{tool.name}</h4>
@@ -300,25 +324,36 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
                           <p className="text-sm text-muted-foreground mb-3">
                             {tool.description}
                           </p>
-                          
-                          {schema && (
+
+                          <div className="flex flex-wrap gap-2 mb-3">
                             <Button
-                              variant="ghost"
                               size="sm"
-                              onClick={() => toggleToolExpansion(tool.name)}
-                              className="p-0 h-auto"
+                              onClick={() => handleCallTool(tool)}
+                              disabled={server.connectionStatus !== 'CONNECTED'}
                             >
-                              {expandedTool === tool.name ? (
-                                <ChevronDown className="h-3 w-3 mr-1" />
-                              ) : (
-                                <ChevronRight className="h-3 w-3 mr-1" />
-                              )}
-                              <span className="text-xs">View Schema</span>
+                              <Play className="h-3 w-3 mr-1" />
+                              Call Tool
                             </Button>
-                          )}
+
+                            {schema && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleToolExpansion(tool.name)}
+                                className="p-0 h-auto"
+                              >
+                                {expandedTool === tool.name ? (
+                                  <ChevronDown className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3 mr-1" />
+                                )}
+                                <span className="text-xs">View Schema</span>
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      
+
                       <AnimatePresence>
                         {expandedTool === tool.name && (
                           <motion.div
@@ -355,6 +390,15 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {selectedTool && (
+        <ToolCallDialog
+          isOpen={toolCallDialogOpen}
+          onClose={handleCloseToolDialog}
+          serverName={server.name}
+          tool={selectedTool}
+        />
       )}
     </div>
   );
