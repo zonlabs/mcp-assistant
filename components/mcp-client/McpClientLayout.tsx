@@ -310,6 +310,37 @@ export default function McpClientLayout({
   // Use GraphQL search when search query is present
   const GET_SEARCH_MCP_SERVERS = gql`${SEARCH_MCP_SERVERS_QUERY}`;
 
+  // Get categories for lookup
+  const categories: Category[] = data?.categories?.edges?.map((edge: { node: Category }) => edge.node) || [];
+
+  // Build API filter variables
+  const activeCategory = selectedCategory || categorySlug;
+  const buildFilterVariables = () => {
+    const filters: Record<string, unknown> = {};
+
+    // Add name search filter
+    if (debouncedSearch.trim()) {
+      filters.name = {
+        iContains: debouncedSearch.trim()
+      };
+    }
+
+    // Add category filter by ID
+    if (activeCategory) {
+      // Find category ID by slug
+      const category = categories.find(cat => cat.slug === activeCategory);
+      if (category?.id) {
+        filters.category = {
+          id: {
+            exact: category.id
+          }
+        };
+      }
+    }
+
+    return Object.keys(filters).length > 0 ? filters : undefined;
+  };
+
   const { data: searchData, loading: searchLoading } = useQuery<{
     mcpServers: {
       edges: Array<{ node: McpServer }>;
@@ -318,44 +349,24 @@ export default function McpClientLayout({
   }>(GET_SEARCH_MCP_SERVERS, {
     variables: {
       first: 100,
-      filters: debouncedSearch.trim() ? {
-        name: {
-          iContains: debouncedSearch.trim()
-        }
-      } : activeTab === 'public' ? { isPublic: { exact: true } } : undefined
+      filters: buildFilterVariables()
     },
-    skip: !debouncedSearch.trim() && activeTab === 'public', // Skip if no search query and on public tab
+    skip: !debouncedSearch.trim() && !activeCategory, // Skip if no search query and no category filter
     fetchPolicy: "cache-and-network",
   });
 
-  // Get search results from API if search is active
+  // Get search/filter results from API if search or filter is active
   const searchResults = searchData?.mcpServers?.edges?.map((edge: { node: McpServer }) => edge.node) || [];
 
   const filteredServers = useMemo(() => {
-    // If search query is active, use API results
-    if (debouncedSearch.trim()) {
-      let servers = searchResults;
-
-      // Step 1: Filter by selected category if needed
-      const activeCategory = selectedCategory || categorySlug;
-      if (activeCategory) {
-        servers = servers.filter(server => server.category?.slug === activeCategory);
-      }
-
-      return servers;
+    // If search query or category filter is active, use API results
+    if (debouncedSearch.trim() || activeCategory) {
+      return searchResults;
     }
 
-    // Otherwise use local filtering on current servers
-    let servers = currentServers || [];
-
-    // Step 1: Filter by selected category (from dropdown or URL)
-    const activeCategory = selectedCategory || categorySlug;
-    if (activeCategory) {
-      servers = servers.filter(server => server.category?.slug === activeCategory);
-    }
-
-    return servers;
-  }, [currentServers, selectedCategory, categorySlug, debouncedSearch, searchResults]);
+    // Otherwise use current servers as-is
+    return currentServers || [];
+  }, [currentServers, activeCategory, debouncedSearch, searchResults]);
 
   const truncateText = (text: string, maxLength = 17) => {
     return text.length > maxLength ? text.slice(0, maxLength) + "…" : text;
@@ -580,7 +591,7 @@ export default function McpClientLayout({
                       value="public"
                       className="px-4 pb-6 m-0 flex flex-col gap-1"
                     >
-                      {(publicLoading || (debouncedSearch.trim() && searchLoading)) ? (
+                      {(publicLoading || ((debouncedSearch.trim() || activeCategory) && searchLoading)) ? (
                         [...Array(3)].map((_, i) => (
                           <Card key={i}>
                             <CardContent className="p-4">
