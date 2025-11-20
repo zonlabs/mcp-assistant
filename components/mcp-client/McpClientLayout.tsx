@@ -622,7 +622,7 @@ export default function McpClientLayout({
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2 flex-1">
                                   <div
-                                    className={`w-3 h-3 rounded-full transition-all ${server.connectionStatus?.toUpperCase() ===
+                                    className={`w-2 h-2 rounded-full transition-all ${server.connectionStatus?.toUpperCase() ===
                                       "CONNECTED"
                                       ? "bg-green-500 animate-pulse"
                                       : server.connectionStatus?.toUpperCase() ===
@@ -757,7 +757,7 @@ export default function McpClientLayout({
                                   <div className="flex items-center justify-between mb-2 pr-8">
                                     <div className="flex items-center gap-2 flex-1">
                                       <div
-                                        className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 ${server.connectionStatus?.toUpperCase() ===
+                                        className={`w-2 h-2 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 ${server.connectionStatus?.toUpperCase() ===
                                           "CONNECTED"
                                           ? "bg-green-500 animate-pulse"
                                           : server.connectionStatus?.toUpperCase() ===
