@@ -1,12 +1,9 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-// import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import {
   Server,
   Play,
-  Shield,
   ArrowRight,
   MessageSquare,
   Plug
@@ -61,15 +58,6 @@ const fadeInUp: Variants = {
     opacity: 1,
     y: 0,
     transition: { duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] as const }
-  }
-};
-
-const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { duration: 0.5, ease: "easeOut" as const }
   }
 };
 
@@ -128,7 +116,7 @@ export default function Home() {
            A Web-Based MCP Client to access
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-primary bg-[length:200%_auto] animate-gradient">
               {/* without the hassle */}
-              <br/> remote MCP's
+              <br/> remote MCP&apos;s
             </span>
           </motion.h1>
 
@@ -260,7 +248,7 @@ export default function Home() {
       </motion.div>
       
       {/* Feature Highlights Section */}
-      <div id="features" className="relative py-28 bg-gradient-to-b from-background via-muted/20 to-background overflow-hidden">
+      <div id="features" className="relative pb-28 bg-gradient-to-b from-background via-muted/20 to-background overflow-hidden">
         {/* Gradient blobs */}
         <div className="absolute inset-0 -z-10">
           <motion.div
