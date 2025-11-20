@@ -52,6 +52,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 interface McpClientLayoutProps {
   publicServers: McpServer[] | null;
   userServers: McpServer[] | null;
+  publicServersCount?: number;
+  userServersCount?: number;
   publicLoading: boolean;
   userLoading: boolean;
   publicError: string | null;
@@ -73,6 +75,8 @@ interface McpClientLayoutProps {
 export default function McpClientLayout({
   publicServers,
   userServers,
+  publicServersCount = 0,
+  userServersCount = 0,
   publicLoading,
   userLoading,
   publicError,
@@ -568,7 +572,7 @@ export default function McpClientLayout({
                         <Globe className="h-3 w-3" />
                         Public
                         <Badge variant="secondary" className="ml-1 text-xs">
-                          {filteredServers?.length || 0}
+                          {publicServersCount}
                         </Badge>
                       </TabsTrigger>
                       <TabsTrigger
@@ -578,7 +582,7 @@ export default function McpClientLayout({
                         <UserIcon className="h-3 w-3" />
                         My Servers
                         <Badge variant="secondary" className="ml-1 text-xs">
-                          {userServers?.length || 0}
+                          {userServersCount}
                         </Badge>
                       </TabsTrigger>
                     </TabsList>
@@ -623,11 +627,11 @@ export default function McpClientLayout({
                                       ? "bg-green-500 animate-pulse"
                                       : server.connectionStatus?.toUpperCase() ===
                                         "DISCONNECTED"
-                                        ? "bg-gray-400"
+                                        ? "bg-yellow-500"
                                         : server.connectionStatus?.toUpperCase() ===
                                           "FAILED"
                                           ? "bg-red-500 animate-pulse"
-                                          : "bg-gray-400"
+                                          : "bg-yellow-500"
                                       }`}
                                     title={`Status: ${server.connectionStatus || "Unknown"
                                       }`}
@@ -758,11 +762,11 @@ export default function McpClientLayout({
                                           ? "bg-green-500 animate-pulse"
                                           : server.connectionStatus?.toUpperCase() ===
                                             "DISCONNECTED"
-                                            ? "bg-gray-400"
+                                            ? "bg-yellow-500"
                                             : server.connectionStatus?.toUpperCase() ===
                                               "FAILED"
                                               ? "bg-red-500 animate-pulse"
-                                              : "bg-gray-400"
+                                              : "bg-yellow-500"
                                           }`}
                                         title={`Status: ${server.connectionStatus || "Unknown"
                                           }`}

@@ -10,6 +10,8 @@ function McpPageContent() {
   const { data: session } = useSession();
   const [publicServers, setPublicServers] = useState<McpServer[] | null>(null);
   const [userServers, setUserServers] = useState<McpServer[] | null>(null);
+  const [publicServersCount, setPublicServersCount] = useState(0);
+  const [userServersCount, setUserServersCount] = useState(0);
   const [publicError, setPublicError] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
   const [publicLoading, setPublicLoading] = useState(true);
@@ -37,8 +39,10 @@ function McpPageContent() {
       const edges = json?.data?.mcpServers?.edges || [];
       const servers = edges.map((edge: { node: unknown }) => edge.node);
       const pageInfo = json?.data?.mcpServers?.pageInfo;
+      const totalCount = json?.data?.mcpServers?.totalCount || 0;
 
       setPublicServers(servers);
+      setPublicServersCount(totalCount);
       setHasNextPage(pageInfo?.hasNextPage ?? false);
       setEndCursor(pageInfo?.endCursor ?? null);
     } catch (e: unknown) {
@@ -89,7 +93,9 @@ function McpPageContent() {
       const res = await fetch(`/api/mcp/user`, { method: "GET" });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.errors?.[0]?.message || res.statusText);
-      setUserServers(json?.data?.getUserMcpServers ?? []);
+      const userServersList = json?.data?.getUserMcpServers ?? [];
+      setUserServers(userServersList);
+      setUserServersCount(userServersList.length);
       // toast.success("Your servers loaded successfully");
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Failed to load your servers";
@@ -318,6 +324,8 @@ function McpPageContent() {
       <McpClientLayout
         publicServers={publicServers}
         userServers={userServers}
+        publicServersCount={publicServersCount}
+        userServersCount={userServersCount}
         publicLoading={publicLoading}
         userLoading={userLoading}
         publicError={publicError}

@@ -262,7 +262,7 @@ export default function ServerFormModal({
               )}
 
               <p className="text-xs pt-1 text-muted-foreground">
-                Choose a category to help organize your MCP servers
+                Choose a category to help organize your MCP servers (Optional)
               </p>
             </div>
 
