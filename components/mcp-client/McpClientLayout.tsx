@@ -32,7 +32,7 @@ import ToolsExplorer from "./ToolsExplorer";
 import { useSearchParams } from "next/navigation";
 import { Filter } from "lucide-react";
 import { useQuery } from "@apollo/client/react";
-import { CATEGORIES_QUERY } from "@/lib/graphql";
+import { CATEGORIES_QUERY, SEARCH_MCP_SERVERS_QUERY } from "@/lib/graphql";
 import { Category } from "@/types/mcp";
 import { gql } from "@apollo/client";
 import {
@@ -307,7 +307,45 @@ export default function McpClientLayout({
     router.replace(newUrl, { scroll: false }); // Update URL without reload
   };
 
+  // Use GraphQL search when search query is present
+  const GET_SEARCH_MCP_SERVERS = gql`${SEARCH_MCP_SERVERS_QUERY}`;
+
+  const { data: searchData, loading: searchLoading } = useQuery<{
+    mcpServers: {
+      edges: Array<{ node: McpServer }>;
+      pageInfo: Record<string, unknown>;
+    };
+  }>(GET_SEARCH_MCP_SERVERS, {
+    variables: {
+      first: 100,
+      filters: debouncedSearch.trim() ? {
+        name: {
+          iContains: debouncedSearch.trim()
+        }
+      } : activeTab === 'public' ? { isPublic: { exact: true } } : undefined
+    },
+    skip: !debouncedSearch.trim() && activeTab === 'public', // Skip if no search query and on public tab
+    fetchPolicy: "cache-and-network",
+  });
+
+  // Get search results from API if search is active
+  const searchResults = searchData?.mcpServers?.edges?.map((edge: { node: McpServer }) => edge.node) || [];
+
   const filteredServers = useMemo(() => {
+    // If search query is active, use API results
+    if (debouncedSearch.trim()) {
+      let servers = searchResults;
+
+      // Step 1: Filter by selected category if needed
+      const activeCategory = selectedCategory || categorySlug;
+      if (activeCategory) {
+        servers = servers.filter(server => server.category?.slug === activeCategory);
+      }
+
+      return servers;
+    }
+
+    // Otherwise use local filtering on current servers
     let servers = currentServers || [];
 
     // Step 1: Filter by selected category (from dropdown or URL)
@@ -316,14 +354,8 @@ export default function McpClientLayout({
       servers = servers.filter(server => server.category?.slug === activeCategory);
     }
 
-    // Step 2: Filter by search query
-    if (debouncedSearch.trim()) {
-      const lower = debouncedSearch.toLowerCase();
-      servers = servers.filter(server => server.name.toLowerCase().includes(lower));
-    }
-
     return servers;
-  }, [currentServers, selectedCategory, categorySlug, debouncedSearch]);
+  }, [currentServers, selectedCategory, categorySlug, debouncedSearch, searchResults]);
 
   const truncateText = (text: string, maxLength = 17) => {
     return text.length > maxLength ? text.slice(0, maxLength) + "…" : text;
@@ -548,7 +580,7 @@ export default function McpClientLayout({
                       value="public"
                       className="px-4 pb-6 m-0 flex flex-col gap-1"
                     >
-                      {publicLoading ? (
+                      {(publicLoading || (debouncedSearch.trim() && searchLoading)) ? (
                         [...Array(3)].map((_, i) => (
                           <Card key={i}>
                             <CardContent className="p-4">

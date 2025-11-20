@@ -302,4 +302,29 @@ export const DELETE_ASSISTANT_MUTATION = `
   }
 `;
 
+/**
+ * Reusable query for searching MCP servers with filters.
+ * Supports filtering by name (case-insensitive), category, and other criteria.
+ * Uses cursor-based pagination for efficient large result sets.
+ */
+export const SEARCH_MCP_SERVERS_QUERY = `
+query SearchMcpServers($first: Int = 10, $after: String, $filters: MCPServerFilter) {
+  mcpServers(first: $first, after: $after, filters: $filters) {
+    edges {
+      node {
+        ...McpServerFields
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+  }
+}
+${MCP_SERVER_FRAGMENT}
+`;
+
 
