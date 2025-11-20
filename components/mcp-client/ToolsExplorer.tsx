@@ -7,10 +7,7 @@ import {
   Search,
   Filter,
   Grid3X3,
-  List,
-  ChevronDown,
-  ChevronRight,
-  Play
+  List
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +28,6 @@ interface ToolsExplorerProps {
 export default function ToolsExplorer({ server }: ToolsExplorerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [expandedTool, setExpandedTool] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'unavailable'>('all');
   const [toolCallDialogOpen, setToolCallDialogOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<ToolInfo | null>(null);
@@ -49,10 +45,6 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
     return matchesSearch && matchesFilter;
   });
 
-  const toggleToolExpansion = (toolName: string) => {
-    setExpandedTool(expandedTool === toolName ? null : toolName);
-  };
-
   const handleCallTool = (tool: ToolInfo) => {
     setSelectedTool(tool);
     setToolCallDialogOpen(true);
@@ -61,22 +53,6 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
   const handleCloseToolDialog = () => {
     setToolCallDialogOpen(false);
     setSelectedTool(null);
-  };
-
-  const parseSchema = (schema: unknown) => {
-    // Schema is already a JSON object from Strawberry GraphQL
-    if (typeof schema === 'object' && schema !== null) {
-      return schema;
-    }
-    // Fallback for string schemas
-    if (typeof schema === 'string') {
-      try {
-        return JSON.parse(schema);
-      } catch {
-        return null;
-      }
-    }
-    return null;
   };
 
   const getToolCategory = (toolName: string) => {
@@ -208,8 +184,7 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
           >
             {filteredTools.map((tool, index) => {
               const category = getToolCategory(tool.name);
-              const schema = parseSchema(tool.schema);
-              
+
               return (
                 <motion.div
                   key={tool.name}
@@ -261,8 +236,7 @@ export default function ToolsExplorer({ server }: ToolsExplorerProps) {
           >
             {filteredTools.map((tool, index) => {
               const category = getToolCategory(tool.name);
-              const schema = parseSchema(tool.schema);
-              
+
               return (
                 <motion.div
                   key={tool.name}

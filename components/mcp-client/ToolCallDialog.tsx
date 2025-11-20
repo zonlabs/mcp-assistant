@@ -18,6 +18,15 @@ interface ToolCallDialogProps {
   tool: ToolInfo;
 }
 
+interface ToolCallResult {
+  success: boolean;
+  message: string;
+  tool_name?: string;
+  server_name?: string;
+  result?: unknown;
+  error?: string;
+}
+
 export default function ToolCallDialog({
   isOpen,
   onClose,
@@ -25,7 +34,7 @@ export default function ToolCallDialog({
   tool
 }: ToolCallDialogProps) {
   const [inputJson, setInputJson] = useState("{}");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ToolCallResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { theme } = useTheme();
 
@@ -122,14 +131,15 @@ export default function ToolCallDialog({
   // Generate example input based on schema
   const generateExampleInput = () => {
     const example: Record<string, unknown> = {};
-    Object.entries(schemaProperties).forEach(([key, prop]: [string, any]) => {
-      if (prop.type === 'string') {
+    Object.entries(schemaProperties).forEach(([key, prop]) => {
+      const propObj = prop as Record<string, unknown>;
+      if (propObj.type === 'string') {
         example[key] = `example_${key}`;
-      } else if (prop.type === 'number' || prop.type === 'integer') {
+      } else if (propObj.type === 'number' || propObj.type === 'integer') {
         example[key] = 0;
-      } else if (prop.type === 'boolean') {
+      } else if (propObj.type === 'boolean') {
         example[key] = true;
-      } else if (prop.type === 'array') {
+      } else if (propObj.type === 'array') {
         example[key] = [];
       } else {
         example[key] = null;
@@ -216,7 +226,7 @@ export default function ToolCallDialog({
                 </Alert>
               )}
 
-              {result.result && (
+              {result.result ? (
                 <div className="mt-2 rounded-md border border-slate-700 overflow-hidden">
                   <p className="text-xs font-semibold text-gray-300 px-3 pt-3">Response:</p>
                   <div className="max-h-48 overflow-y-auto overflow-x-hidden scrollbar-minimal">
@@ -235,7 +245,7 @@ export default function ToolCallDialog({
                     </SyntaxHighlighter>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
