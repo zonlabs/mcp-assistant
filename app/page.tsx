@@ -123,28 +123,35 @@ export default function Home() {
           {/* Tagline */}
           <motion.h1
             variants={item}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-8 tracking-tight leading-[1.1]"
+            className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-5 tracking-tight leading-[1.1]"
           >
-            Connect to remote MCP servers{' '}
+           A Web-Based MCP Client to access
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-primary bg-[length:200%_auto] animate-gradient">
-              without the hassle
+              {/* without the hassle */}
+              <br/> remote MCP's
             </span>
           </motion.h1>
 
           {/* Description */}
           <motion.p
             variants={item}
-            className="text-lg md:text-xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
+            className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-4 sm:mb-5 max-w-3xl mx-auto leading-relaxed"
           >
-            <strong className="text-foreground">No subscriptions. No setup.</strong>{' '}
-            Instant access to Model Context Protocol servers through a simple,
-            intuitive interface.
+            The MCP Assistant Web Client is a browser-based implementation of a Model Context Protocol (MCP) client that allows users to easily connect to and interact with any MCP-compatible server.
+          </motion.p>
+
+          {/* Additional Description */}
+          <motion.p
+            variants={item}
+            className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-3xl mx-auto leading-relaxed"
+          >
+            Designed to be <strong className="text-foreground">lightweight, accessible, and developer-friendly</strong>, providing a convenient interface for testing MCP servers and experimenting with tool calls.
           </motion.p>
 
           {/* CTA Buttons */}
           <motion.div
             variants={item}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-10"
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-6 sm:mb-7"
           >
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -178,13 +185,13 @@ export default function Home() {
           {/* Powered By */}
           <motion.div
             variants={item}
-            className="pt-6 border-t border-border/30"
+            className="pt-3 sm:pt-4 border-t border-border/30"
           >
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 sm:mb-4">
               Powered by
             </p>
 
-            <div className="flex items-center justify-center gap-x-12 md:gap-x-16">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 md:gap-8 lg:gap-12">
               {[
                 { light: '/technologies/mcp-light.webp', dark: '/technologies/mcp.webp', label: 'MCP' },
                 { light: '/technologies/langgraph-light.webp', dark: '/technologies/langgraph.webp', label: 'LangGraph' },
@@ -195,25 +202,25 @@ export default function Home() {
                   variants={logoHover}
                   initial="rest"
                   whileHover="hover"
-                  className="group flex flex-col items-center gap-2 cursor-pointer"
+                  className="group flex flex-col items-center gap-1 sm:gap-2 cursor-pointer"
                 >
-                  <div className="relative h-10 w-auto p-2 rounded-lg bg-background/50 backdrop-blur-sm border border-border/50 group-hover:border-primary/50 group-hover:bg-primary/5 transition-all duration-300">
+                  <div className="relative h-7 sm:h-9 w-auto p-1.5 sm:p-2 rounded-lg bg-background/50 backdrop-blur-sm border border-border/50 group-hover:border-primary/50 group-hover:bg-primary/5 transition-all duration-300">
                     <Image
                       src={tech.light}
                       alt={tech.label}
                       width={100}
                       height={32}
-                      className="h-6 w-auto opacity-80 group-hover:opacity-100 transition-opacity dark:hidden"
+                      className="h-4 sm:h-5 w-auto opacity-80 group-hover:opacity-100 transition-opacity dark:hidden"
                     />
                     <Image
                       src={tech.dark}
                       alt={tech.label}
                       width={100}
                       height={32}
-                      className="h-6 w-auto opacity-80 group-hover:opacity-100 transition-opacity hidden dark:block"
+                      className="h-4 sm:h-5 w-auto opacity-80 group-hover:opacity-100 transition-opacity hidden dark:block"
                     />
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors hidden sm:block">
                     {tech.label}
                   </span>
                 </motion.div>
