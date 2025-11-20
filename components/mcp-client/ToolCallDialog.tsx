@@ -172,7 +172,7 @@ export default function ToolCallDialog({
                   variant="outline"
                   size="sm"
                   onClick={generateExampleInput}
-                  className="mt-2"
+                  className="mt-2 cursor-pointer"
                 >
                   Generate Example Input
                 </Button>
@@ -241,10 +241,10 @@ export default function ToolCallDialog({
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} className="cursor-pointer">
               Close
             </Button>
-            <Button onClick={handleCall} disabled={isSubmitting}>
+            <Button onClick={handleCall} disabled={isSubmitting} className="cursor-pointer">
               {isSubmitting && <Loader className="h-4 w-4 mr-2 animate-spin" />}
               {isSubmitting ? "Calling..." : "Call Tool"}
             </Button>
