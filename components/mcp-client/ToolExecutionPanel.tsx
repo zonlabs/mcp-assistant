@@ -190,10 +190,10 @@ export default function ToolExecutionPanel({
       <div className="flex-shrink-0 border-b border-border">
         {/* Top Bar - Server Info and Close Button */}
         <div className="p-4 pb-0 flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide flex-shrink-0">Server:</p>
+          {/* <div className="flex-1 min-w-0 flex items-center gap-2"> */}
+            {/* <p className="text-xs text-muted-foreground uppercase tracking-wide flex-shrink-0">Server:</p> */}
             <h2 className="text-sm font-semibold text-foreground truncate">{server.name}</h2>
-          </div>
+          {/* </div> */}
           <Button
             variant="ghost"
             size="sm"
@@ -294,8 +294,8 @@ export default function ToolExecutionPanel({
               placeholder='{"key": "value"}'
               className={`w-full mt-2 font-mono text-xs h-24 p-3 rounded-md border focus:outline-none focus:ring-2 resize-none overflow-x-hidden scrollbar-minimal ${
                 theme === 'dark'
-                  ? 'border-slate-700 bg-slate-950 text-gray-200 placeholder:text-gray-600 focus:ring-slate-600'
-                  : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-500 focus:ring-slate-400'
+                  ? 'border-slate-700 bg-slate-900 text-gray-200 placeholder:text-gray-600 focus:ring-slate-600'
+                  : 'border-slate-300 bg-slate-50 text-slate-900 placeholder:text-slate-500 focus:ring-slate-400'
               }`}
             />
           </div>
@@ -338,7 +338,8 @@ export default function ToolExecutionPanel({
                           margin: 0,
                           padding: '12px',
                           fontSize: '11px',
-                          whiteSpace: 'pre'
+                          whiteSpace: 'pre',
+                          minWidth: 'min-content'
                         }}
                       >
                         {typeof result.result === 'string' && result.result.startsWith('{')
