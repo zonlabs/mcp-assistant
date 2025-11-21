@@ -108,6 +108,166 @@ function McpPageContent() {
 
   const handleServerAction = async (serverName: string, action: 'restart' | 'activate' | 'deactivate') => {
     try {
+      // Handle activate action directly with MCP connect API
+      if (action === 'activate') {
+        // Step 1: Fetch server config from GraphQL
+        const configResponse = await fetch('/api/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: `
+              query GetServerConfig($name: String!) {
+                mcpServers(filters: { name: { exact: $name } }, first: 1) {
+                  edges {
+                    node {
+                      id
+                      name
+                      transport
+                      url
+                      command
+                      args
+                      requiresOauth2
+                      description
+                      isPublic
+                      owner
+                    }
+                  }
+                }
+              }
+            `,
+            variables: { name: serverName }
+          }),
+        });
+
+        const configResult = await configResponse.json();
+        const serverConfig = configResult.data?.mcpServers?.edges?.[0]?.node;
+
+        if (!serverConfig) {
+          throw new Error('Server not found');
+        }
+
+        if (!serverConfig.url) {
+          throw new Error('Server URL is required');
+        }
+
+        // For now, only support stdio and websocket via GraphQL
+        // HTTP-based transports (sse, streamable_http) need proper server implementation
+        if (serverConfig.transport === 'stdio' || serverConfig.transport === 'websocket') {
+          throw new Error(`Transport type '${serverConfig.transport}' must use the Django GraphQL connection. HTTP-based connection only supports servers with proper SSE/HTTP streaming endpoints.`);
+        }
+
+        // Normalize URL - remove /sse or /message suffix
+        let normalizedUrl = serverConfig.url;
+        if (normalizedUrl.endsWith('/sse')) {
+          normalizedUrl = normalizedUrl.slice(0, -4);
+        } else if (normalizedUrl.endsWith('/message')) {
+          normalizedUrl = normalizedUrl.slice(0, -8);
+        }
+
+        console.log('[MCP Connect] Server:', serverName);
+        console.log('[MCP Connect] Transport:', serverConfig.transport);
+        console.log('[MCP Connect] Original URL:', serverConfig.url);
+        console.log('[MCP Connect] Normalized URL:', normalizedUrl);
+
+        // Step 2: Connect to MCP server
+        const callbackUrl = `${window.location.origin}/api/mcp/auth/callback`;
+        const connectResponse = await fetch('/api/mcp/auth/connect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            serverUrl: normalizedUrl,
+            callbackUrl: callbackUrl,
+            serverName: serverName, // Pass server name so it can be included in OAuth state
+          }),
+        });
+
+        const connectResult = await connectResponse.json();
+
+        // Handle OAuth requirement
+        if (connectResult.requiresAuth && connectResult.authUrl) {
+          window.location.href = connectResult.authUrl;
+          return { success: false, requiresAuth: true };
+        }
+
+        // Handle connection error
+        if (connectResult.error) {
+          throw new Error(connectResult.error);
+        }
+
+        // Step 3: Fetch tools from connected server
+        let tools: unknown[] = [];
+        if (connectResult.success && connectResult.sessionId) {
+          const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);
+          if (toolsResponse.ok) {
+            const toolsResult = await toolsResponse.json();
+            tools = toolsResult.tools || [];
+          }
+        }
+
+        // Update local state
+        const updateServer = (server: McpServer) => {
+          if (server.name === serverName) {
+            return {
+              ...server,
+              connectionStatus: 'CONNECTED',
+              tools: tools,
+              updated_at: new Date().toISOString()
+            };
+          }
+          return server;
+        };
+
+        setPublicServers(prev => prev ? prev.map(updateServer) : prev);
+        setUserServers(prev => prev ? prev.map(updateServer) : prev);
+
+        return { success: true, tools };
+      }
+
+      // Handle deactivate action directly with MCP disconnect API
+      if (action === 'deactivate') {
+        // We don't have the sessionId on frontend, so we'll use the actions endpoint for now
+        // In a real implementation, we'd need to track sessionIds on the frontend too
+        const response = await fetch('/api/mcp/actions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'deactivate',
+            serverName
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.errors) {
+          throw new Error(result.errors?.[0]?.message || 'Deactivation failed');
+        }
+
+        // Update local state
+        const updateServer = (server: McpServer) => {
+          if (server.name === serverName) {
+            return {
+              ...server,
+              connectionStatus: 'DISCONNECTED',
+              tools: [],
+              updated_at: new Date().toISOString()
+            };
+          }
+          return server;
+        };
+
+        setPublicServers(prev => prev ? prev.map(updateServer) : prev);
+        setUserServers(prev => prev ? prev.map(updateServer) : prev);
+
+        return { success: true };
+      }
+
+      // Handle restart with actions endpoint
       const response = await fetch('/api/mcp/actions', {
         method: "POST",
         headers: {
@@ -125,56 +285,39 @@ function McpPageContent() {
         throw new Error(result.errors?.[0]?.message || 'Action failed');
       }
 
-      // Check if OAuth authorization is required (NEW UNIFIED FLOW)
-      // This applies to both 'activate' and 'restart' actions
-      if (action === 'activate' || action === 'restart') {
-        const actionResult = result.data?.connectMcpServer || result.data?.restartMcpServer;
+      // Check if OAuth authorization is required for restart
+      if (action === 'restart') {
+        const actionResult = result.data?.restartMcpServer;
 
         if (actionResult?.requiresAuth && actionResult?.authorizationUrl) {
-          // toast.success(`Redirecting to OAuth authorization for ${serverName}...`);
-          // Redirect to OAuth authorization URL
           window.location.href = actionResult.authorizationUrl;
-          return actionResult; // Exit early, page will redirect
+          return actionResult;
         }
       }
 
       // Get the response data for the specific action
-      const actionResponse = result.data?.connectMcpServer ||
-                            result.data?.disconnectMcpServer ||
-                            result.data?.restartMcpServer;
-      
-      // Extract the server data from the response
+      const actionResponse = result.data?.restartMcpServer;
       const updatedServer = actionResponse?.server;
 
-      // Check if the operation was actually successful
-      if (actionResponse && actionResponse.success === false) {
-        // For failed operations, we still want to update the UI with the failed status
-        // Don't throw an error, just mark it as failed
-      }
-
-      // Update local state for both public and user servers
+      // Update local state
       setPublicServers(prevServers => {
         if (!prevServers) return prevServers;
         return prevServers.map(server => {
           if (server.name === serverName) {
-            // Handle connection status from backend or set default based on action
             let newConnectionStatus = updatedServer?.connectionStatus;
-            
-            // If the operation failed, set status to FAILED
+
             if (actionResponse && actionResponse.success === false) {
               newConnectionStatus = 'FAILED';
             } else if (!newConnectionStatus) {
-              // Set default status based on action
-              newConnectionStatus = action === 'activate' ? 'CONNECTED' : 'DISCONNECTED';
+              newConnectionStatus = 'CONNECTED';
             } else {
-              // Ensure connection status is uppercase to match UI expectations
               newConnectionStatus = newConnectionStatus.toUpperCase();
             }
-            
+
             return {
               ...server,
               connectionStatus: newConnectionStatus,
-              tools: (action === 'deactivate' || newConnectionStatus === 'FAILED') ? [] : (updatedServer?.tools || server.tools),
+              tools: newConnectionStatus === 'FAILED' ? [] : (updatedServer?.tools || server.tools),
               updated_at: new Date().toISOString()
             };
           }
@@ -186,24 +329,20 @@ function McpPageContent() {
         if (!prevServers) return prevServers;
         return prevServers.map(server => {
           if (server.name === serverName) {
-            // Handle connection status from backend or set default based on action
             let newConnectionStatus = updatedServer?.connectionStatus;
-            
-            // If the operation failed, set status to FAILED
+
             if (actionResponse && actionResponse.success === false) {
               newConnectionStatus = 'FAILED';
             } else if (!newConnectionStatus) {
-              // Set default status based on action
-              newConnectionStatus = action === 'activate' ? 'CONNECTED' : 'DISCONNECTED';
+              newConnectionStatus = 'CONNECTED';
             } else {
-              // Ensure connection status is uppercase to match UI expectations
               newConnectionStatus = newConnectionStatus.toUpperCase();
             }
-            
+
             return {
               ...server,
               connectionStatus: newConnectionStatus,
-              tools: (action === 'deactivate' || newConnectionStatus === 'FAILED') ? [] : (updatedServer?.tools || server.tools),
+              tools: newConnectionStatus === 'FAILED' ? [] : (updatedServer?.tools || server.tools),
               updated_at: new Date().toISOString()
             };
           }
@@ -211,7 +350,6 @@ function McpPageContent() {
         });
       });
 
-      // Return the response data so the UI can show the appropriate message
       return actionResponse;
     } catch (error) {
       throw error;
