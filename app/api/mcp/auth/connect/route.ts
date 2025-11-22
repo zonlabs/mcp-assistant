@@ -68,7 +68,14 @@ export async function POST(request: NextRequest) {
 
       // Connection successful, save client to session store
       sessionStore.setClient(sessionId, client);
-      console.log('[Connect API] Connection successful, sessionId:', sessionId);
+
+      // If serverName is provided, also store the server-to-session mapping
+      if (serverName) {
+        sessionStore.setServerSession(serverName, sessionId);
+        console.log('[Connect API] Connection successful, sessionId:', sessionId, 'server:', serverName);
+      } else {
+        console.log('[Connect API] Connection successful, sessionId:', sessionId);
+      }
 
       return NextResponse.json({
         success: true,

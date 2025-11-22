@@ -201,10 +201,17 @@ function McpPageContent() {
         // Step 3: Fetch tools from connected server
         let tools: unknown[] = [];
         if (connectResult.success && connectResult.sessionId) {
+          console.log('[MCP Connect] Fetching tools for sessionId:', connectResult.sessionId);
           const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);
+          console.log('[MCP Connect] Tools response status:', toolsResponse.status);
+
           if (toolsResponse.ok) {
             const toolsResult = await toolsResponse.json();
             tools = toolsResult.tools || [];
+            console.log('[MCP Connect] Received', tools.length, 'tools');
+          } else {
+            const errorData = await toolsResponse.json();
+            console.error('[MCP Connect] Failed to fetch tools:', errorData);
           }
         }
 
@@ -436,6 +443,55 @@ function McpPageContent() {
       );
     });
   };
+
+  // Handle OAuth callback redirect
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const step = searchParams.get('step');
+    const sessionId = searchParams.get('sessionId');
+    const serverName = searchParams.get('server');
+
+    if (step === 'success' && sessionId && serverName) {
+      // OAuth authorization completed, now fetch tools and update state
+      console.log('[OAuth Callback] Fetching tools for', serverName, 'sessionId:', sessionId);
+
+      fetch(`/api/mcp/tool/list?sessionId=${sessionId}`)
+        .then(res => res.json())
+        .then(data => {
+          const tools = data.tools || [];
+          console.log('[OAuth Callback] Received tools:', tools.length);
+
+          // Update server state with connection status and tools
+          const updateServer = (server: McpServer) => {
+            if (server.name === serverName) {
+              return {
+                ...server,
+                connectionStatus: 'CONNECTED',
+                tools: tools,
+                updated_at: new Date().toISOString()
+              };
+            }
+            return server;
+          };
+
+          setPublicServers(prev => prev ? prev.map(updateServer) : prev);
+          setUserServers(prev => prev ? prev.map(updateServer) : prev);
+
+          toast.success(`Connected to ${serverName} successfully`);
+
+          // Clean up URL
+          window.history.replaceState({}, '', '/mcp');
+        })
+        .catch(error => {
+          console.error('[OAuth Callback] Failed to fetch tools:', error);
+          toast.error('Connected but failed to fetch tools');
+        });
+    } else if (step === 'error') {
+      const errorMsg = searchParams.get('error') || 'OAuth authorization failed';
+      toast.error(errorMsg);
+      window.history.replaceState({}, '', '/mcp');
+    }
+  }, []);
 
   useEffect(() => {
     fetchPublicServers();

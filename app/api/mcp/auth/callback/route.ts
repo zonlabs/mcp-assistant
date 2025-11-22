@@ -79,6 +79,12 @@ async function handleCallback(request: NextRequest) {
       await client.finishAuth(code);
       console.log('[Callback] OAuth authorization completed successfully');
 
+      // Store server-to-session mapping if serverName is provided
+      if (serverName) {
+        sessionStore.setServerSession(serverName, sessionId);
+        console.log('[Callback] Stored server-to-session mapping:', serverName, '->', sessionId);
+      }
+
       // Redirect back to MCP page with success parameters
       const successUrl = new URL('/mcp', request.url);
       successUrl.searchParams.set('step', 'success');

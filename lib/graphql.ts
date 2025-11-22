@@ -39,13 +39,42 @@ export const MCP_SERVER_FRAGMENT = `
   ${TOOL_INFO_FRAGMENT}
 `;
 
+/**
+ * Lightweight MCP Server fragment WITHOUT connection status and tools
+ *
+ * Connection status and tools are now managed by Next.js session store,
+ * not Django backend. Use this fragment for all server queries.
+ */
+export const MCP_SERVER_CONFIG_FRAGMENT = `
+  fragment McpServerConfigFields on MCPServerType {
+    id
+    name
+    transport
+    url
+    command
+    category {
+      id
+      name
+      slug
+    }
+    args
+    enabled
+    description
+    requiresOauth2
+    updatedAt
+    createdAt
+    owner
+    isPublic
+  }
+`;
+
 export const MCP_SERVERS_QUERY = `
 query McpServers($first: Int = 10, $after: String, $order: MCPServerOrder, $filters: MCPServerFilter) {
   mcpServers(first: $first, after: $after, order: $order, filters: $filters) {
     totalCount
     edges {
       node {
-        ...McpServerFields 
+        ...McpServerConfigFields
       }
       cursor
     }
@@ -57,7 +86,7 @@ query McpServers($first: Int = 10, $after: String, $order: MCPServerOrder, $filt
     }
   }
 }
-${MCP_SERVER_FRAGMENT}
+${MCP_SERVER_CONFIG_FRAGMENT}
 `;
 
 /**
@@ -195,10 +224,10 @@ export const RESTART_MCP_SERVER_MUTATION = `
 export const USER_MCP_SERVERS_QUERY = `
   query GetUserMcpServers {
     getUserMcpServers {
-      ...McpServerFields
+      ...McpServerConfigFields
     }
   }
-  ${MCP_SERVER_FRAGMENT}
+  ${MCP_SERVER_CONFIG_FRAGMENT}
 `;
 
 export const CATEGORIES_QUERY = `

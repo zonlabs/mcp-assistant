@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const sessionId = searchParams.get('sessionId');
 
+    console.log('[List Tools] Request received for sessionId:', sessionId);
+
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Session ID is required' },
@@ -39,6 +41,7 @@ export async function GET(request: NextRequest) {
     // Retrieve client from session store
     const client = sessionStore.getClient(sessionId);
     if (!client) {
+      console.log('[List Tools] Client not found for sessionId:', sessionId);
       return NextResponse.json(
         { error: 'Invalid session ID or session expired' },
         { status: 404 }
@@ -47,12 +50,15 @@ export async function GET(request: NextRequest) {
 
     try {
       // List tools from the MCP server
+      console.log('[List Tools] Fetching tools from MCP server...');
       const result = await client.listTools();
+      console.log('[List Tools] Found', result.tools.length, 'tools');
 
       return NextResponse.json({
         tools: result.tools,
       });
     } catch (error: unknown) {
+      console.log('[List Tools] Error fetching tools:', error);
       if (error instanceof Error) {
         return NextResponse.json(
           { error: `Failed to list tools: ${error.message}` },
@@ -65,6 +71,7 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error: unknown) {
+    console.log('[List Tools] Unexpected error:', error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
