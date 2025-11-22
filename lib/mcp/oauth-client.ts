@@ -117,20 +117,40 @@ export class MCPOAuthClient {
    * @param authCode - Authorization code from OAuth callback
    */
   async finishAuth(authCode: string): Promise<void> {
-    if (!this.client || !this.oauthProvider) {
-      throw new Error('Client not initialized');
+    if (!this.oauthProvider) {
+      throw new Error('OAuth provider not initialized');
     }
 
-    if (!this.transport) {
-      throw new Error('Transport not initialized. Call connect() first.');
+    console.log('[OAuth Client] Finishing OAuth authorization...');
+
+    // Complete the OAuth flow - this exchanges the code for tokens
+    // This updates the OAuth provider with valid tokens
+    if (this.transport) {
+      await this.transport.finishAuth(authCode);
+      console.log('[OAuth Client] OAuth tokens exchanged successfully');
     }
 
-    // Just finish the auth - the transport and client are already connected
-    // The transport will automatically use the new tokens for future requests
-    await this.transport.finishAuth(authCode);
+    // Now create a fresh client and transport with the authenticated OAuth provider
+    // The old client/transport were in a partial state from the failed initial connection
+    console.log('[OAuth Client] Creating new authenticated client...');
 
-    // The client is already connected, no need to call connect() again
-    console.log('[OAuth Client] OAuth authorization completed');
+    this.client = new Client(
+      {
+        name: 'nextjs-oauth-client',
+        version: '1.0.0',
+      },
+      { capabilities: {} }
+    );
+
+    const baseUrl = new URL(this.serverUrl);
+    this.transport = new StreamableHTTPClientTransport(baseUrl, {
+      authProvider: this.oauthProvider,
+    });
+
+    // Now connect with authenticated transport
+    console.log('[OAuth Client] Connecting with authenticated transport...');
+    await this.client.connect(this.transport);
+    console.log('[OAuth Client] MCP session established, client ready');
   }
 
   /**

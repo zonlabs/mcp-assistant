@@ -95,6 +95,20 @@ export default function ToolExecutionPanel({
         return;
       }
 
+      // Get sessionId from localStorage
+      const connectionData = localStorage.getItem('mcp_connections');
+      let sessionId: string | null = null;
+
+      if (connectionData) {
+        try {
+          const connections = JSON.parse(connectionData);
+          const serverConnection = connections[server.name];
+          sessionId = serverConnection?.sessionId || null;
+        } catch (e) {
+          console.error('Failed to parse connection data:', e);
+        }
+      }
+
       // Call the API endpoint
       const response = await fetch('/api/mcp/call-tool', {
         method: 'POST',
@@ -104,7 +118,8 @@ export default function ToolExecutionPanel({
         body: JSON.stringify({
           serverName: server.name,
           toolName: tool.name,
-          toolInput
+          toolInput,
+          sessionId // Pass sessionId to backend
         })
       });
 

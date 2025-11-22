@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import McpClientLayout from "@/components/mcp-client/McpClientLayout";
 import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
 import { McpServer } from "@/types/mcp";
+import { connectionStore } from "@/lib/mcp/connection-store";
 
 function McpPageContent() {
   const { data: session } = useSession();
@@ -41,7 +42,26 @@ function McpPageContent() {
       const pageInfo = json?.data?.mcpServers?.pageInfo;
       const totalCount = json?.data?.mcpServers?.totalCount || 0;
 
-      setPublicServers(servers);
+      // Merge with stored connection state from localStorage
+      const storedConnections = connectionStore.getAll();
+      const mergedServers = servers.map((server: McpServer) => {
+        const stored = storedConnections[server.name];
+        if (stored && stored.connectionStatus === 'CONNECTED') {
+          return {
+            ...server,
+            connectionStatus: stored.connectionStatus,
+            tools: stored.tools,
+          };
+        }
+        // If not in localStorage, it's disconnected
+        return {
+          ...server,
+          connectionStatus: server.connectionStatus || 'DISCONNECTED',
+          tools: server.tools || [],
+        };
+      });
+
+      setPublicServers(mergedServers);
       setPublicServersCount(totalCount);
       setHasNextPage(pageInfo?.hasNextPage ?? false);
       setEndCursor(pageInfo?.endCursor ?? null);
@@ -94,8 +114,28 @@ function McpPageContent() {
       const json = await res.json();
       if (!res.ok) throw new Error(json?.errors?.[0]?.message || res.statusText);
       const userServersList = json?.data?.getUserMcpServers ?? [];
-      setUserServers(userServersList);
-      setUserServersCount(userServersList.length);
+
+      // Merge with stored connection state from localStorage
+      const storedConnections = connectionStore.getAll();
+      const mergedServers = userServersList.map((server: McpServer) => {
+        const stored = storedConnections[server.name];
+        if (stored && stored.connectionStatus === 'CONNECTED') {
+          return {
+            ...server,
+            connectionStatus: stored.connectionStatus,
+            tools: stored.tools,
+          };
+        }
+        // If not in localStorage, it's disconnected
+        return {
+          ...server,
+          connectionStatus: server.connectionStatus || 'DISCONNECTED',
+          tools: server.tools || [],
+        };
+      });
+
+      setUserServers(mergedServers);
+      setUserServersCount(mergedServers.length);
       // toast.success("Your servers loaded successfully");
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Failed to load your servers";
@@ -215,6 +255,16 @@ function McpPageContent() {
           }
         }
 
+        // Store connection in localStorage
+        if (connectResult.success && connectResult.sessionId) {
+          connectionStore.set(serverName, {
+            sessionId: connectResult.sessionId,
+            connectionStatus: 'CONNECTED',
+            tools: tools,
+          });
+          console.log('[MCP Connect] Stored connection in localStorage');
+        }
+
         // Update local state
         const updateServer = (server: McpServer) => {
           if (server.name === serverName) {
@@ -254,6 +304,10 @@ function McpPageContent() {
         if (!response.ok || result.errors) {
           throw new Error(result.errors?.[0]?.message || 'Deactivation failed');
         }
+
+        // Remove from localStorage
+        connectionStore.remove(serverName);
+        console.log('[MCP Deactivate] Removed connection from localStorage');
 
         // Update local state
         const updateServer = (server: McpServer) => {
@@ -460,6 +514,14 @@ function McpPageContent() {
         .then(data => {
           const tools = data.tools || [];
           console.log('[OAuth Callback] Received tools:', tools.length);
+
+          // Store connection in localStorage BEFORE cleaning up URL
+          connectionStore.set(serverName, {
+            sessionId: sessionId,
+            connectionStatus: 'CONNECTED',
+            tools: tools,
+          });
+          console.log('[OAuth Callback] Stored connection in localStorage');
 
           // Update server state with connection status and tools
           const updateServer = (server: McpServer) => {
