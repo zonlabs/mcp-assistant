@@ -72,8 +72,9 @@ export default function ToolExecutionPanel({
     return null;
   };
 
-  const schema = tool ? parseSchema(tool.schema) : null;
-  const schemaProperties = schema?.properties || {};
+  const inputSchema = tool ? parseSchema((tool as any).inputSchema) : null;
+  const outputSchema = tool ? parseSchema((tool as any).outputSchema) : null;
+  const schemaProperties = inputSchema?.properties || {};
 
   const handleCall = async () => {
     if (!tool) {
@@ -269,36 +270,57 @@ export default function ToolExecutionPanel({
             </div>
           ) : (
             <>
-              {/* Schema Info */}
-              {schema && (
-            <div>
-              <label className="text-sm font-medium">Schema</label>
-              <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
-                <SyntaxHighlighter
-                  language="json"
-                  style={atomOneDark}
-                  customStyle={{
-                    margin: 0,
-                    padding: '12px',
-                    fontSize: '11px',
-                    borderRadius: '6px'
-                  }}
-                >
-                  {JSON.stringify(schema, null, 2)}
-                </SyntaxHighlighter>
-              </div>
-              {Object.keys(schemaProperties).length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generateExampleInput}
-                  className="mt-2 cursor-pointer w-full"
-                >
-                  Generate Example Input
-                </Button>
+              {/* Input Schema */}
+              {inputSchema && (
+                <div>
+                  <label className="text-sm font-medium">Input Schema</label>
+                  <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
+                    <SyntaxHighlighter
+                      language="json"
+                      style={atomOneDark}
+                      customStyle={{
+                        margin: 0,
+                        padding: '12px',
+                        fontSize: '11px',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      {JSON.stringify(inputSchema, null, 2)}
+                    </SyntaxHighlighter>
+                  </div>
+                  {Object.keys(schemaProperties).length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={generateExampleInput}
+                      className="mt-2 cursor-pointer w-full"
+                    >
+                      Generate Example Input
+                    </Button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
+
+              {/* Output Schema */}
+              {outputSchema && (
+                <div>
+                  <label className="text-sm font-medium">Output Schema</label>
+                  <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
+                    <SyntaxHighlighter
+                      language="json"
+                      style={atomOneDark}
+                      customStyle={{
+                        margin: 0,
+                        padding: '12px',
+                        fontSize: '11px',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      {JSON.stringify(outputSchema, null, 2)}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
+              )}
 
           {/* Input */}
           <div>
@@ -345,7 +367,7 @@ export default function ToolExecutionPanel({
                 {result.result ? (
                   <div className="mt-2 rounded-md border border-slate-700 w-full min-w-0 overflow-hidden">
                     <p className="text-xs font-semibold text-gray-300 dark:text-gray-400 px-3 pt-3">Response:</p>
-                    <div className="max-h-48 overflow-x-auto overflow-y-auto scrollbar-minimal w-2xl">
+                    <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-minimal w-2xl">
                       <SyntaxHighlighter
                         language="json"
                         style={atomOneDark}
@@ -357,7 +379,7 @@ export default function ToolExecutionPanel({
                           minWidth: 'min-content'
                         }}
                       >
-                        {typeof result.result === 'string' && result.result.startsWith('{')
+                        {typeof result.result === 'string'
                           ? result.result
                           : JSON.stringify(result.result, null, 2)}
                       </SyntaxHighlighter>

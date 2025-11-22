@@ -60,6 +60,27 @@ export async function POST(request: NextRequest) {
       // Call the tool on the MCP server
       const result = await client.callTool(toolName, toolInput || {});
 
+      // Extract clean content from MCP format
+      let cleanResult: any = result.content;
+
+      // Handle MCP format: [{ type: "text", text: "..." }]
+      if (Array.isArray(result.content)) {
+        const textContents = result.content
+          .filter((item: any) => item.type === 'text' && item.text)
+          .map((item: any) => item.text)
+          .join('\n\n');
+
+        if (textContents) {
+          // Try to parse as JSON
+          try {
+            cleanResult = JSON.parse(textContents);
+          } catch {
+            // Not JSON, use plain text
+            cleanResult = textContents;
+          }
+        }
+      }
+
       return NextResponse.json({
         data: {
           callMcpServerTool: {
@@ -67,7 +88,7 @@ export async function POST(request: NextRequest) {
             message: `Tool ${toolName} executed successfully`,
             toolName,
             serverName,
-            result: result.content,
+            result: cleanResult,
             error: null
           }
         }
