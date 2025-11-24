@@ -24,6 +24,7 @@ export interface UseMcpToolsReturn {
 
 /**
  * Hook to get all active MCP servers and their tools from connection store
+ * OAuth headers are fetched from server-side session and kept in memory only (not localStorage)
  */
 export function useMcpTools(): UseMcpToolsReturn {
   const [mcpServers, setMcpServers] = useState<McpServerWithTools[]>([]);
@@ -61,51 +62,39 @@ export function useMcpTools(): UseMcpToolsReturn {
         return;
       }
 
-      // Fetch server metadata from GraphQL to get transport, url, headers
-      const response = await fetch('/api/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: `
-            query {
-              mcpServers(first: 100) {
-                edges {
-                  node {
-                    name
-                    transport
-                    url
-                  }
-                }
-              }
+      // Fetch tools and OAuth headers for each server in a single API call
+      const serversWithData = await Promise.all(
+        connectedServers.map(async ([serverName, connection]) => {
+          let tools = connection.tools || [];
+          let headers = null;
+
+          // Fetch tools and headers from /api/mcp/tool/list (single call)
+          try {
+            const response = await fetch(`/api/mcp/tool/list?sessionId=${connection.sessionId}`);
+            if (response.ok) {
+              const data = await response.json();
+              // Update tools and headers from API response
+              tools = data.tools || tools;
+              headers = data.headers || null;
             }
-          `,
-        }),
-      });
+          } catch (error) {
+            console.error(`[useMcpTools] Failed to fetch tools/headers for ${serverName}:`, error);
+          }
 
-      const result = await response.json();
-      const serverMetadata = result?.data?.mcpServers?.edges?.map((e: any) => e.node) || [];
+          return {
+            serverName,
+            sessionId: connection.sessionId,
+            connectionStatus: connection.connectionStatus,
+            tools,
+            connectedAt: connection.connectedAt,
+            transport: connection.transport, // Get from localStorage
+            url: connection.url, // Get from localStorage
+            headers, // Headers fetched from server, kept in memory only
+          };
+        })
+      );
 
-      // Create a map for quick lookup
-      const metadataMap = new Map(serverMetadata.map((s: any) => [s.name, s]));
-
-      // Merge connection data with server metadata
-      const servers: McpServerWithTools[] = connectedServers.map(([serverName, connection]) => {
-        const metadata = metadataMap.get(serverName);
-        return {
-          serverName,
-          sessionId: connection.sessionId,
-          connectionStatus: connection.connectionStatus,
-          tools: connection.tools || [],
-          connectedAt: connection.connectedAt,
-          transport: metadata?.transport,
-          url: metadata?.url,
-          headers: null, // TODO: Get headers from server metadata if needed
-        };
-      });
-
-      setMcpServers(servers);
+      setMcpServers(serversWithData);
     } catch (error) {
       console.error('[useMcpTools] Failed to load MCP servers:', error);
       setMcpServers([]);
@@ -116,12 +105,7 @@ export function useMcpTools(): UseMcpToolsReturn {
 
   useEffect(() => {
     loadMcpServers();
-
-    // Refresh every 5 seconds to catch connection changes
-    const interval = setInterval(loadMcpServers, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
+  }, []); // Run once on mount only
 
   return {
     mcpServers,

@@ -408,20 +408,31 @@ export default function McpClientLayout({
   // Calculate total active (connected) servers count from connectionStore
   const [activeServersCount, setActiveServersCount] = useState(0);
 
-  // Validate and count active connections
+  // Function to count connected servers from localStorage
+  const updateActiveCount = () => {
+    const connections = connectionStore.getAll();
+    const connectedCount = Object.values(connections).filter(
+      conn => conn.connectionStatus === 'CONNECTED'
+    ).length;
+    setActiveServersCount(connectedCount);
+  };
+
+  // Validate connections on mount only
   useEffect(() => {
     const validateAndCount = async () => {
       // Get valid connections (validates sessions and cleans up expired ones)
-      const validServerNames = await connectionStore.getValidConnections();
-      setActiveServersCount(validServerNames.length);
+      await connectionStore.getValidConnections();
+      // Count after validation
+      updateActiveCount();
     };
 
     validateAndCount();
+  }, []); // Run once on mount only
 
-    // Re-validate every 30 seconds to keep count accurate
-    const interval = setInterval(validateAndCount, 30000);
-    return () => clearInterval(interval);
-  }, [publicServers, userServers]); // Re-validate when servers update
+  // Update count when servers change (connect/disconnect)
+  useEffect(() => {
+    updateActiveCount();
+  }, [publicServers, userServers]); // Recount when server lists change
 
   if (currentError) {
     return (
@@ -1043,20 +1054,6 @@ export default function McpClientLayout({
                                       <span className="font-medium whitespace-nowrap">Connected At:</span>
                                       <span className="text-muted-foreground text-xs">
                                         {new Date(connection.connectedAt).toLocaleString('en-US', {
-                                          month: 'short',
-                                          day: 'numeric',
-                                          year: 'numeric',
-                                          hour: 'numeric',
-                                          minute: '2-digit'
-                                        })}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {connection.lastChecked && (
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <span className="font-medium whitespace-nowrap">Last Checked:</span>
-                                      <span className="text-muted-foreground text-xs">
-                                        {new Date(connection.lastChecked).toLocaleString('en-US', {
                                           month: 'short',
                                           day: 'numeric',
                                           year: 'numeric',

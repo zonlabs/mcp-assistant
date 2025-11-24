@@ -11,7 +11,10 @@ export interface StoredConnection {
   connectionStatus: string;
   tools: any[];
   connectedAt: string;
-  lastChecked?: string;
+  transport?: string;
+  url?: string;
+  // Note: OAuth headers are NOT stored in localStorage for security
+  // They are fetched from the server-side session on demand
 }
 
 const STORAGE_KEY = 'mcp_connections';
@@ -76,7 +79,6 @@ class ConnectionStore {
         ...connection,
         serverName,
         connectedAt: connection.connectedAt || new Date().toISOString(),
-        lastChecked: new Date().toISOString(),
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
@@ -99,7 +101,6 @@ class ConnectionStore {
     this.set(serverName, {
       ...existing,
       ...updates,
-      lastChecked: new Date().toISOString(),
     });
   }
 

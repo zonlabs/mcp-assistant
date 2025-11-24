@@ -23,16 +23,16 @@ function McpPageContent() {
   const [endCursor, setEndCursor] = useState<string | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Validate and cleanup expired sessions on mount
-  useEffect(() => {
-    const validateSessions = async () => {
-      console.log('[MCP Page] Validating stored sessions...');
-      const validServers = await connectionStore.validateAllAndCleanup();
-      console.log('[MCP Page] Valid sessions:', validServers);
-    };
+  // // Validate and cleanup expired sessions on mount
+  // useEffect(() => {
+  //   const validateSessions = async () => {
+  //     console.log('[MCP Page] Validating stored sessions...');
+  //     const validServers = await connectionStore.getValidConnections();
+  //     console.log('[MCP Page] Valid sessions:', validServers);
+  //   };
 
-    validateSessions();
-  }, []); // Run once on mount
+  //   validateSessions();
+  // }, []); // Run once on mount
 
   const fetchPublicServers = async (reset = true) => {
     if (reset) {
@@ -303,6 +303,8 @@ function McpPageContent() {
             sessionId: connectResult.sessionId,
             connectionStatus: 'CONNECTED',
             tools: tools,
+            transport: serverConfig.transport,
+            url: serverConfig.url,
           });
           console.log('[MCP Connect] Stored connection in localStorage');
         }
@@ -463,47 +465,83 @@ function McpPageContent() {
     const serverName = searchParams.get('server');
 
     if (step === 'success' && sessionId && serverName) {
-      // OAuth authorization completed, now fetch tools and update state
-      console.log('[OAuth Callback] Fetching tools for', serverName, 'sessionId:', sessionId);
+      // OAuth authorization completed, fetch server config then tools
+      console.log('[OAuth Callback] Processing OAuth callback for', serverName, 'sessionId:', sessionId);
 
-      fetch(`/api/mcp/tool/list?sessionId=${sessionId}`)
+      // First, fetch server config to get transport and url
+      fetch('/api/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: `
+            query($name: String!) {
+              mcpServers(filters: { name: { exact: $name } }) {
+                edges {
+                  node {
+                    name
+                    transport
+                    url
+                  }
+                }
+              }
+            }
+          `,
+          variables: { name: serverName }
+        }),
+      })
         .then(res => res.json())
-        .then(data => {
-          const tools = data.tools || [];
-          console.log('[OAuth Callback] Received tools:', tools.length);
+        .then(configResult => {
+          const serverConfig = configResult.data?.mcpServers?.edges?.[0]?.node;
 
-          // Store connection in localStorage BEFORE cleaning up URL
-          connectionStore.set(serverName, {
-            sessionId: sessionId,
-            connectionStatus: 'CONNECTED',
-            tools: tools,
-          });
-          console.log('[OAuth Callback] Stored connection in localStorage');
+          if (!serverConfig) {
+            throw new Error('Server configuration not found');
+          }
 
-          // Update server state with connection status and tools
-          const updateServer = (server: McpServer) => {
-            if (server.name === serverName) {
-              return {
-                ...server,
+          // Now fetch tools
+          return fetch(`/api/mcp/tool/list?sessionId=${sessionId}`)
+            .then(res => res.json())
+            .then(data => {
+              const tools = data.tools || [];
+              console.log('[OAuth Callback] Received tools:', tools.length);
+
+              // Store connection in localStorage with transport and url
+              connectionStore.set(serverName, {
+                sessionId: sessionId,
                 connectionStatus: 'CONNECTED',
                 tools: tools,
-                updated_at: new Date().toISOString()
+                transport: serverConfig.transport,
+                url: serverConfig.url,
+              });
+              console.log('[OAuth Callback] Stored connection in localStorage with transport:', serverConfig.transport);
+
+              // Update server state with connection status and tools
+              const updateServer = (server: McpServer) => {
+                if (server.name === serverName) {
+                  return {
+                    ...server,
+                    connectionStatus: 'CONNECTED',
+                    tools: tools,
+                    updated_at: new Date().toISOString()
+                  };
+                }
+                return server;
               };
-            }
-            return server;
-          };
 
-          setPublicServers(prev => prev ? prev.map(updateServer) : prev);
-          setUserServers(prev => prev ? prev.map(updateServer) : prev);
+              setPublicServers(prev => prev ? prev.map(updateServer) : prev);
+              setUserServers(prev => prev ? prev.map(updateServer) : prev);
 
-          toast.success(`Connected to ${serverName} successfully`);
+              toast.success(`Connected to ${serverName} successfully`);
 
-          // Clean up URL
-          window.history.replaceState({}, '', '/mcp');
+              // Clean up URL
+              window.history.replaceState({}, '', '/mcp');
+            });
         })
         .catch(error => {
-          console.error('[OAuth Callback] Failed to fetch tools:', error);
-          toast.error('Connected but failed to fetch tools');
+          console.error('[OAuth Callback] Failed:', error);
+          toast.error('Connected but failed to fetch server data');
+          window.history.replaceState({}, '', '/mcp');
         });
     } else if (step === 'error') {
       const errorMsg = searchParams.get('error') || 'OAuth authorization failed';
