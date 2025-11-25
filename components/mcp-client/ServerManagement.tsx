@@ -25,7 +25,7 @@ import { McpServer } from "@/types/mcp";
 
 interface ServerManagementProps {
   server: McpServer;
-  onAction: (serverName: string, action: 'activate' | 'deactivate') => Promise<unknown>;
+  onAction: (server: McpServer, action: 'activate' | 'deactivate') => Promise<unknown>;
   onEdit?: (server: McpServer) => void;
   onDelete?: (serverName: string) => void;
 }
@@ -37,7 +37,7 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
     setLoading(action);
 
     try {
-      const result = await onAction(server.name, action);
+      const result = await onAction(server, action);
 
       // Use the actual message from the response data if available
       // const message = (result && typeof result === 'object' && 'message' in result && typeof result.message === 'string')

@@ -8,18 +8,30 @@ The implementation consists of three main components:
 
 ### 1. Session Management (`session-store.ts`)
 
-Manages MCP client instances with unique session IDs:
+Manages MCP client instances with unique session IDs using a hybrid storage approach:
 
 ```typescript
 import { sessionStore } from '@/lib/mcp';
 
 const sessionId = sessionStore.generateSessionId();
-sessionStore.setClient(sessionId, client);
-const client = sessionStore.getClient(sessionId);
-sessionStore.removeClient(sessionId); // Disconnects and removes
+await sessionStore.setClient(sessionId, client);
+const client = await sessionStore.getClient(sessionId);
+await sessionStore.removeClient(sessionId); // Disconnects and removes
+
+// Check Redis connection status
+const isRedisActive = sessionStore.isRedisConnected();
 ```
 
-**Note**: This is an in-memory implementation. For production, use Redis or a database.
+**Storage Strategy:**
+- **Production (with Redis)**: Sessions persist with 24-hour TTL, survive server restarts
+- **Development (no Redis)**: Falls back to in-memory storage, cleared on restart
+- Client connections always stay in memory (cannot be serialized)
+- Redis stores session metadata: sessionId, timestamps, server mappings
+
+**Environment Variable:**
+```bash
+REDIS_URL=redis://localhost:6379/1  # Optional - auto-falls back to in-memory
+```
 
 ### 2. OAuth Provider (`oauth-provider.ts`)
 
@@ -267,27 +279,35 @@ This implementation replaces the GraphQL-based MCP connection management with di
 
 ## Production Considerations
 
-1. **Session Storage**: Replace in-memory session store with Redis:
-   ```typescript
-   // Use Redis to store session data
-   await redis.set(`mcp:session:${sessionId}`, JSON.stringify(clientData));
-   ```
+1. **Session Storage**: ✅ **Implemented** - Redis-backed session store with automatic fallback
+   - Set `REDIS_URL` environment variable to enable Redis persistence
+   - Sessions automatically expire after 24 hours (TTL-based)
+   - Graceful fallback to in-memory when Redis unavailable
+   - Client connections stay in memory, metadata in Redis
 
 2. **OAuth State**: Persist OAuth tokens and client information in a database
+   - Currently stored in-memory via `InMemoryOAuthClientProvider`
+   - Consider implementing database-backed OAuth provider for multi-server deployments
 
 3. **Error Handling**: Add retry logic and exponential backoff for failed connections
+   - Redis reconnection with exponential backoff (50ms to 2s)
+   - Connection errors logged with detailed context
 
 4. **Security**:
    - Validate callback URLs to prevent open redirects
    - Implement CSRF protection for OAuth flows
    - Add rate limiting to API endpoints
+   - Use separate Redis databases for backend (db 0) and frontend (db 1)
 
 5. **Monitoring**: Add logging and metrics for connection status and tool calls
+   - Session store logs connection status: ✅, ⚠️, ❌
+   - Track Redis health via `sessionStore.isRedisConnected()`
 
 ## Dependencies
 
 - `@modelcontextprotocol/sdk` - Core MCP SDK with OAuth support
 - `next` - Next.js framework for API routes
+- `ioredis` - Redis client for session persistence (optional, auto-falls back to in-memory)
 
 ## References
 

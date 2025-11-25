@@ -167,67 +167,30 @@ function McpPageContent() {
     }
   }, [session]);
 
-  const handleServerAction = async (serverName: string, action: 'activate' | 'deactivate') => {
+  const handleServerAction = async (server: McpServer, action: 'activate' | 'deactivate') => {
     try {
       // Handle activate action directly with MCP connect API
       if (action === 'activate') {
-        // Step 1: Fetch server config from GraphQL
-        const configResponse = await fetch('/api/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: `
-              query GetServerConfig($name: String!) {
-                mcpServers(filters: { name: { exact: $name } }, first: 1) {
-                  edges {
-                    node {
-                      id
-                      name
-                      transport
-                      url
-                      command
-                      args
-                      requiresOauth2
-                      description
-                      isPublic
-                      owner
-                    }
-                  }
-                }
-              }
-            `,
-            variables: { name: serverName }
-          }),
-        });
-
-        const configResult = await configResponse.json();
-        const serverConfig = configResult.data?.mcpServers?.edges?.[0]?.node;
-
-        if (!serverConfig) {
-          throw new Error('Server not found');
-        }
-
-        if (!serverConfig.url) {
+        // Use server data directly from the argument
+        if (!server.url) {
           throw new Error('Server URL is required');
         }
 
         // For now, only support stdio and websocket via GraphQL
         // HTTP-based transports (sse, streamable_http) need proper server implementation
-        if (serverConfig.transport === 'stdio' || serverConfig.transport === 'websocket') {
-          throw new Error(`Transport type '${serverConfig.transport}' must use the Django GraphQL connection. HTTP-based connection only supports servers with proper SSE/HTTP streaming endpoints.`);
+        if (server.transport === 'stdio' || server.transport === 'websocket') {
+          throw new Error(`Transport type '${server.transport}' must use the Django GraphQL connection. HTTP-based connection only supports servers with proper SSE/HTTP streaming endpoints.`);
         }
 
         // Normalize URL based on transport type
-        let normalizedUrl = serverConfig.url;
+        let normalizedUrl = server.url;
 
-        if (serverConfig.transport === 'sse') {
+        if (server.transport === 'sse') {
           // SSE transport requires /sse endpoint - ensure it's present
           if (!normalizedUrl.endsWith('/sse')) {
             normalizedUrl = normalizedUrl + '/sse';
           }
-        } else if (serverConfig.transport === 'streamable_http') {
+        } else if (server.transport === 'streamable_http') {
           // StreamableHTTP uses the base URL - remove /sse or /message suffix if present
           if (normalizedUrl.endsWith('/sse')) {
             normalizedUrl = normalizedUrl.slice(0, -4);
@@ -236,9 +199,9 @@ function McpPageContent() {
           }
         }
 
-        console.log('[MCP Connect] Server:', serverName);
-        console.log('[MCP Connect] Transport:', serverConfig.transport);
-        console.log('[MCP Connect] Original URL:', serverConfig.url);
+        console.log('[MCP Connect] Server:', server.name);
+        console.log('[MCP Connect] Transport:', server.transport);
+        console.log('[MCP Connect] Original URL:', server.url);
         console.log('[MCP Connect] Normalized URL:', normalizedUrl);
 
         // Step 2: Connect to MCP server
@@ -251,8 +214,8 @@ function McpPageContent() {
           body: JSON.stringify({
             serverUrl: normalizedUrl,
             callbackUrl: callbackUrl,
-            serverName: serverName, // Pass server name so it can be included in OAuth state
-            transportType: serverConfig.transport, // Pass transport type (sse, streamable_http, etc.)
+            serverName: server.name, // Pass server name so it can be included in OAuth state
+            transportType: server.transport, // Pass transport type (sse, streamable_http, etc.)
           }),
         });
 
@@ -270,7 +233,7 @@ function McpPageContent() {
         }
 
         // Step 3: Fetch tools from connected server
-        let tools: unknown[] = [];
+        let tools: any[] = [];
         if (connectResult.success && connectResult.sessionId) {
           console.log('[MCP Connect] Fetching tools for sessionId:', connectResult.sessionId);
           const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);
@@ -288,27 +251,27 @@ function McpPageContent() {
 
         // Store connection in localStorage
         if (connectResult.success && connectResult.sessionId) {
-          connectionStore.set(serverName, {
+          connectionStore.set(server.name, {
             sessionId: connectResult.sessionId,
             connectionStatus: 'CONNECTED',
             tools: tools,
-            transport: serverConfig.transport,
-            url: serverConfig.url,
+            transport: server.transport,
+            url: server.url,
           });
           console.log('[MCP Connect] Stored connection in localStorage');
         }
 
         // Update local state
-        const updateServer = (server: McpServer) => {
-          if (server.name === serverName) {
+        const updateServer = (s: McpServer) => {
+          if (s.name === server.name) {
             return {
-              ...server,
+              ...s,
               connectionStatus: 'CONNECTED',
               tools: tools,
               updated_at: new Date().toISOString()
             };
           }
-          return server;
+          return s;
         };
 
         setPublicServers(prev => prev ? prev.map(updateServer) : prev);
@@ -319,8 +282,18 @@ function McpPageContent() {
 
       // Handle deactivate action directly with MCP disconnect API
       if (action === 'deactivate') {
-        // We don't have the sessionId on frontend, so we'll use the actions endpoint for now
-        // In a real implementation, we'd need to track sessionIds on the frontend too
+        // Get sessionId from localStorage
+        const connectionInfo = connectionStore.get(server.name);
+
+        if (!connectionInfo || !connectionInfo.sessionId) {
+          throw new Error('Connection information not found. Server may already be disconnected.');
+        }
+
+        // Use serverUrl from the server object argument
+        if (!server.url) {
+          throw new Error('Server URL is required');
+        }
+
         const response = await fetch('/api/mcp/actions', {
           method: 'POST',
           headers: {
@@ -328,7 +301,9 @@ function McpPageContent() {
           },
           body: JSON.stringify({
             action: 'deactivate',
-            serverName
+            serverName: server.name,
+            sessionId: connectionInfo.sessionId,
+            serverUrl: server.url,
           }),
         });
 
@@ -339,20 +314,20 @@ function McpPageContent() {
         }
 
         // Remove from localStorage
-        connectionStore.remove(serverName);
+        connectionStore.remove(server.name);
         console.log('[MCP Deactivate] Removed connection from localStorage');
 
         // Update local state
-        const updateServer = (server: McpServer) => {
-          if (server.name === serverName) {
+        const updateServer = (s: McpServer) => {
+          if (s.name === server.name) {
             return {
-              ...server,
+              ...s,
               connectionStatus: 'DISCONNECTED',
               tools: [],
               updated_at: new Date().toISOString()
             };
           }
-          return server;
+          return s;
         };
 
         setPublicServers(prev => prev ? prev.map(updateServer) : prev);
