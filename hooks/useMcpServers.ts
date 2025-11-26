@@ -11,7 +11,7 @@ interface McpServersData {
   error: string | null;
   refresh: () => Promise<void>;
   updateServer: (serverId: string, updates: Partial<McpServer>) => void;
-  handleServerAction: (serverName: string, action: 'activate' | 'deactivate') => Promise<void>;
+  handleServerAction: (server: McpServer, action: 'activate' | 'deactivate') => Promise<void>;
   handleServerAdd: (data: any) => Promise<void>;
   handleServerUpdate: (data: any) => Promise<void>;
   handleServerDelete: (serverName: string) => Promise<void>;
@@ -73,7 +73,7 @@ export function useMcpServers(session: Session | null): McpServersData {
   }, []);
 
   // Handle server actions (activate/deactivate)
-  const handleServerAction = useCallback(async (serverName: string, action: 'activate' | 'deactivate') => {
+  const handleServerAction = useCallback(async (server: McpServer, action: 'activate' | 'deactivate') => {
     try {
       const response = await fetch('/api/mcp/actions', {
         method: "POST",
@@ -82,7 +82,7 @@ export function useMcpServers(session: Session | null): McpServersData {
         },
         body: JSON.stringify({
           action,
-          serverName
+          serverName: server.name
         }),
       });
 
@@ -114,24 +114,24 @@ export function useMcpServers(session: Session | null): McpServersData {
       // Update local state
       setServers(prevServers => {
         if (!prevServers) return prevServers;
-        return prevServers.map(server => {
-          if (server.name === serverName) {
+        return prevServers.map(s => {
+          if (s.name === server.name) {
             const updatedServer = result.data?.connectMcpServer || result.data?.disconnectMcpServer;
             const newConnectionStatus = updatedServer?.connectionStatus ||
               (action === 'activate' ? 'CONNECTED' : 'DISCONNECTED');
 
             return {
-              ...server,
+              ...s,
               connectionStatus: newConnectionStatus,
-              tools: (action === 'deactivate' || newConnectionStatus === 'FAILED') ? [] : (updatedServer?.tools || server.tools),
+              tools: (action === 'deactivate' || newConnectionStatus === 'FAILED') ? [] : (updatedServer?.tools || s.tools),
               updatedAt: new Date().toISOString()
             };
           }
-          return server;
+          return s;
         });
       });
 
-      // toast.success(`Server ${serverName} ${action}d successfully`);
+      // toast.success(`Server ${server.name} ${action}d successfully`);
     } catch (error) {
       toast.error(`Failed to ${action} server`);
       throw error;

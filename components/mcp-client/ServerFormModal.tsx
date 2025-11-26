@@ -127,7 +127,7 @@ export default function ServerFormModal({
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && server) {
-        const categoryIds = server.categories ? server.categories.map((cat: any) => cat.id) : [];
+        const categoryIds = server.category ? [server.category.id] : [];
         setSelectedCategoryIds(categoryIds);
         reset({
           name: server.name,

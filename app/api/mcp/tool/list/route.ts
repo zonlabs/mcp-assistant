@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       // Also fetch OAuth headers if they exist
       let headers = null;
       try {
-        const oauthProvider = (client as any).oauthProvider;
+        const oauthProvider = (client as unknown as { oauthProvider?: { tokens: () => { access_token?: string } } }).oauthProvider;
         if (oauthProvider) {
           const tokens = oauthProvider.tokens();
           if (tokens && tokens.access_token) {

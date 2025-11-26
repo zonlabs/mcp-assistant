@@ -61,13 +61,13 @@ export async function POST(request: NextRequest) {
       const result = await client.callTool(toolName, toolInput || {});
 
       // Extract clean content from MCP format
-      let cleanResult: any = result.content;
+      let cleanResult: unknown = result.content;
 
       // Handle MCP format: [{ type: "text", text: "..." }]
       if (Array.isArray(result.content)) {
         const textContents = result.content
-          .filter((item: any) => item.type === 'text' && item.text)
-          .map((item: any) => item.text)
+          .filter((item: { type?: string; text?: string }) => item.type === 'text' && item.text)
+          .map((item: { type?: string; text?: string }) => item.text)
           .join('\n\n');
 
         if (textContents) {

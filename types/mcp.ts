@@ -1,7 +1,9 @@
 export type ToolInfo = {
   name: string;
   description: string;
-  schema: any; // JSON type from Strawberry
+  schema?: unknown; // JSON type from Strawberry
+  inputSchema?: unknown;
+  outputSchema?: unknown;
 };
 
 export type Category = {
@@ -25,7 +27,6 @@ export type McpServer = {
   url?: string | null;
   command?: string | null;
   args?: any | null;
-  enabled: boolean;
   requiresOauth2: boolean;
   isPublic?: boolean;
   connectionStatus?: string | null;

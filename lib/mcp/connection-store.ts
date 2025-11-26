@@ -5,11 +5,13 @@
  * to maintain state across page reloads.
  */
 
+import { ToolInfo } from '@/types/mcp';
+
 export interface StoredConnection {
   sessionId: string;
   serverName: string;
   connectionStatus: string;
-  tools: any[];
+  tools: ToolInfo[];
   connectedAt: string;
   transport?: string;
   url?: string;

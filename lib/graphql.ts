@@ -26,7 +26,6 @@ export const MCP_SERVER_FRAGMENT = `
       slug
     }
     args
-    enabled
     description
     requiresOauth2
     updatedAt
@@ -55,7 +54,6 @@ export const MCP_SERVER_CONFIG_FRAGMENT = `
       slug
     }
     args
-    enabled
     description
     requiresOauth2
     updatedAt
@@ -144,15 +142,6 @@ export const DISCONNECT_MCP_SERVER_MUTATION = `
   ${MCP_SERVER_FRAGMENT}
 `;
 
-export const SET_MCP_SERVER_ENABLED_MUTATION = `
-  mutation SetServerEnabled($serverName: String!, $enabled: Boolean!) {
-    setMcpServerEnabled(name: $serverName, enabled: $enabled) {
-     ...McpServerFields
-    }
-  }
-  ${MCP_SERVER_FRAGMENT}
-`;
-
 export const SAVE_MCP_SERVER_MUTATION = `
   mutation SaveMcpServer(
     $name: String!
@@ -187,7 +176,6 @@ export const SAVE_MCP_SERVER_MUTATION = `
     url
     command
     args
-    enabled
     requiresOauth2
     updatedAt
     createdAt

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { connectionStore, StoredConnection } from '@/lib/mcp/connection-store';
-import { ToolInfo, McpServerConfig } from '@/types/mcp';
+import { ToolInfo } from '@/types/mcp';
 
 export interface McpServerWithTools {
   serverName: string;

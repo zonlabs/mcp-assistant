@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 import McpClientLayout from "@/components/mcp-client/McpClientLayout";
 import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
-import { McpServer } from "@/types/mcp";
+import { McpServer, ToolInfo } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
 
 function McpPageContent() {
@@ -233,7 +233,7 @@ function McpPageContent() {
         }
 
         // Step 3: Fetch tools from connected server
-        let tools: any[] = [];
+        let tools: ToolInfo[] = [];
         if (connectResult.success && connectResult.sessionId) {
           console.log('[MCP Connect] Fetching tools for sessionId:', connectResult.sessionId);
           const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);

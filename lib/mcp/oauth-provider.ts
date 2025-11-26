@@ -53,8 +53,8 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
   /**
    * Returns the OAuth state parameter (used to pass sessionId through OAuth flow)
    */
-  state(): string | undefined {
-    return this._state;
+  state(): string {
+    return this._state || '';
   }
 
   /**

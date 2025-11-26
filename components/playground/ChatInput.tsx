@@ -110,7 +110,7 @@ export default function ChatInput({
   const [editingAssistantId, setEditingAssistantId] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [deletingAssistant, setDeletingAssistant] = useState<Assistant | null>(null);
-  const [assistantFormData, setAssistantFormData] = useState({
+  const [assistantFormData, setAssistantFormData] = useState<AssistantFormData>({
     name: "",
     description: "",
     instructions: "",
@@ -119,8 +119,6 @@ export default function ChatInput({
       max_tokens: 2000,
       temperature: 0.7,
       datetime_context: true,
-      llm_provider: undefined,
-      llm_api_key: undefined,
     }
   });
 

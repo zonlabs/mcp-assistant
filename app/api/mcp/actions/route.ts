@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import {
-  SET_MCP_SERVER_ENABLED_MUTATION,
-} from "@/lib/graphql";
 
 // Import session store for disconnect
 import { sessionStore } from "@/lib/mcp/session-store";
@@ -19,51 +16,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, serverName, enabled, sessionId, serverUrl } = body;
-
-    // Handle setEnabled with GraphQL
-    if (action === 'setEnabled') {
-      let mutation = '';
-      let variables: Record<string, unknown> = {};
-
-      switch (action) {
-        case 'setEnabled':
-          mutation = SET_MCP_SERVER_ENABLED_MUTATION;
-          variables = { serverName, enabled };
-          break;
-      }
-
-      const headers: Record<string, string> = {
-        "content-type": "application/json",
-      };
-
-      if (token) {
-        headers.authorization = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${origin}/api/graphql`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          query: mutation,
-          variables
-        }),
-      });
-
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        await response.text();
-        throw new Error("Backend server returned invalid response");
-      }
-
-      const result = await response.json();
-
-      if (!response.ok || result.errors) {
-        throw new Error(result.errors?.[0]?.message || 'Action failed');
-      }
-
-      return NextResponse.json(result);
-    }
+    const { action, serverName, sessionId, serverUrl } = body;
 
     // Handle deactivate with session store
     if (action === 'deactivate') {

@@ -105,7 +105,6 @@ export default function McpClientLayout({
   const [editingServer, setEditingServer] = useState<McpServer | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serverToDelete, setServerToDelete] = useState<string | null>(null);
-  const [toggleLoading, setToggleLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'public' | 'user'>('public');
   const [urlCopied, setUrlCopied] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -210,72 +209,6 @@ export default function McpClientLayout({
       await onServerAdd(data);
     } else {
       await onServerUpdate(data);
-    }
-  };
-
-  const handleToggleEnabled = async (serverName: string, currentEnabled: boolean) => {
-    if (!session) {
-      toast.error("Please sign in to control context inclusion");
-      return;
-    }
-
-    // Set loading state
-    setToggleLoading(serverName);
-
-    // Find the server to get its ID
-    const server = currentServers?.find(s => s.name === serverName);
-    if (!server) {
-      setToggleLoading(null);
-      toast.error("Server not found");
-      return;
-    }
-
-    // Optimistically update both selected server and servers list
-    if (selectedServer && selectedServer.name === serverName) {
-      setSelectedServer(prev => prev ? { ...prev, enabled: !currentEnabled } : null);
-    }
-
-    // Update servers list locally based on active tab
-    if (activeTab === 'public') {
-      onUpdatePublicServer(server.id, { enabled: !currentEnabled });
-    } else {
-      onUpdateUserServer(server.id, { enabled: !currentEnabled });
-    }
-
-    try {
-      // Call the server action to toggle enabled status
-      const response = await fetch("/api/mcp/actions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "setEnabled",
-          serverName: serverName,
-          enabled: !currentEnabled,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to toggle server status");
-      }
-
-      const result = await response.json();
-      toast.success(result.message || `Server ${!currentEnabled ? "enabled" : "disabled"} successfully`);
-    } catch {
-      // Revert optimistic updates on error
-      if (selectedServer && selectedServer.name === serverName) {
-        setSelectedServer(prev => prev ? { ...prev, enabled: currentEnabled } : null);
-      }
-      if (activeTab === 'public') {
-        onUpdatePublicServer(server.id, { enabled: currentEnabled });
-      } else {
-        onUpdateUserServer(server.id, { enabled: currentEnabled });
-      }
-      toast.error("Failed to toggle server status");
-    } finally {
-      // Clear loading state
-      setToggleLoading(null);
     }
   };
 
@@ -505,7 +438,7 @@ export default function McpClientLayout({
                         className="hidden dark:block"
                       />
                     </div>
-                    <span className="font-medium text-sm">MCP's</span>
+                    <span className="font-medium text-sm">MCP&apos;s</span>
                     {activeServersCount > 0 && (
                       <div className="flex items-center gap-1.5 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -923,34 +856,14 @@ export default function McpClientLayout({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <h2 className="text-xl sm:text-2xl font-semibold">{selectedServer.name}</h2>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="flex items-center gap-2"
-                              title={!session ? "Sign in to control context inclusion" : ""}
-                            >
-                              <Switch
-                                checked={selectedServer.enabled}
-                                onCheckedChange={() => handleToggleEnabled(selectedServer.name, selectedServer.enabled)}
-                                disabled={!session || toggleLoading === selectedServer.name}
-                                id="server-enabled"
-                                className="cursor-pointer"
-                              />
-                              {toggleLoading === selectedServer.name && (
-                                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                              )}
-                              <label htmlFor="server-enabled" className="text-xs text-muted-foreground cursor-pointer">
-                                {toggleLoading === selectedServer.name ? "Updating..." : (selectedServer.enabled ? "Included in context" : "Excluded from context")}
-                              </label>
-                            </div>
-                          </div>
                         </div>
 
                         <div className="flex items-center gap-2">
                           <ServerManagement
                             server={selectedServer}
                             onAction={onServerAction}
-                            onEdit={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email) ? handleEditServer : undefined}
-                            onDelete={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email) ? handleDeleteServer : undefined}
+                            onEdit={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email?.split('@')[0]) ? handleEditServer : undefined}
+                            onDelete={!(selectedServer.isPublic && selectedServer.owner !== session?.user?.email?.split('@')[0]) ? handleDeleteServer : undefined}
                           />
                         </div>
                       </div>
