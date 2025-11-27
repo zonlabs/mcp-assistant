@@ -83,10 +83,7 @@ export default function ServerFormModal({
       edges: Array<{ node: Category }>;
     };
   }>(GET_CATEGORIES, {
-    // variables: {
-    //   first: 8, // Show first 8 categories
-    // },
-    fetchPolicy: "cache-and-network", // Always fetch fresh data while showing cached
+    fetchPolicy: "cache-and-network",
   });
 
   const {
@@ -127,7 +124,7 @@ export default function ServerFormModal({
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && server) {
-        const categoryIds = server.category ? [server.category.id] : [];
+        const categoryIds = server.categories ? server.categories.map(cat => cat.id) : [];
         setSelectedCategoryIds(categoryIds);
         reset({
           name: server.name,

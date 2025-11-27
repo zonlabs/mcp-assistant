@@ -310,11 +310,9 @@ export default function McpClientLayout({
     if (debouncedSearch.trim() || activeCategory) {
       // Merge search results with localStorage connection state
       const storedConnections = connectionStore.getAll();
-      console.log('[Search/Filter] Stored connections:', Object.keys(storedConnections));
       return searchResults.map((server: McpServer) => {
         const stored = storedConnections[server.name];
         if (stored && stored.connectionStatus === 'CONNECTED') {
-          console.log('[Search/Filter] Merging connection state for:', server.name);
           return {
             ...server,
             connectionStatus: stored.connectionStatus,

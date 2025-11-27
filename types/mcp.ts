@@ -21,7 +21,7 @@ export type McpServer = {
   id: string;
   name: string;
   description?: string | null;
-  category?: Category | null;
+  categories?: Category[] | null;
   transport: string;
   owner?: string | null;
   url?: string | null;
