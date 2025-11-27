@@ -170,13 +170,14 @@ class ConnectionStore {
   /**
    * Validate a connection by checking if its sessionId is still active on the backend
    * Removes the connection from localStorage if invalid
+   * Returns the tools and headers data if valid, null if invalid
    */
-  async validateConnection(serverName: string): Promise<boolean> {
-    if (typeof window === 'undefined') return false;
+  async validateConnection(serverName: string): Promise<{ tools: any[], headers: any } | null> {
+    if (typeof window === 'undefined') return null;
 
     const connection = this.get(serverName);
     if (!connection || !connection.sessionId) {
-      return false;
+      return null;
     }
 
     try {
@@ -187,40 +188,45 @@ class ConnectionStore {
         // Session is invalid, remove from localStorage
         console.log(`[ConnectionStore] Session expired for ${serverName}, cleaning up...`);
         this.remove(serverName);
-        return false;
+        return null;
       }
 
-      return true;
+      // Parse and return the data for reuse
+      const data = await response.json();
+      return {
+        tools: data.tools || [],
+        headers: data.headers || null
+      };
     } catch (error) {
       console.error('[ConnectionStore] Failed to validate session:', error);
       // On error, assume session is invalid and clean up
       this.remove(serverName);
-      return false;
+      return null;
     }
   }
 
   /**
    * Get all valid connections (validates and cleans up expired ones)
-   * Returns a list of valid server names
+   * Returns a map of valid server names to their tools/headers data
    */
-  async getValidConnections(): Promise<string[]> {
+  async getValidConnections(): Promise<Map<string, { tools: any[], headers: any }>> {
     const connections = this.getAll();
-    const validServers: string[] = [];
+    const validServersData = new Map<string, { tools: any[], headers: any }>();
 
     // Validate all connections in parallel
     const validationPromises = Object.keys(connections).map(async (serverName) => {
-      const isValid = await this.validateConnection(serverName);
-      if (isValid) {
-        validServers.push(serverName);
+      const data = await this.validateConnection(serverName);
+      if (data) {
+        validServersData.set(serverName, data);
       }
-      return { serverName, isValid };
+      return { serverName, isValid: !!data };
     });
 
     await Promise.all(validationPromises);
 
-    console.log('[ConnectionStore] Validated connections. Valid:', validServers.length, 'Total:', Object.keys(connections).length);
+    console.log('[ConnectionStore] Validated connections. Valid:', validServersData.size, 'Total:', Object.keys(connections).length);
 
-    return validServers;
+    return validServersData;
   }
 }
 

@@ -37,62 +37,37 @@ export function useMcpTools(): UseMcpToolsReturn {
     }
 
     try {
-      // First, validate all stored connections and clean up expired ones
-      const validServerNames = await connectionStore.getValidConnections();
+      // Validate all stored connections and get tools/headers data in one call
+      // This returns Map<serverName, {tools, headers}>
+      const validServersData = await connectionStore.getValidConnections();
 
-      if (validServerNames.length === 0) {
+      if (validServersData.size === 0) {
         setMcpServers([]);
         setLoading(false);
         return;
       }
 
-      // Get all connections again (after cleanup)
+      // Get all connections (after cleanup from validation)
       const connections = connectionStore.getAll();
 
-      // Filter connected servers that are also valid
-      const connectedServers = Object.entries(connections)
-        .filter(([serverName, connection]) =>
-          connection.connectionStatus === 'CONNECTED' &&
-          validServerNames.includes(serverName)
-        );
+      // Build servers with data from validation (no additional API calls needed)
+      const serversWithData = Array.from(validServersData.entries()).map(([serverName, data]) => {
+        const connection = connections[serverName];
+        if (!connection || connection.connectionStatus !== 'CONNECTED') {
+          return null;
+        }
 
-      if (connectedServers.length === 0) {
-        setMcpServers([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch tools and OAuth headers for each server in a single API call
-      const serversWithData = await Promise.all(
-        connectedServers.map(async ([serverName, connection]) => {
-          let tools = connection.tools || [];
-          let headers = null;
-
-          // Fetch tools and headers from /api/mcp/tool/list (single call)
-          try {
-            const response = await fetch(`/api/mcp/tool/list?sessionId=${connection.sessionId}`);
-            if (response.ok) {
-              const data = await response.json();
-              // Update tools and headers from API response
-              tools = data.tools || tools;
-              headers = data.headers || null;
-            }
-          } catch (error) {
-            console.error(`[useMcpTools] Failed to fetch tools/headers for ${serverName}:`, error);
-          }
-
-          return {
-            serverName,
-            sessionId: connection.sessionId,
-            connectionStatus: connection.connectionStatus,
-            tools,
-            connectedAt: connection.connectedAt,
-            transport: connection.transport, // Get from localStorage
-            url: connection.url, // Get from localStorage
-            headers, // Headers fetched from server, kept in memory only
-          };
-        })
-      );
+        return {
+          serverName,
+          sessionId: connection.sessionId,
+          connectionStatus: connection.connectionStatus,
+          tools: data.tools, // Tools from validation call
+          connectedAt: connection.connectedAt,
+          transport: connection.transport,
+          url: connection.url,
+          headers: data.headers, // Headers from validation call
+        };
+      }).filter((server): server is McpServerWithTools => server !== null);
 
       setMcpServers(serversWithData);
     } catch (error) {
