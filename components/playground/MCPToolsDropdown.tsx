@@ -25,7 +25,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
   showDropdown,
   setShowDropdown
 }) => {
-  const { mcpServers, loading } = useMcpTools();
+  const { mcpServers, loading, loadMcpServers } = useMcpTools();
 
   // Local state for checkboxes (synced with parent)
   const [localSelection, setLocalSelection] = useState<MCPToolSelection>(selection);
@@ -150,10 +150,21 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
 
   const hasSelectedTools = selectedToolsCount > 0;
 
+  // Handle MCP button click - toggle dropdown and loadMcpServers tools
+  const handleMcpButtonClick = () => {
+    const newShowState = !showDropdown;
+    setShowDropdown(newShowState);
+
+    // Only loadMcpServers when opening the dropdown
+    if (newShowState) {
+      loadMcpServers();
+    }
+  };
+
   return (
     <div className="relative">
       <button
-        onClick={() => setShowDropdown(!showDropdown)}
+        onClick={handleMcpButtonClick}
         className={`flex items-center justify-center gap-1.5 px-2 py-1.5 border-2 rounded-lg transition-all duration-200 ${
           hasSelectedTools
             ? "border-gray-400 dark:border-zinc-500 bg-gray-100 dark:bg-zinc-800 hover:border-gray-500 dark:hover:border-zinc-400"
@@ -194,11 +205,11 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
 
       {showDropdown && (
         <>
-          <div className="absolute bottom-full mb-2 left-0 md:left-0 bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-700/50 rounded-2xl shadow-2xl backdrop-blur-xl z-50 w-full md:min-w-[380px] md:max-w-[450px] max-h-[60vh] overflow-hidden">
+          <div className="absolute bottom-full mb-2 left-0 md:left-0 bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-700/50 rounded-2xl shadow-2xl backdrop-blur-xl z-50 w-full md:min-w-[300px] md:max-w-[340px] max-h-[60vh] overflow-hidden">
 
             {/* Header with count and actions */}
-            <div className="px-4 py-3 border-b border-gray-200/80 dark:border-zinc-700/50 bg-gray-50/50 dark:bg-zinc-800/30">
-              <div className="flex items-center justify-between mb-2">
+            <div className="px-3 py-2.5 border-b border-gray-200/80 dark:border-zinc-700/50 bg-gray-50/50 dark:bg-zinc-800/30">
+              <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <Settings2 className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                   <span className="text-xs font-semibold text-gray-900 dark:text-white">
@@ -208,69 +219,69 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={selectAll}
-                    className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-2 py-1 rounded hover:bg-gray-200/50 dark:hover:bg-zinc-700/50"
+                    className="text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-2 py-0.5 rounded hover:bg-gray-200/50 dark:hover:bg-zinc-700/50"
                   >
-                    Select All
+                    select all
                   </button>
                   <span className="text-gray-300 dark:text-gray-600">|</span>
                   <button
                     onClick={deselectAll}
-                    className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-2 py-1 rounded hover:bg-gray-200/50 dark:hover:bg-zinc-700/50"
+                    className="text-[11px] font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-2 py-0.5 rounded hover:bg-gray-200/50 dark:hover:bg-zinc-700/50"
                   >
-                    Deselect All
+                    deselect all
                   </button>
                 </div>
               </div>
               {/* Count display */}
               <div className="text-[10px] text-gray-600 dark:text-gray-400">
-                {selectedToolsCount} of {totalToolsCount} tools selected ({selectedServersCount} servers)
+                {selectedToolsCount}/{totalToolsCount} tools • {selectedServersCount} servers
               </div>
             </div>
 
             {/* MCP Servers and Tools List */}
             <div className="overflow-y-auto max-h-[50vh] scrollbar-minimal">
               {loading ? (
-                <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="p-3 text-center text-xs text-gray-500 dark:text-gray-400">
                   Loading MCP servers...
                 </div>
               ) : mcpServers.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="p-3 text-center text-xs text-gray-500 dark:text-gray-400">
                   No active MCP servers connected.
                   <br />
-                  <span className="text-xs">Connect servers from the MCP page first.</span>
+                  <span className="text-[10px]">Connect servers from the MCP page first.</span>
                 </div>
               ) : (
-                <div className="p-2">
+                <div className="p-1.5">
                   {mcpServers.map((server) => {
                     const serverToolNames = server.tools.map(t => t.name);
                     const selectedToolsInServer = serverToolNames.filter(t => localSelection.selectedTools.includes(t)).length;
                     const allToolsSelected = serverToolNames.length > 0 && serverToolNames.every(t => localSelection.selectedTools.includes(t));
 
                     return (
-                      <div key={server.serverName} className="mb-3 last:mb-0">
+                      <div key={server.serverName} className="mb-2 last:mb-0">
                         {/* Server Header */}
-                        <div className="mb-2">
+                        <div className="mb-1">
                           <button
                             onClick={() => toggleServer(server.serverName)}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+                            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
                           >
                             {/* Server Checkbox */}
                             {allToolsSelected ? (
-                              <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                              <CheckCircle className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                             ) : selectedToolsInServer > 0 ? (
-                              <Circle className="w-4 h-4 text-blue-400 dark:text-blue-500 fill-blue-200 dark:fill-blue-900 flex-shrink-0" />
+                              <Circle className="w-3.5 h-3.5 text-blue-400 dark:text-blue-500 fill-blue-200 dark:fill-blue-900 flex-shrink-0" />
                             ) : (
-                              <Circle className="w-4 h-4 text-gray-400 dark:text-gray-600 flex-shrink-0" />
+                              <Circle className="w-3.5 h-3.5 text-gray-400 dark:text-gray-600 flex-shrink-0" />
                             )}
 
                             {/* Server Info */}
                             <div className="flex-1 text-left">
-                              <div className="flex items-center gap-2">
-                                <Server className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
-                                <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                              <div className="flex items-center gap-1.5">
+                                <Server className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                                <span className="text-[11px] font-semibold text-gray-900 dark:text-white truncate">
                                   {server.serverName}
                                 </span>
-                                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                <span className="text-[9px] text-gray-500 dark:text-gray-400">
                                   ({selectedToolsInServer}/{server.tools.length})
                                 </span>
                               </div>
@@ -278,7 +289,7 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
                           </button>
 
                           {/* Tools List */}
-                          <div className="ml-6 mt-2 space-y-1">
+                          <div className="ml-5 mt-1 space-y-0.5">
                             {server.tools.map((tool) => {
                               const isToolSelected = localSelection.selectedTools.includes(tool.name);
 
@@ -289,22 +300,22 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
                                     e.stopPropagation();
                                     toggleTool(tool.name);
                                   }}
-                                  className="w-full flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-all text-left"
+                                  className="w-full flex items-start gap-1.5 px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-all text-left"
                                 >
                                   {/* Tool Checkbox */}
                                   {isToolSelected ? (
-                                    <CheckCircle className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle className="w-3 h-3 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                                   ) : (
-                                    <Circle className="w-3.5 h-3.5 text-gray-400 dark:text-gray-600 mt-0.5 flex-shrink-0" />
+                                    <Circle className="w-3 h-3 text-gray-400 dark:text-gray-600 mt-0.5 flex-shrink-0" />
                                   )}
 
                                   {/* Tool Info */}
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-[11px] font-medium text-gray-900 dark:text-white truncate">
+                                    <div className="text-[10px] font-medium text-gray-900 dark:text-white truncate">
                                       {tool.name}
                                     </div>
                                     {tool.description && (
-                                      <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">
+                                      <div className="text-[9px] text-gray-500 dark:text-gray-400 line-clamp-1">
                                         {tool.description}
                                       </div>
                                     )}

@@ -19,7 +19,7 @@ export interface McpServerWithTools {
 export interface UseMcpToolsReturn {
   mcpServers: McpServerWithTools[];
   loading: boolean;
-  refresh: () => void;
+  loadMcpServers: () => void;
 }
 
 /**
@@ -78,13 +78,14 @@ export function useMcpTools(): UseMcpToolsReturn {
     }
   };
 
-  useEffect(() => {
-    loadMcpServers();
-  }, []); // Run once on mount only
+  // Don't load automatically on mount - let the dropdown trigger it
+  // useEffect(() => {
+  //   loadMcpServers();
+  // }, []);
 
   return {
     mcpServers,
     loading,
-    refresh: loadMcpServers,
+    loadMcpServers: loadMcpServers, // Expose this for manual triggering
   };
 }
