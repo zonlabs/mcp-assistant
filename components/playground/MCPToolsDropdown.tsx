@@ -148,11 +148,17 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
     onSelectionChange(newSelection);
   };
 
+  const hasSelectedTools = selectedToolsCount > 0;
+
   return (
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 border-2 border-gray-300 dark:border-zinc-600 hover:border-gray-400 dark:hover:border-zinc-500 rounded-lg transition-all duration-200"
+        className={`flex items-center justify-center gap-1.5 px-2 py-1.5 border-2 rounded-lg transition-all duration-200 ${
+          hasSelectedTools
+            ? "border-gray-400 dark:border-zinc-500 bg-gray-100 dark:bg-zinc-800 hover:border-gray-500 dark:hover:border-zinc-400"
+            : "border-gray-300 dark:border-zinc-700 hover:border-gray-400 dark:hover:border-zinc-500"
+        }`}
         title={`MCP Tools: ${selectedToolsCount} of ${totalToolsCount} tools selected`}
       >
         {/* MCP Logo */}
@@ -172,9 +178,18 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
             className="hidden dark:block"
           />
         </div>
-        <span className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300">
+        <span className={`text-[10px] sm:text-xs font-medium ${
+          hasSelectedTools
+            ? "text-gray-900 dark:text-white"
+            : "text-gray-700 dark:text-gray-300"
+        }`}>
           MCP
         </span>
+        {hasSelectedTools && (
+          <span className="text-[9px] sm:text-[10px] font-semibold text-gray-900 dark:text-white bg-gray-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded-full">
+            {selectedToolsCount}
+          </span>
+        )}
       </button>
 
       {showDropdown && (
@@ -182,10 +197,10 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
           <div className="absolute bottom-full mb-2 left-0 md:left-0 bg-white dark:bg-zinc-900 border border-gray-200/80 dark:border-zinc-700/50 rounded-2xl shadow-2xl backdrop-blur-xl z-50 w-full md:min-w-[380px] md:max-w-[450px] max-h-[60vh] overflow-hidden">
 
             {/* Header with count and actions */}
-            <div className="px-4 py-3 border-b border-gray-200/80 dark:border-zinc-700/50">
+            <div className="px-4 py-3 border-b border-gray-200/80 dark:border-zinc-700/50 bg-gray-50/50 dark:bg-zinc-800/30">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  <Settings2 className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                   <span className="text-xs font-semibold text-gray-900 dark:text-white">
                     MCP Servers
                   </span>
@@ -193,14 +208,14 @@ const MCPToolsDropdown: React.FC<MCPToolsDropdownProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={selectAll}
-                    className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-2 py-1 rounded hover:bg-gray-200/50 dark:hover:bg-zinc-700/50"
                   >
                     Select All
                   </button>
-                  <span className="text-gray-400">|</span>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
                   <button
                     onClick={deselectAll}
-                    className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-2 py-1 rounded hover:bg-gray-200/50 dark:hover:bg-zinc-700/50"
                   >
                     Deselect All
                   </button>

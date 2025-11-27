@@ -259,9 +259,9 @@ export class SessionStore {
     }
 
     // Tokens exist - restore authenticated connection
-    console.log(`🔐 Restoring OAuth tokens for session: ${sessionData.sessionId}`);
+    console.log(`🔐 Restoring OAuth session: ${sessionData.sessionId}`);
 
-    // Initialize OAuth provider WITHOUT connecting (expected to fail but initializes provider)
+    // Initialize provider (expected to fail, just creates the provider instance)
     try {
       await client.connect();
     } catch (err) {
@@ -269,42 +269,28 @@ export class SessionStore {
       console.log(`🔄 Initial connect failed (expected): ${err instanceof Error ? err.message : err}`);
     }
 
-    // Inject the stored OAuth tokens and config into the SAME provider
+    // Inject saved OAuth state into provider
     const oauthProvider = client.oauthProvider;
     if (!oauthProvider) {
-      throw new Error('OAuth provider not initialized after connect attempt');
+      throw new Error('OAuth provider not initialized');
     }
 
-    console.log(`💉 Injecting saved OAuth state into provider...`);
-
-    // CRITICAL: Inject client information FIRST (this has the correct client_id from the server)
     if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
       oauthProvider.saveClientInformation(sessionData.clientInformation);
-      console.log(`✅ OAuth client info injected: client_id=${sessionData.clientInformation.client_id}`);
     }
-
-    // Then inject tokens
     if (sessionData.tokens) {
       oauthProvider.saveTokens(sessionData.tokens);
-      console.log(`✅ OAuth tokens injected: access_token=${sessionData.tokens.access_token.substring(0, 20)}...`);
     }
-
-    // And code verifier if it exists
     if (sessionData.codeVerifier) {
       oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
     }
 
-    // Now reconnect using the authenticated provider (without creating a new provider)
-    console.log(`🔄 Reconnecting with authenticated provider (same instance)...`);
-
-    try {
-      // Use the new reconnectWithExistingProvider method that recreates
-      // the client and transport without creating a new OAuth provider
-      await client.reconnectWithExistingProvider();
-      console.log(`✅ OAuth state restored and connected: ${sessionData.sessionId}`);
+    // Reconnect with authenticated provider
+    try{
+      await client.reconnect();
+      console.log(`✅ OAuth session restored: ${sessionData.sessionId}`);
       return client;
     } catch (err) {
-      console.error(`❌ Failed to reconnect with restored tokens: ${err}`);
       throw err;
     }
   }

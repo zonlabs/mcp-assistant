@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Bot, Pencil, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import React from "react";
 
 const PROVIDERS = [
@@ -43,7 +44,7 @@ interface AssistantDialogProps {
   onOpenChange: (v: boolean) => void;
   formData: AssistantFormData;
   setFormData: (v: AssistantFormData) => void;
-  onSubmit: () => void;
+  onSubmit: (saveApiKey: boolean) => void;
   loading: boolean;
   handleCancel: () => void;
 }
@@ -66,6 +67,32 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
     : "Create a custom assistant with specific instructions to personalize your experience.";
   const submitButtonText = isEditMode ? "Update Assistant" : "Create Assistant";
   const loadingText = isEditMode ? "Updating..." : "Creating...";
+
+  // Local state for checkbox (checked = save to DB, unchecked = localStorage only)
+  const [saveApiKey, setSaveApiKey] = React.useState(true);
+
+  // Load API key from localStorage when dialog opens if no API key in formData
+  React.useEffect(() => {
+    if (open && !formData.config.llm_api_key) {
+      const provider = formData.config.llm_provider || "openai";
+      const storedKey = localStorage.getItem(`llm_api_key_${provider}`);
+
+      if (storedKey) {
+        setFormData({
+          ...formData,
+          config: {
+            ...formData.config,
+            llm_api_key: storedKey
+          }
+        });
+        setSaveApiKey(false); // If loaded from localStorage, checkbox should be unchecked
+      }
+    } else if (open && formData.config.llm_api_key) {
+      // If API key exists in formData (from DB), checkbox should be checked
+      setSaveApiKey(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, formData.config.llm_provider]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,12 +177,45 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
                 type="password"
                 placeholder="Enter your API key (optional)"
                 value={formData.config.llm_api_key || ""}
-                onChange={e => setFormData({ ...formData, config: { ...formData.config, llm_api_key: e.target.value } })}
+                onChange={e => {
+                  const newKey = e.target.value;
+                  setFormData({ ...formData, config: { ...formData.config, llm_api_key: newKey } });
+
+                  // Save to localStorage if checkbox is unchecked
+                  if (!saveApiKey && newKey) {
+                    const provider = formData.config.llm_provider || "openai";
+                    localStorage.setItem(`llm_api_key_${provider}`, newKey);
+                  }
+                }}
                 className="font-mono text-sm"
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Leave empty to use global LLM configuration
-              </p>
+
+              {/* Checkbox for API key storage preference */}
+              <div className="flex items-center space-x-2 pt-1">
+                <Checkbox
+                  id="save-api-key-db"
+                  checked={saveApiKey}
+                  onCheckedChange={(checked) => {
+                    setSaveApiKey(checked === true);
+
+                    // If switching to localStorage, save the current key
+                    if (checked === false && formData.config.llm_api_key) {
+                      const provider = formData.config.llm_provider || "openai";
+                      localStorage.setItem(`llm_api_key_${provider}`, formData.config.llm_api_key);
+                    } else if (checked === true) {
+                      // If switching to database, remove from localStorage
+                      const provider = formData.config.llm_provider || "openai";
+                      localStorage.removeItem(`llm_api_key_${provider}`);
+                    }
+                  }}
+                />
+                <Label
+                  htmlFor="save-api-key-db"
+                  className="text-xs font-normal cursor-pointer text-gray-600 dark:text-gray-400"
+                >
+                  If left unchecked, the API key will be stored locally in your browser's localStorage.
+                </Label>
+              </div>
             </div>
           </div>
 
@@ -238,7 +298,7 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
             Cancel
           </Button>
           <Button
-            onClick={onSubmit}
+            onClick={() => onSubmit(saveApiKey)}
             disabled={loading}
             className="flex-1 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >

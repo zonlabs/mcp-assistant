@@ -223,18 +223,16 @@ export class MCPOAuthClient {
   }
 
   /**
-   * Reconnect with existing OAuth provider (for session restoration)
-   * This recreates the client and transport without creating a new OAuth provider
-   * Similar to finishAuth but without exchanging a code
+   * Reconnect using existing OAuth provider
+   * Used for session restoration from Redis in serverless environments
+   * Recreates client and transport without creating a new OAuth provider
    */
-  async reconnectWithExistingProvider(): Promise<void> {
+  async reconnect(): Promise<void> {
     if (!this.oauthProvider) {
       throw new Error('OAuth provider not initialized');
     }
 
-    console.log('[OAuth Client] Reconnecting with existing authenticated provider...');
-
-    // Create a fresh client (the old one may be in a failed state)
+    // Create fresh client and transport with existing OAuth provider
     this.client = new Client(
       {
         name: 'mcp-assistant-oauth-client',
@@ -245,7 +243,6 @@ export class MCPOAuthClient {
 
     const baseUrl = new URL(this.serverUrl);
 
-    // Create new transport with the EXISTING OAuth provider (which has tokens)
     if (this.transportType === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
@@ -256,9 +253,7 @@ export class MCPOAuthClient {
       });
     }
 
-    // Connect with the authenticated transport
     await this.client.connect(this.transport);
-    console.log('[OAuth Client] Reconnected successfully with restored tokens');
   }
 
   /**

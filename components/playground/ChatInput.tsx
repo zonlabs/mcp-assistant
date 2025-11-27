@@ -74,6 +74,16 @@ export default function ChatInput({
     mcpConfig: {},
   });
 
+  // Get API key from localStorage if not in assistant config
+  const getApiKey = () => {
+    let apiKey = activeAssistant?.config?.llm_api_key;
+    if (!apiKey && activeAssistant?.config?.llm_provider && typeof window !== "undefined") {
+      const provider = activeAssistant.config.llm_provider;
+      apiKey = localStorage.getItem(`llm_api_key_${provider}`) || undefined;
+    }
+    return apiKey;
+  };
+
   const { state, setState } = useCoAgent<AgentState>({
     name: "mcpAssistant",
     initialState: {
@@ -84,7 +94,7 @@ export default function ChatInput({
       mcp_config: toolSelection.mcpConfig,
       selectedTools: toolSelection.selectedTools,
       llm_provider: activeAssistant?.config?.llm_provider,
-      llm_api_key: activeAssistant?.config?.llm_api_key,
+      llm_api_key: getApiKey(),
     },
   });
 
@@ -95,7 +105,7 @@ export default function ChatInput({
         ...state,
         assistant: activeAssistant,
         llm_provider: activeAssistant?.config?.llm_provider,
-        llm_api_key: activeAssistant?.config?.llm_api_key,
+        llm_api_key: getApiKey(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,31 +186,52 @@ export default function ChatInput({
       name: assistant.name,
       description: assistant.description || "",
       instructions: assistant.instructions,
-      config: assistant.config || {
-        ask_mode: false,
-        max_tokens: 2000,
-        temperature: 0.7,
-        datetime_context: true,
+      config: {
+        ask_mode: assistant.config?.ask_mode || false,
+        max_tokens: assistant.config?.max_tokens || 2000,
+        temperature: assistant.config?.temperature || 0.7,
+        datetime_context: assistant.config?.datetime_context !== undefined ? assistant.config.datetime_context : true,
+        llm_provider: assistant.config?.llm_provider,
+        llm_api_key: assistant.config?.llm_api_key,
       }
     });
     setDropdownState(null);
     setDialogState("assistant");
   };
 
-  const handleSubmitAssistant = async () => {
+  const handleSubmitAssistant = async (saveApiKey: boolean) => {
     if (!assistantFormData.name.trim() || !assistantFormData.instructions.trim()) {
       toast.error("Name and instructions are required");
       return;
     }
     setIsBusy(true);
     try {
+      // Handle API key storage based on checkbox
+      const configToSave = { ...assistantFormData.config };
+
+      if (!saveApiKey) {
+        // Save to localStorage only
+        if (configToSave.llm_api_key) {
+          const provider = configToSave.llm_provider || "openai";
+          localStorage.setItem(`llm_api_key_${provider}`, configToSave.llm_api_key);
+        }
+        // Don't send API key to database
+        configToSave.llm_api_key = undefined;
+      } else {
+        // Save to database - API key will be sent as-is
+        // Clear from localStorage
+        if (configToSave.llm_provider) {
+          localStorage.removeItem(`llm_api_key_${configToSave.llm_provider}`);
+        }
+      }
+
       if (assistantDialogMode === "create") {
         await createAssistant({
           name: assistantFormData.name,
           instructions: assistantFormData.instructions,
           description: assistantFormData.description || undefined,
           isActive: true, // Make new assistant active by default
-          config: assistantFormData.config,
+          config: configToSave,
         });
       } else {
         // Edit mode
@@ -209,7 +240,7 @@ export default function ChatInput({
             name: assistantFormData.name,
             instructions: assistantFormData.instructions,
             description: assistantFormData.description || undefined,
-            config: assistantFormData.config,
+            config: configToSave,
           });
         }
       }
