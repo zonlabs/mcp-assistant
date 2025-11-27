@@ -88,6 +88,14 @@ async function handleCallback(request: NextRequest) {
       // Complete OAuth authorization with the code
       await client.finishAuth(code);
 
+      // Re-save client with updated OAuth tokens (important for serverless!)
+      await sessionStore.setClient(
+        sessionId,
+        client,
+        serverUrl || client.getServerUrl(),
+        client.getCallbackUrl()
+      );
+
       // Store server-to-session mapping if serverUrl is provided
       // Use serverUrl as key since it's unique (serverName can be duplicate)
       if (serverUrl) {

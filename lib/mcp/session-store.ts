@@ -1,13 +1,31 @@
 import { MCPOAuthClient } from './oauth-client';
 import { Redis } from 'ioredis';
+import type { OAuthTokens, OAuthClientInformationMixed } from '@modelcontextprotocol/sdk/shared/auth.js';
+
+/**
+ * Serializable session data stored in Redis
+ */
+interface SessionData {
+  sessionId: string;
+  serverUrl: string;
+  callbackUrl: string;
+  transportType: 'sse' | 'streamable_http';
+  createdAt: number;
+  active: boolean;
+  // OAuth data (stored as JSON-serializable)
+  tokens?: OAuthTokens;
+  clientInformation?: OAuthClientInformationMixed;
+  codeVerifier?: string;
+}
 
 /**
  * Session store for managing MCP client instances
  *
  * Hybrid implementation:
- * - Uses Redis for session metadata (production)
+ * - Uses Redis to persist OAuth tokens and client config (production)
+ * - Recreates client connections from Redis data on serverless instances
  * - Falls back to in-memory when Redis is unavailable (development)
- * - Client connections always stay in memory (cannot be serialized)
+ * - Client connections are ephemeral (recreated per request in serverless)
  */
 export class SessionStore {
   private clients = new Map<string, MCPOAuthClient>();
@@ -69,21 +87,52 @@ export class SessionStore {
   /**
    * Store a client instance with a session ID
    */
-  async setClient(sessionId: string, client: MCPOAuthClient): Promise<void> {
+  async setClient(
+    sessionId: string,
+    client: MCPOAuthClient,
+    serverUrl?: string,
+    callbackUrl?: string,
+    transportType?: 'sse' | 'streamable_http'
+  ): Promise<void> {
     // Store client in memory (connections cannot be serialized)
     this.clients.set(sessionId, client);
 
-    // Store session metadata in Redis for persistence
+    // Store full session data in Redis for serverless persistence
     if (this.useRedis && this.redis) {
       try {
         const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
-        const metadata = {
+
+        // Extract OAuth data from client if available
+        let tokens, clientInformation, codeVerifier;
+        try {
+          const oauthProvider = client.oauthProvider;
+          if (oauthProvider) {
+            tokens = oauthProvider.tokens();
+            clientInformation = oauthProvider.clientInformation();
+            try {
+              codeVerifier = oauthProvider.codeVerifier();
+            } catch {
+              // codeVerifier might not be set yet
+            }
+          }
+        } catch (e) {
+          // OAuth provider might not be initialized yet
+        }
+
+        const sessionData: SessionData = {
           sessionId,
+          serverUrl: serverUrl || client.getServerUrl(),
+          callbackUrl: callbackUrl || client.getCallbackUrl(),
+          transportType: transportType || 'streamable_http',
           createdAt: Date.now(),
           active: true,
+          tokens,
+          clientInformation,
+          codeVerifier,
         };
-        await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(metadata));
-        console.log(`✅ Redis SET client metadata: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
+
+        await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
+        console.log(`✅ Redis SET client data: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
       } catch (error) {
         console.error('❌ Failed to store session in Redis:', error);
       }
@@ -94,34 +143,114 @@ export class SessionStore {
 
   /**
    * Retrieve a client instance by session ID
+   * If not in memory, attempts to recreate from Redis (for serverless)
    */
   async getClient(sessionId: string): Promise<MCPOAuthClient | null> {
-    const client = this.clients.get(sessionId) || null;
+    // Check in-memory cache first
+    let client = this.clients.get(sessionId) || null;
 
-    if (!client) {
-      console.log(`❓ Client not found in memory: sessionId=${sessionId}`);
-      return null;
+    if (client) {
+      console.log(`✅ In-memory GET client: sessionId=${sessionId}`);
+
+      // Verify session still exists in Redis
+      if (this.useRedis && this.redis) {
+        try {
+          const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
+          const exists = await this.redis.exists(sessionKey);
+          if (!exists) {
+            // Session expired in Redis, clean up in-memory client
+            console.log(`⚠️ Redis session expired, removing client: ${sessionKey}`);
+            this.clients.delete(sessionId);
+            return null;
+          }
+          // Refresh TTL on access
+          await this.redis.expire(sessionKey, this.SESSION_TTL);
+        } catch (error) {
+          console.error('❌ Failed to verify session in Redis:', error);
+        }
+      }
+
+      return client;
     }
 
-    // Verify session exists in Redis
+    // Client not in memory - try to recreate from Redis (serverless scenario)
     if (this.useRedis && this.redis) {
       try {
         const sessionKey = `${this.KEY_PREFIX}${sessionId}`;
-        const exists = await this.redis.exists(sessionKey);
-        if (!exists) {
-          // Session expired in Redis, clean up in-memory client
-          console.log(`⚠️ Redis session expired, removing client: ${sessionKey}`);
-          this.clients.delete(sessionId);
+        const sessionDataStr = await this.redis.get(sessionKey);
+
+        if (!sessionDataStr) {
+          console.log(`❓ Session not found in Redis: ${sessionKey}`);
           return null;
         }
-        // Refresh TTL on access
+
+        const sessionData: SessionData = JSON.parse(sessionDataStr);
+        console.log(`🔄 Recreating client from Redis: ${sessionKey}`);
+
+        // Recreate the client from stored data
+        client = await this.recreateClient(sessionData);
+
+        // Store in memory for subsequent requests in this instance
+        this.clients.set(sessionId, client);
+
+        // Refresh TTL
         await this.redis.expire(sessionKey, this.SESSION_TTL);
-        console.log(`✅ Redis GET client verified: ${sessionKey} (TTL refreshed)`);
+
+        console.log(`✅ Client recreated successfully: ${sessionKey}`);
+        return client;
       } catch (error) {
-        console.error('❌ Failed to verify session in Redis:', error);
+        console.error('❌ Failed to recreate client from Redis:', error);
+        return null;
       }
+    }
+
+    console.log(`❓ Client not found: sessionId=${sessionId}`);
+    return null;
+  }
+
+  /**
+   * Recreate an MCPOAuthClient from stored session data
+   * Used to restore client connections in serverless environments
+   */
+  private async recreateClient(sessionData: SessionData): Promise<MCPOAuthClient> {
+    // Create a new client with stored configuration
+    const client = new MCPOAuthClient(
+      sessionData.serverUrl,
+      sessionData.callbackUrl,
+      () => {
+        // No-op redirect handler for recreated clients
+        // Redirect is only needed during initial OAuth flow
+      },
+      sessionData.sessionId,
+      sessionData.transportType
+    );
+
+    // If OAuth tokens exist, we need to restore the authenticated state
+    if (sessionData.tokens) {
+      console.log(`🔐 Restoring OAuth tokens for session: ${sessionData.sessionId}`);
+
+      // Connect and restore OAuth state
+      await client.connect();
+
+      // Inject the stored OAuth tokens directly into the provider
+      const oauthProvider = client.oauthProvider;
+      if (oauthProvider) {
+        if (sessionData.tokens) {
+          oauthProvider.saveTokens(sessionData.tokens);
+        }
+        if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
+          // Only save if it's the full client information (with redirect_uris)
+          oauthProvider.saveClientInformation(sessionData.clientInformation);
+        }
+        if (sessionData.codeVerifier) {
+          oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
+        }
+      }
+
+      console.log(`✅ OAuth state restored for session: ${sessionData.sessionId}`);
     } else {
-      console.log(`✅ In-memory GET client: sessionId=${sessionId}`);
+      // No OAuth tokens - connect normally (might require auth)
+      await client.connect();
     }
 
     return client;

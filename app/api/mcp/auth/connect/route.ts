@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       console.log('[Connect API] Attempting to connect to:', serverUrl);
       await client.connect();
 
-      // Connection successful, save client to session store
-      await sessionStore.setClient(sessionId, client);
+      // Connection successful, save client to session store with full config
+      await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, normalizedTransport);
 
       // Store the serverUrl-to-session mapping
       // Use serverUrl as key since it's unique (serverName can be duplicate)
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         // OAuth authorization required
         console.log('[Connect API] OAuth required. AuthUrl:', authUrl);
         if (authUrl) {
-          await sessionStore.setClient(sessionId, client);
+          await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, normalizedTransport);
           return NextResponse.json(
             {
               requiresAuth: true,

@@ -36,7 +36,7 @@ export class UnauthorizedError extends Error {
  */
 export class MCPOAuthClient {
   private client: Client | null = null;
-  private oauthProvider: InMemoryOAuthClientProvider | null = null;
+  public oauthProvider: InMemoryOAuthClientProvider | null = null; // Make public for session restoration
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private sessionId?: string;
   private transportType: TransportType;
