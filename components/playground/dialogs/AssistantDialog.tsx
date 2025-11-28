@@ -69,7 +69,7 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
   const loadingText = isEditMode ? "Updating..." : "Creating...";
 
   // Local state for checkbox (checked = save to DB, unchecked = localStorage only)
-  const [saveApiKey, setSaveApiKey] = React.useState(true);
+  const [saveApiKey, setSaveApiKey] = React.useState(false);
 
   // Load API key from localStorage when dialog opens if no API key in formData
   React.useEffect(() => {
