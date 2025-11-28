@@ -172,7 +172,7 @@ class ConnectionStore {
    * Removes the connection from localStorage if invalid
    * Returns the tools and headers data if valid, null if invalid
    */
-  async validateConnection(serverName: string): Promise<{ tools: any[], headers: any } | null> {
+  async validateConnection(serverName: string): Promise<{ tools: ToolInfo[], headers: Record<string, string> | null } | null> {
     if (typeof window === 'undefined') return null;
 
     const connection = this.get(serverName);
@@ -209,9 +209,9 @@ class ConnectionStore {
    * Get all valid connections (validates and cleans up expired ones)
    * Returns a map of valid server names to their tools/headers data
    */
-  async getValidConnections(): Promise<Map<string, { tools: any[], headers: any }>> {
+  async getValidConnections(): Promise<Map<string, { tools: ToolInfo[], headers: Record<string, string> | null }>> {
     const connections = this.getAll();
-    const validServersData = new Map<string, { tools: any[], headers: any }>();
+    const validServersData = new Map<string, { tools: ToolInfo[], headers: Record<string, string> | null }>();
 
     // Validate all connections in parallel
     const validationPromises = Object.keys(connections).map(async (serverName) => {

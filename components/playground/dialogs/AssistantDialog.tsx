@@ -213,7 +213,7 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
                   htmlFor="save-api-key-db"
                   className="text-xs font-normal cursor-pointer text-gray-600 dark:text-gray-400"
                 >
-                  If left unchecked, the API key will be stored locally in your browser's localStorage.
+                  If left unchecked, the API key will be stored locally in your browser&apos;s localStorage.
                 </Label>
               </div>
             </div>

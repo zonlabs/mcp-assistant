@@ -66,7 +66,7 @@ export function useMcpTools(): UseMcpToolsReturn {
           transport: connection.transport,
           url: connection.url,
           headers: data.headers, // Headers from validation call
-        };
+        } as McpServerWithTools;
       }).filter((server): server is McpServerWithTools => server !== null);
 
       setMcpServers(serversWithData);
@@ -86,6 +86,6 @@ export function useMcpTools(): UseMcpToolsReturn {
   return {
     mcpServers,
     loading,
-    loadMcpServers: loadMcpServers, // Expose this for manual triggering
+    loadMcpServers, // Expose this for manual triggering
   };
 }
