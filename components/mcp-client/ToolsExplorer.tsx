@@ -5,19 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Wrench,
   Search,
-  Filter,
   Grid3X3,
   List
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { McpServer, ToolInfo } from "@/types/mcp";
 import { Zap } from "lucide-react";
 
@@ -29,19 +22,15 @@ interface ToolsExplorerProps {
 export default function ToolsExplorer({ server, onOpenToolTester }: ToolsExplorerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'unavailable'>('all');
 
   // Handle different tools formats
   const tools = Array.isArray(server.tools) ? server.tools : [];
-  
+
   const filteredTools = tools.filter(tool => {
     const matchesSearch = tool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          tool.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // For now, all tools are considered "available" since we don't have status info
-    const matchesFilter = filterStatus === 'all' || filterStatus === 'available';
-    
-    return matchesSearch && matchesFilter;
+
+    return matchesSearch;
   });
 
 
@@ -134,27 +123,6 @@ export default function ToolsExplorer({ server, onOpenToolTester }: ToolsExplore
                 <List className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* Filter Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setFilterStatus('all')}>
-                  All Tools
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus('available')}>
-                  Available
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus('unavailable')}>
-                  Unavailable
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
 
@@ -281,7 +249,7 @@ export default function ToolsExplorer({ server, onOpenToolTester }: ToolsExplore
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No Tools Found</h3>
             <p className="text-muted-foreground">
-              Try adjusting your search terms or filters.
+              Try adjusting your search terms.
             </p>
           </CardContent>
         </Card>
