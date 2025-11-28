@@ -67,7 +67,7 @@ export class MCPOAuthClient {
       token_endpoint_auth_method: 'client_secret_post',
       // Use standard OpenID Connect scopes that work with most OAuth providers
       // Some servers might support 'mcp:tools', but most use standard scopes
-      scope: 'openid profile email',
+      // scope: '',
     };
 
     this.oauthProvider = new InMemoryOAuthClientProvider(

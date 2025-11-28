@@ -61,7 +61,6 @@ export function ServerIcon({
   };
 
   const domain = getDomainFromUrl(serverUrl);
-  console.log(domain, 'domain for server', serverUrl);
   const firstLetter = serverName.charAt(0).toUpperCase();
 
   // Generate a consistent color based on server name
