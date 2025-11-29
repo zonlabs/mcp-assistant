@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import {
-  CONNECT_MCP_SERVER_MUTATION,
-  DISCONNECT_MCP_SERVER_MUTATION,
-  RESTART_MCP_SERVER_MUTATION,
-  SET_MCP_SERVER_ENABLED_MUTATION
-} from "@/lib/graphql";
+
+// Import session store for disconnect
+import { sessionStore } from "@/lib/mcp/session-store";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -19,95 +16,55 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, serverName, enabled } = body;
+    const { action, serverName, sessionId, serverUrl } = body;
 
-    let mutation = '';
-    let variables: Record<string, unknown> = { serverName };
+    // Handle deactivate with session store
+    if (action === 'deactivate') {
+      if (!sessionId || !serverUrl) {
+        return NextResponse.json(
+          { errors: [{ message: "sessionId and serverUrl are required for deactivate action" }] },
+          { status: 400 }
+        );
+      }
 
-    switch (action) {
-      case 'activate':
-        mutation = CONNECT_MCP_SERVER_MUTATION;
-        break;
-      case 'deactivate':
-        mutation = DISCONNECT_MCP_SERVER_MUTATION;
-        break;
-      case 'setEnabled':
-        mutation = SET_MCP_SERVER_ENABLED_MUTATION;
-        variables = { serverName, enabled };
-        break;
-      case 'restart':
-        mutation = RESTART_MCP_SERVER_MUTATION;
-        variables = { name: serverName };
-        break;
-      default:
-        return NextResponse.json({ errors: [{ message: "Invalid action" }] }, { status: 400 });
-    }
+      // Call disconnect API
+      const disconnectResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/mcp/auth/disconnect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+        }),
+      });
 
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-    };
-    
-    // Only add authorization header if token is available
-    if (token) {
-      headers.authorization = `Bearer ${token}`;
-    }
+      if (!disconnectResponse.ok) {
+        throw new Error('Failed to disconnect from server');
+      }
 
-    const response = await fetch(`${origin}/api/graphql`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ 
-        query: mutation,
-        variables 
-      }),
-    });
+      // Remove from session store
+      // Use serverUrl as key since it's unique (serverName can be duplicate)
+      await sessionStore.removeServerSession(sessionId, serverUrl);
 
-    // Check if response is JSON
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      await response.text();
-      throw new Error("Backend server returned invalid response");
-    }
-
-    const result = await response.json();
-
-    if (!response.ok || result.errors) {
-      throw new Error(result.errors?.[0]?.message || 'Action failed');
-    }
-
-    // Check if OAuth is required for activation or restart
-    if (action === 'activate' && result.data?.connectMcpServer?.requiresAuth) {
-      const connectResult = result.data.connectMcpServer;
       return NextResponse.json({
         data: {
-          connectMcpServer: {
-            ...connectResult,
-            requiresAuth: true,
-            authorizationUrl: connectResult.authorizationUrl,
-            state: connectResult.state
+          disconnectMcpServer: {
+            success: true,
+            message: 'Disconnected successfully',
+            server: {
+              name: serverName,
+              connectionStatus: 'DISCONNECTED',
+              tools: []
+            }
           }
         }
       });
     }
 
-    if (action === 'restart' && result.data?.restartMcpServer?.requiresAuth) {
-      const restartResult = result.data.restartMcpServer;
-      return NextResponse.json({
-        data: {
-          restartMcpServer: {
-            ...restartResult,
-            requiresAuth: true,
-            authorizationUrl: restartResult.authorizationUrl,
-            state: restartResult.state
-          }
-        }
-      });
-    }
-
-    // Return the result with the updated server data
-    return NextResponse.json(result);
+    return NextResponse.json({ errors: [{ message: "Invalid action" }] }, { status: 400 });
   } catch (error) {
     return NextResponse.json(
-      { errors: [{ message: error instanceof Error ? error.message : "Internal server error" }] }, 
+      { errors: [{ message: error instanceof Error ? error.message : "Internal server error" }] },
       { status: 500 }
     );
   }

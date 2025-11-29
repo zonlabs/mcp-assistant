@@ -99,9 +99,6 @@ export function AssistantMessage({ message, isLoading }: AssistantMessageProps) 
     ? message.generativeUI()
     : null;
 
-  console.log(messageContent, "AssistantMessage Content");
-  console.log(subComponent, "AssistantMessage SubComponent");
-
   // Don't render anything if there's no content, no subComponent, and not loading
   if (!messageContent && !subComponent && !isLoading) {
     return null;

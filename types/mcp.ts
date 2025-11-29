@@ -1,7 +1,9 @@
 export type ToolInfo = {
   name: string;
   description: string;
-  schema: any; // JSON type from Strawberry
+  schema?: unknown; // JSON type from Strawberry
+  inputSchema?: unknown;
+  outputSchema?: unknown;
 };
 
 export type Category = {
@@ -19,13 +21,12 @@ export type McpServer = {
   id: string;
   name: string;
   description?: string | null;
-  category?: Category | null;
+  categories?: Category[] | null;
   transport: string;
   owner?: string | null;
   url?: string | null;
   command?: string | null;
   args?: any | null;
-  enabled: boolean;
   requiresOauth2: boolean;
   isPublic?: boolean;
   connectionStatus?: string | null;
@@ -67,12 +68,25 @@ export type Assistant = {
   updatedAt: string;
 };
 
+// MCP Config format for MultiServerMCPClient
+export type McpConfig = {
+  [serverName: string]: {
+    transport: string; // "sse" | "websocket" | "streamable_http"
+    url: string;
+    headers?: Record<string, string>;
+  };
+};
+
 // CopilotKit Agent Types
 export type AgentState = {
   model: string;
   status?: string;
   sessionId: string;
   assistant?: Assistant | null;
+  mcp_config?: McpConfig; // MCP config dict for MultiServerMCPClient
+  selectedTools?: string[]; // Selected tool names to filter
+  llm_provider?: string; // LLM provider (openai, deepseek, etc.)
+  llm_api_key?: string; // User's API key for the provider
 };
 
 export interface Tool {

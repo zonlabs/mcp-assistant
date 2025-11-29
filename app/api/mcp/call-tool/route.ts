@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { CALL_MCP_SERVER_TOOL_MUTATION } from "@/lib/graphql";
+import { sessionStore } from "@/lib/mcp/session-store";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const token = session?.googleIdToken;
-
-  const origin = (process.env.DJANGO_API_URL || process.env.BACKEND_URL)?.replace(/\/$/, "");
-  if (!origin) {
-    return NextResponse.json({ errors: [{ message: "Server misconfigured" }] }, { status: 500 });
-  }
-
   try {
     const body = await request.json();
     const { serverName, toolName, toolInput } = body;
@@ -23,42 +13,104 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const headers: Record<string, string> = {
-      "content-type": "application/json",
-    };
+    // Get sessionId from connection store (browser localStorage synced to server)
+    // Note: This won't work directly since connectionStore is client-side only
+    // We need to receive sessionId from the frontend
+    const sessionId = (body as { sessionId?: string }).sessionId;
 
-    // Only add authorization header if token is available
-    if (token) {
-      headers.authorization = `Bearer ${token}`;
+    if (!sessionId) {
+      return NextResponse.json(
+        {
+          data: {
+            callMcpServerTool: {
+              success: false,
+              message: "Session ID required. Please reconnect to the server.",
+              toolName,
+              serverName,
+              result: null,
+              error: "Session ID required. Please reconnect to the server."
+            }
+          }
+        },
+        { status: 200 }
+      );
     }
 
-    const response = await fetch(`${origin}/api/graphql`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        query: CALL_MCP_SERVER_TOOL_MUTATION,
-        variables: {
-          serverName,
-          toolName,
-          toolInput
+    // Retrieve client from session store
+    const client = await sessionStore.getClient(sessionId);
+    if (!client) {
+      return NextResponse.json(
+        {
+          data: {
+            callMcpServerTool: {
+              success: false,
+              message: "Invalid session or session expired. Please reconnect.",
+              toolName,
+              serverName,
+              result: null,
+              error: "Invalid session or session expired"
+            }
+          }
+        },
+        { status: 200 }
+      );
+    }
+
+    try {
+      // Call the tool on the MCP server
+      const result = await client.callTool(toolName, toolInput || {});
+
+      // Extract clean content from MCP format
+      let cleanResult: unknown = result.content;
+
+      // Handle MCP format: [{ type: "text", text: "..." }]
+      if (Array.isArray(result.content)) {
+        const textContents = result.content
+          .filter((item: { type?: string; text?: string }) => item.type === 'text' && item.text)
+          .map((item: { type?: string; text?: string }) => item.text)
+          .join('\n\n');
+
+        if (textContents) {
+          // Try to parse as JSON
+          try {
+            cleanResult = JSON.parse(textContents);
+          } catch {
+            // Not JSON, use plain text
+            cleanResult = textContents;
+          }
         }
-      }),
-    });
+      }
 
-    // Check if response is JSON
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      await response.text();
-      throw new Error("Backend server returned invalid response");
+      return NextResponse.json({
+        data: {
+          callMcpServerTool: {
+            success: true,
+            message: `Tool ${toolName} executed successfully`,
+            toolName,
+            serverName,
+            result: cleanResult,
+            error: null
+          }
+        }
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return NextResponse.json(
+        {
+          data: {
+            callMcpServerTool: {
+              success: false,
+              message: `Error calling tool ${toolName}`,
+              toolName,
+              serverName,
+              result: null,
+              error: errorMessage
+            }
+          }
+        },
+        { status: 200 }
+      );
     }
-
-    const result = await response.json();
-
-    if (!response.ok || result.errors) {
-      throw new Error(result.errors?.[0]?.message || 'Tool call failed');
-    }
-
-    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
       { errors: [{ message: error instanceof Error ? error.message : "Internal server error" }] },

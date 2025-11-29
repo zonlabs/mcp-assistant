@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import {
   Power,
-  RotateCcw,
   Play,
   Pause,
   MoreVertical,
@@ -26,7 +25,7 @@ import { McpServer } from "@/types/mcp";
 
 interface ServerManagementProps {
   server: McpServer;
-  onAction: (serverName: string, action: 'restart' | 'activate' | 'deactivate') => Promise<unknown>;
+  onAction: (server: McpServer, action: 'activate' | 'deactivate') => Promise<unknown>;
   onEdit?: (server: McpServer) => void;
   onDelete?: (serverName: string) => void;
 }
@@ -34,11 +33,11 @@ interface ServerManagementProps {
 export default function ServerManagement({ server, onAction, onEdit, onDelete }: ServerManagementProps) {
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleAction = async (action: 'restart' | 'activate' | 'deactivate') => {
+  const handleAction = async (action: 'activate' | 'deactivate') => {
     setLoading(action);
 
     try {
-      const result = await onAction(server.name, action);
+      const result = await onAction(server, action);
 
       // Use the actual message from the response data if available
       // const message = (result && typeof result === 'object' && 'message' in result && typeof result.message === 'string')
@@ -89,8 +88,6 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
         return server.connectionStatus?.toUpperCase() === "CONNECTED";
       case 'deactivate':
         return server.connectionStatus?.toUpperCase() !== "CONNECTED";
-      case 'restart':
-        return false; // Restart is always available
       default:
         return false;
     }
@@ -159,65 +156,40 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
         )}
 
         {/* Dropdown Menu for Additional Actions */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={loading !== null}
-              className="cursor-pointer"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {server.connectionStatus?.toUpperCase() === "CONNECTED" ? (
-              <DropdownMenuItem
-                onClick={() => handleAction('activate')}
-                disabled={isActionDisabled('activate')}
-                className="flex items-center gap-2 cursor-pointer"
+        {(onEdit || onDelete) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={loading !== null}
+                className="cursor-pointer"
               >
-                <Play className="h-4 w-4" />
-                Activate
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem
-                onClick={() => handleAction('deactivate')}
-                disabled={isActionDisabled('deactivate')}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Pause className="h-4 w-4" />
-                Deactivate
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              onClick={() => handleAction('restart')}
-              disabled={isActionDisabled('restart')}
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Restart
-            </DropdownMenuItem>
-            {onEdit && (
-              <DropdownMenuItem
-                onClick={() => onEdit(server)}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Edit className="h-4 w-4" />
-                Edit Server
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <DropdownMenuItem
-                onClick={() => onDelete(server.name)}
-                className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Server
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {onEdit && (
+                <DropdownMenuItem
+                  onClick={() => onEdit(server)}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Server
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem
+                  onClick={() => onDelete(server.name)}
+                  className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Server
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

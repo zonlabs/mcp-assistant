@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
 
     // Add authorization header if session exists and query requires auth
     const requiresAuth = query.includes('getUserMcpServers') ||
-                        query.includes('restartMcpServer') ||
                         query.includes('myAssistants') ||
                         query.includes('myAssistant') ||
                         query.includes('createAssistant') ||

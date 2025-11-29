@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { Assistant } from "@/types/mcp";
-import { MY_ASSISTANTS_QUERY, UPDATE_ASSISTANT_MUTATION, CREATE_ASSISTANT_MUTATION, DELETE_ASSISTANT_MUTATION } from "@/lib/graphql";
+import { MY_ASSISTANTS_QUERY, CREATE_ASSISTANT_MUTATION, UPDATE_ASSISTANT_MUTATION, DELETE_ASSISTANT_MUTATION } from "@/lib/graphql";
 
 export interface AssistantsState {
   assistants: Assistant[] | null;
@@ -104,16 +104,19 @@ export function useAssistants(): AssistantsState {
           variables: {
             name: data.name,
             instructions: data.instructions,
-            description: data.description || null,
-            isActive: data.isActive || false,
-            config: data.config || {},
+            description: data.description,
+            isActive: data.isActive,
+            config: data.config,
           },
         }),
       });
+
       const result = await response.json();
+
       if (!response.ok || result.errors) {
         throw new Error(result.errors?.[0]?.message || 'Failed to create assistant');
       }
+
       const newAssistant = result.data?.createAssistant;
       if (newAssistant) {
         setAssistants(prev => prev ? [...prev.map(a => data.isActive ? { ...a, isActive: false } : a), newAssistant] : [newAssistant]);
@@ -142,10 +145,13 @@ export function useAssistants(): AssistantsState {
           },
         }),
       });
+
       const result = await response.json();
+
       if (!response.ok || result.errors) {
         throw new Error(result.errors?.[0]?.message || 'Failed to update assistant');
       }
+
       const updatedAssistant = result.data?.updateAssistant;
       if (updatedAssistant) {
         setAssistants(prev => prev ? prev.map(a => a.id === id ? { ...a, ...updatedAssistant } : a ) : null);

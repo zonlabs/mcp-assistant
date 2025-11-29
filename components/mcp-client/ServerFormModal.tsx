@@ -14,6 +14,7 @@ import {
   Globe,
   AlertCircle
 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +22,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
 import { Session } from "next-auth";
@@ -36,7 +43,7 @@ const serverSchema = z.object({
   name: z.string().min(1, "Server name is required"),
   description: z.string().optional(),
   transport: z.enum(["sse", "streamable_http"]),
-  category: z.string(),
+  categoryIds: z.array(z.string()).optional(),
   url: z.string().optional(),
   command: z.string().optional(),
   args: z.string().optional(),
@@ -69,16 +76,14 @@ export default function ServerFormModal({
 }: ServerFormModalProps) {
   const [showHeaders, setShowHeaders] = useState(false);
   const [transportType, setTransportType] = useState<"sse" | "streamable_http">("sse");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
   const { loading, error, data } = useQuery<{
     categories: {
       edges: Array<{ node: Category }>;
     };
   }>(GET_CATEGORIES, {
-    // variables: {
-    //   first: 8, // Show first 8 categories
-    // },
-    fetchPolicy: "cache-and-network", // Always fetch fresh data while showing cached
+    fetchPolicy: "cache-and-network",
   });
 
   const {
@@ -87,14 +92,15 @@ export default function ServerFormModal({
     formState: { errors, isSubmitting },
     reset,
     control,
-    watch
+    watch,
+    setValue
   } = useForm<ServerFormData>({
     resolver: zodResolver(serverSchema),
     defaultValues: {
       name: "",
       description: "",
       transport: "sse",
-      category: "",
+      categoryIds: [],
       url: "",
       command: "",
       args: "",
@@ -118,10 +124,13 @@ export default function ServerFormModal({
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && server) {
+        const categoryIds = server.categories ? server.categories.map(cat => cat.id) : [];
+        setSelectedCategoryIds(categoryIds);
         reset({
           name: server.name,
           description: server.description || "",
           transport: server.transport as "sse" | "streamable_http",
+          categoryIds: categoryIds,
           url: server.url || "",
           command: server.command || "",
           args: server.args ? (typeof server.args === 'string' ? server.args : JSON.stringify(server.args)) : "",
@@ -131,10 +140,12 @@ export default function ServerFormModal({
         });
         setTransportType(server.transport as "sse" | "streamable_http");
       } else {
+        setSelectedCategoryIds([]);
         reset({
           name: "",
           description: "",
           transport: "sse",
+          categoryIds: [],
           url: "",
           command: "",
           args: "",
@@ -236,33 +247,89 @@ export default function ServerFormModal({
               </div>
             </div>
 
-            {/* Category Dropdown */}
-            {/* Category Dropdown */}
+            {/* Category Multiselect Dropdown */}
             <div className="space-y-1">
-              <Label htmlFor="category" className="text-xs">Category</Label>
+              <Label htmlFor="categoryIds" className="text-xs">Categories</Label>
 
               {loading ? (
                 <p className="text-xs text-muted-foreground">Loading categories...</p>
               ) : error ? (
                 <p className="text-xs text-red-500">Failed to load categories</p>
               ) : (
-                <select
-                  {...register("category")}
-                  id="category"
-                  className="h-9 w-full border rounded-md bg-background text-sm"
-                  defaultValue={typeof server?.category === 'string' ? server.category : server?.category?.id || ""}
-                >
-                  <option value="">Select a category</option>
-                  {data?.categories?.edges.map(({ node }) => (
-                    <option key={node.id} value={node.id}>
-                      {node.name}
-                    </option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-9 justify-between text-sm font-normal"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        {selectedCategoryIds.length > 0 ? (
+                          selectedCategoryIds.map((id) => {
+                            const category = data?.categories?.edges.find(
+                              ({ node }) => node.id === id
+                            )?.node;
+                            if (!category) return null;
+                            return (
+                              <div key={id} className="flex items-center gap-1 bg-secondary px-2 py-0.5 rounded">
+                                {category.icon && (
+                                  category.icon.includes('.') ? (
+                                    <Image
+                                      src={`/categories/${category.icon}`}
+                                      alt={category.name}
+                                      width={14}
+                                      height={14}
+                                    />
+                                  ) : (
+                                    <span className="text-xs">{category.icon}</span>
+                                  )
+                                )}
+                                <span className="text-xs">{category.name}</span>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <span className="text-muted-foreground">Select categories</span>
+                        )}
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[300px]" align="start">
+                    {data?.categories?.edges.map(({ node }) => (
+                      <DropdownMenuCheckboxItem
+                        key={node.id}
+                        checked={selectedCategoryIds.includes(node.id)}
+                        onCheckedChange={(checked) => {
+                          const newIds = checked
+                            ? [...selectedCategoryIds, node.id]
+                            : selectedCategoryIds.filter((id) => id !== node.id);
+                          setSelectedCategoryIds(newIds);
+                          setValue("categoryIds", newIds);
+                        }}
+                      >
+                        {node.icon && (
+                          node.icon.includes('.') ? (
+                            <Image
+                              src={`/categories/${node.icon}`}
+                              alt={node.name}
+                              width={16}
+                              height={16}
+                              className="mr-2"
+                            />
+                          ) : (
+                            <span className="mr-2">{node.icon}</span>
+                          )
+                        )}
+                        {node.name}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               <p className="text-xs pt-1 text-muted-foreground">
-                Choose a category to help organize your MCP servers (Optional)
+                Select one or more categories to help organize your MCP server (Optional)
               </p>
             </div>
 

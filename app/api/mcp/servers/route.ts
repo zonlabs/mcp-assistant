@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, transport, url, command, args, headers, queryParams, requiresOauth, isPublic, description } = body;
+    const { name, transport, url, command, args, headers, queryParams, requiresOauth, isPublic, description, categoryIds } = body;
 
     // Prepare headers and queryParams as JSON objects (not strings)
     const headersObj = headers && Object.keys(headers).length > 0 ? headers : null;
@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
           queryParams: queryParamsObj,
           requiresOauth2: requiresOauth,
           isPublic: isPublic,
-          description: description
+          description: description,
+          categoryIds: categoryIds || null
         },
       }),
     });

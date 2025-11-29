@@ -20,23 +20,47 @@ export const MCP_SERVER_FRAGMENT = `
     transport
     url
     command
-    category {
-    id
-    name
-    slug   
-  }
+    categories {
+      id
+      name
+      slug
+    }
     args
-    enabled
     description
     requiresOauth2
-    connectionStatus
-    tools { ...ToolInfoFields }
     updatedAt
     createdAt
     owner
     isPublic
   }
-  ${TOOL_INFO_FRAGMENT}
+`;
+
+/**
+ * Lightweight MCP Server fragment WITHOUT connection status and tools
+ *
+ * Connection status and tools are now managed by Next.js session store,
+ * not Django backend. Use this fragment for all server queries.
+ */
+export const MCP_SERVER_CONFIG_FRAGMENT = `
+  fragment McpServerConfigFields on MCPServerType {
+    id
+    name
+    transport
+    url
+    command
+    categories {
+      id
+      name
+      slug
+    }
+    args
+    description
+    requiresOauth2
+    updatedAt
+    createdAt
+    owner
+    isPublic
+  }
 `;
 
 export const MCP_SERVERS_QUERY = `
@@ -45,7 +69,7 @@ query McpServers($first: Int = 10, $after: String, $order: MCPServerOrder, $filt
     totalCount
     edges {
       node {
-        ...McpServerFields 
+        ...McpServerConfigFields
       }
       cursor
     }
@@ -57,7 +81,7 @@ query McpServers($first: Int = 10, $after: String, $order: MCPServerOrder, $filt
     }
   }
 }
-${MCP_SERVER_FRAGMENT}
+${MCP_SERVER_CONFIG_FRAGMENT}
 `;
 
 /**
@@ -98,7 +122,6 @@ export const CONNECT_MCP_SERVER_MUTATION = `
     connectMcpServer(name: $serverName) {
       success
       message
-      connectionStatus
       requiresAuth
       authorizationUrl
       state
@@ -119,15 +142,6 @@ export const DISCONNECT_MCP_SERVER_MUTATION = `
   ${MCP_SERVER_FRAGMENT}
 `;
 
-export const SET_MCP_SERVER_ENABLED_MUTATION = `
-  mutation SetServerEnabled($serverName: String!, $enabled: Boolean!) {
-    setMcpServerEnabled(name: $serverName, enabled: $enabled) {
-     ...McpServerFields
-    }
-  }
-  ${MCP_SERVER_FRAGMENT}
-`;
-
 export const SAVE_MCP_SERVER_MUTATION = `
   mutation SaveMcpServer(
     $name: String!
@@ -140,6 +154,7 @@ export const SAVE_MCP_SERVER_MUTATION = `
     $requiresOauth2: Boolean
     $isPublic: Boolean
     $description: String
+    $categoryIds: [String!]
   ) {
     saveMcpServer(
       name: $name
@@ -152,6 +167,7 @@ export const SAVE_MCP_SERVER_MUTATION = `
       requiresOauth2: $requiresOauth2
       isPublic: $isPublic
       description: $description
+      categoryIds: $categoryIds
     ) {
     id
     name
@@ -160,13 +176,16 @@ export const SAVE_MCP_SERVER_MUTATION = `
     url
     command
     args
-    enabled
     requiresOauth2
-    connectionStatus
     updatedAt
     createdAt
     owner
     isPublic
+    categories {
+      id
+      name
+      slug
+    }
     }
   }
 `;
@@ -177,28 +196,13 @@ export const REMOVE_MCP_SERVER_MUTATION = `
   }
 `;
 
-export const RESTART_MCP_SERVER_MUTATION = `
-  mutation RestartMcpServer($name: String!) {
-    restartMcpServer(name: $name) {
-      success
-      message
-      connectionStatus
-      requiresAuth
-      authorizationUrl
-      state
-      server { ...McpServerFields }
-    }
-  }
-  ${MCP_SERVER_FRAGMENT}
-`;
-
 export const USER_MCP_SERVERS_QUERY = `
   query GetUserMcpServers {
     getUserMcpServers {
-      ...McpServerFields
+      ...McpServerConfigFields
     }
   }
-  ${MCP_SERVER_FRAGMENT}
+  ${MCP_SERVER_CONFIG_FRAGMENT}
 `;
 
 export const CATEGORIES_QUERY = `

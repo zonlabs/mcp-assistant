@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
@@ -11,6 +10,7 @@ import { ArrowRight, Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { McpServer } from "@/types/mcp";
 import { RECENT_MCP_SERVERS_QUERY } from "@/lib/graphql";
+import { ServerIcon } from "@/components/mcp-client/ServerIcon";
 
 // GraphQL query for recent MCP servers - imported from lib/graphql.ts
 const GET_RECENT_SERVERS = gql`${RECENT_MCP_SERVERS_QUERY}`;
@@ -46,15 +46,11 @@ function ServerCard({ server }: { server: McpServer }) {
     <div className="group flex flex-col gap-3 p-4 rounded-lg border border-border hover:bg-accent/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:scale-105">
       {/* Icon and Transport Badge Row */}
       <div className="flex items-center justify-between">
-        <div className="h-10 w-10 rounded-lg flex items-center justify-center">
-          <Image
-            src="/servers/server.png"
-            alt="Server icon"
-            width={40}
-            height={40}
-            className="object-contain"
-          />
-        </div>
+        <ServerIcon
+          serverName={server.name}
+          serverUrl={server.url}
+          size={40}
+        />
         {/* Transport Badge - Right Side */}
         <Badge variant="secondary" className="text-xs px-2 py-0.5 rounded-md font-normal">
           {server.transport}

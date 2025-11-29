@@ -72,8 +72,23 @@ export default function ToolExecutionPanel({
     return null;
   };
 
-  const schema = tool ? parseSchema(tool.schema) : null;
-  const schemaProperties = schema?.properties || {};
+  const inputSchema = tool ? parseSchema(tool.inputSchema) : null;
+  const outputSchema = tool ? parseSchema(tool.outputSchema) : null;
+  const schemaProperties = inputSchema?.properties || {};
+
+  // Helper function to escape Windows paths in JSON strings
+  const fixWindowsPaths = (jsonString: string): string => {
+    try {
+      // Try to parse first - if it works, no need to fix
+      JSON.parse(jsonString);
+      return jsonString;
+    } catch {
+      // Replace unescaped backslashes with escaped ones
+      // This regex looks for backslashes that aren't already escaped
+      const fixed = jsonString.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+      return fixed;
+    }
+  };
 
   const handleCall = async () => {
     if (!tool) {
@@ -89,10 +104,37 @@ export default function ToolExecutionPanel({
       let toolInput: Record<string, unknown>;
       try {
         toolInput = JSON.parse(inputJson);
-      } catch {
-        toast.error("Invalid JSON input");
-        setIsSubmitting(false);
-        return;
+      } catch (parseError) {
+        // Try to auto-fix Windows paths
+        try {
+          const fixedJson = fixWindowsPaths(inputJson);
+          toolInput = JSON.parse(fixedJson);
+          // Update the input with the fixed version
+          setInputJson(fixedJson);
+          toast.success("Auto-fixed Windows paths in JSON");
+        } catch {
+          toast.error(
+            "Invalid JSON. For Windows paths, use either:\n" +
+            '• Double backslashes: "C:\\\\Users\\\\file.txt"\n' +
+            '• Forward slashes: "C:/Users/file.txt"'
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Get sessionId from localStorage
+      const connectionData = localStorage.getItem('mcp_connections');
+      let sessionId: string | null = null;
+
+      if (connectionData) {
+        try {
+          const connections = JSON.parse(connectionData);
+          const serverConnection = connections[server.name];
+          sessionId = serverConnection?.sessionId || null;
+        } catch (e) {
+          console.error('Failed to parse connection data:', e);
+        }
       }
 
       // Call the API endpoint
@@ -104,7 +146,8 @@ export default function ToolExecutionPanel({
         body: JSON.stringify({
           serverName: server.name,
           toolName: tool.name,
-          toolInput
+          toolInput,
+          sessionId // Pass sessionId to backend
         })
       });
 
@@ -254,45 +297,87 @@ export default function ToolExecutionPanel({
             </div>
           ) : (
             <>
-              {/* Schema Info */}
-              {schema && (
-            <div>
-              <label className="text-sm font-medium">Schema</label>
-              <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
-                <SyntaxHighlighter
-                  language="json"
-                  style={atomOneDark}
-                  customStyle={{
-                    margin: 0,
-                    padding: '12px',
-                    fontSize: '11px',
-                    borderRadius: '6px'
-                  }}
-                >
-                  {JSON.stringify(schema, null, 2)}
-                </SyntaxHighlighter>
-              </div>
-              {Object.keys(schemaProperties).length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generateExampleInput}
-                  className="mt-2 cursor-pointer w-full"
-                >
-                  Generate Example Input
-                </Button>
+              {/* Input Schema */}
+              {inputSchema && (
+                <div>
+                  <label className="text-sm font-medium">Input Schema</label>
+                  <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
+                    <SyntaxHighlighter
+                      language="json"
+                      style={atomOneDark}
+                      customStyle={{
+                        margin: 0,
+                        padding: '12px',
+                        fontSize: '11px',
+                        borderRadius: '6px'
+                      }}
+                      wrapLongLines={true}
+                    >
+                      {JSON.stringify(inputSchema, null, 2)}
+                    </SyntaxHighlighter>
+                  </div>
+                  {Object.keys(schemaProperties).length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={generateExampleInput}
+                      className="mt-2 cursor-pointer w-full"
+                    >
+                      Generate Example Input
+                    </Button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
+
+              {/* Output Schema */}
+              {outputSchema && (
+                <div>
+                  <label className="text-sm font-medium">Output Schema</label>
+                  <div className="mt-2 max-h-40 overflow-y-auto overflow-x-hidden rounded-md border border-slate-700 scrollbar-minimal">
+                    <SyntaxHighlighter
+                      language="json"
+                      style={atomOneDark}
+                      customStyle={{
+                        margin: 0,
+                        padding: '12px',
+                        fontSize: '11px',
+                        borderRadius: '6px'
+                      }}
+                      wrapLongLines={true}
+                    >
+                      {JSON.stringify(outputSchema, null, 2)}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
+              )}
 
           {/* Input */}
           <div>
-            <label className="text-sm font-medium">Tool Input (JSON)</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium">Tool Input (JSON)</label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const fixed = fixWindowsPaths(inputJson);
+                  if (fixed !== inputJson) {
+                    setInputJson(fixed);
+                    toast.success("Windows paths escaped");
+                  } else {
+                    toast("No paths to fix");
+                  }
+                }}
+                className="h-7 text-xs cursor-pointer"
+                title="Automatically escape Windows backslashes in paths"
+              >
+                Fix Paths
+              </Button>
+            </div>
             <textarea
               value={inputJson}
               onChange={(e) => setInputJson(e.target.value)}
               placeholder='{"key": "value"}'
-              className={`w-full mt-2 font-mono text-xs h-24 p-3 rounded-md border focus:outline-none focus:ring-2 resize-none overflow-x-hidden scrollbar-minimal ${
+              className={`w-full font-mono text-xs h-24 p-3 rounded-md border focus:outline-none focus:ring-2 resize-none overflow-x-hidden scrollbar-minimal ${
                 theme === 'dark'
                   ? 'border-slate-700 bg-slate-900 text-gray-200 placeholder:text-gray-600 focus:ring-slate-600'
                   : 'border-slate-300 bg-slate-50 text-slate-900 placeholder:text-slate-500 focus:ring-slate-400'
@@ -330,7 +415,7 @@ export default function ToolExecutionPanel({
                 {result.result ? (
                   <div className="mt-2 rounded-md border border-slate-700 w-full min-w-0 overflow-hidden">
                     <p className="text-xs font-semibold text-gray-300 dark:text-gray-400 px-3 pt-3">Response:</p>
-                    <div className="max-h-48 overflow-x-auto overflow-y-auto scrollbar-minimal w-2xl">
+                    <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-minimal w-2xl">
                       <SyntaxHighlighter
                         language="json"
                         style={atomOneDark}
@@ -342,7 +427,7 @@ export default function ToolExecutionPanel({
                           minWidth: 'min-content'
                         }}
                       >
-                        {typeof result.result === 'string' && result.result.startsWith('{')
+                        {typeof result.result === 'string'
                           ? result.result
                           : JSON.stringify(result.result, null, 2)}
                       </SyntaxHighlighter>

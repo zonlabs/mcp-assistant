@@ -60,7 +60,7 @@ const PlaygroundPage = () => {
           title: "MCP Playground",
           placeholder: "Ask about your connected servers...",
         }}
-        className="h-[80vh] rounded-md"
+        className="h-[84vh] rounded-md"
         Input={ChatInputWrapper}
         AssistantMessage={AssistantMessage}
       />

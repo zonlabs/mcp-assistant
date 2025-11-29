@@ -10,9 +10,8 @@ interface McpServersData {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  restartServer: (serverName: string) => Promise<void>;
   updateServer: (serverId: string, updates: Partial<McpServer>) => void;
-  handleServerAction: (serverName: string, action: 'restart' | 'activate' | 'deactivate') => Promise<void>;
+  handleServerAction: (server: McpServer, action: 'activate' | 'deactivate') => Promise<void>;
   handleServerAdd: (data: any) => Promise<void>;
   handleServerUpdate: (data: any) => Promise<void>;
   handleServerDelete: (serverName: string) => Promise<void>;
@@ -61,61 +60,6 @@ export function useMcpServers(session: Session | null): McpServersData {
     }
   }, []);
 
-  // Restart server using GraphQL mutation
-  const restartServer = useCallback(async (serverName: string) => {
-    try {
-      const response = await fetch('/api/mcp/actions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'restart',
-          serverName
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || result.errors) {
-        throw new Error(result.errors?.[0]?.message || 'Failed to restart server');
-      }
-
-      // Check if OAuth authorization is required
-      const restartResult = result.data?.restartMcpServer;
-
-      if (restartResult?.requiresAuth && restartResult?.authorizationUrl) {
-        // toast.success(`Redirecting to OAuth authorization for ${serverName}...`);
-        // Redirect to OAuth authorization URL
-        window.location.href = restartResult.authorizationUrl;
-        return;
-      }
-
-      if (restartResult) {
-        // Update the server in local state
-        setServers(prevServers => {
-          if (!prevServers) return prevServers;
-          return prevServers.map(server =>
-            server.name === serverName
-              ? {
-                  ...server,
-                  connectionStatus: restartResult.connectionStatus || restartResult.server?.connectionStatus,
-                  tools: restartResult.server?.tools || [],
-                  updatedAt: new Date().toISOString(),
-                }
-              : server
-          );
-        });
-
-        // toast.success(`Server ${serverName} restarted successfully`);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to restart server';
-      toast.error(errorMessage);
-      throw err;
-    }
-  }, []);
-
   // Update server in local state
   const updateServer = useCallback((serverId: string, updates: Partial<McpServer>) => {
     setServers(prevServers => {
@@ -129,13 +73,8 @@ export function useMcpServers(session: Session | null): McpServersData {
   }, []);
 
   // Handle server actions (activate/deactivate)
-  const handleServerAction = useCallback(async (serverName: string, action: 'restart' | 'activate' | 'deactivate') => {
+  const handleServerAction = useCallback(async (server: McpServer, action: 'activate' | 'deactivate') => {
     try {
-      if (action === 'restart') {
-        await restartServer(serverName);
-        return;
-      }
-
       const response = await fetch('/api/mcp/actions', {
         method: "POST",
         headers: {
@@ -143,7 +82,7 @@ export function useMcpServers(session: Session | null): McpServersData {
         },
         body: JSON.stringify({
           action,
-          serverName
+          serverName: server.name
         }),
       });
 
@@ -175,29 +114,29 @@ export function useMcpServers(session: Session | null): McpServersData {
       // Update local state
       setServers(prevServers => {
         if (!prevServers) return prevServers;
-        return prevServers.map(server => {
-          if (server.name === serverName) {
+        return prevServers.map(s => {
+          if (s.name === server.name) {
             const updatedServer = result.data?.connectMcpServer || result.data?.disconnectMcpServer;
             const newConnectionStatus = updatedServer?.connectionStatus ||
               (action === 'activate' ? 'CONNECTED' : 'DISCONNECTED');
 
             return {
-              ...server,
+              ...s,
               connectionStatus: newConnectionStatus,
-              tools: (action === 'deactivate' || newConnectionStatus === 'FAILED') ? [] : (updatedServer?.tools || server.tools),
+              tools: (action === 'deactivate' || newConnectionStatus === 'FAILED') ? [] : (updatedServer?.tools || s.tools),
               updatedAt: new Date().toISOString()
             };
           }
-          return server;
+          return s;
         });
       });
 
-      // toast.success(`Server ${serverName} ${action}d successfully`);
+      // toast.success(`Server ${server.name} ${action}d successfully`);
     } catch (error) {
       toast.error(`Failed to ${action} server`);
       throw error;
     }
-  }, [restartServer]);
+  }, []);
 
   // Handle server CRUD operations
   const handleServerAdd = useCallback(async (data: any) => {
@@ -260,7 +199,6 @@ export function useMcpServers(session: Session | null): McpServersData {
     loading,
     error,
     refresh: fetchServers,
-    restartServer,
     updateServer,
     handleServerAction,
     handleServerAdd,

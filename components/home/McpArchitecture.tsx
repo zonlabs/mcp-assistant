@@ -55,7 +55,7 @@ export default function McpArchitecture({
           </Circle>
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">You</div>
-            <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
+            <p className="text-xs text-muted-foreground leading-tight max-w-[120px] line-clamp-2">
               Interact through MCP Assistant
             </p>
           </div>
@@ -68,8 +68,8 @@ export default function McpArchitecture({
           </Circle>
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">AG-UI</div>
-            <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
-              AG-UI Protocol connects user interface to AI Assistant
+            <p className="text-xs text-muted-foreground leading-tight max-w-[120px] line-clamp-2">
+              Connects UI to AI Assistant
             </p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function McpArchitecture({
           </Circle>
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">OpenAI</div>
-            <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
+            <p className="text-xs text-muted-foreground leading-tight max-w-[120px] line-clamp-2">
               AI model processes and understands
             </p>
           </div>
@@ -94,8 +94,8 @@ export default function McpArchitecture({
           </Circle>
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">MCP</div>
-            <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
-              Model Context Protocol interfaces AI with external capabilities
+            <p className="text-xs text-muted-foreground leading-tight max-w-[120px] line-clamp-2">
+              Interfaces AI with external tools
             </p>
           </div>
         </div>
@@ -115,8 +115,8 @@ export default function McpArchitecture({
           </div>
           <div className="text-center">
             <div className="text-sm font-semibold mb-1">Servers</div>
-            <p className="text-xs text-muted-foreground leading-tight max-w-[110px]">
-              Remote servers expose tools and data
+            <p className="text-xs text-muted-foreground leading-tight max-w-[120px] line-clamp-2">
+              Expose tools and data
             </p>
           </div>
         </div>
