@@ -99,7 +99,7 @@ export function ServerIcon({
         className={className}
         quality={95}
         onError={(e) => {
-          console.log('Favicon failed for domain:', domain, 'URL:', serverUrl);
+          // console.log('Favicon failed for domain:', domain, 'URL:', serverUrl);
           setFaviconError(true);
         }}
       />
@@ -116,7 +116,7 @@ export function ServerIcon({
         height={size}
         className={className}
         onError={(e) => {
-          console.log('Fallback image failed:', fallbackImage);
+          // console.log('Fallback image failed:', fallbackImage);
           setFallbackError(true);
         }}
       />

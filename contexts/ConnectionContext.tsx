@@ -49,7 +49,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     // Subscribe to connection store changes (same-tab updates)
     useEffect(() => {
         const unsubscribe = connectionStore.subscribe(() => {
-            console.log('Connection store updated');
+            // console.log('Connection store updated');
             syncConnections();
         });
 
