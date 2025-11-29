@@ -6,121 +6,26 @@ import McpClientLayout from "@/components/mcp-client/McpClientLayout";
 import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
 import { McpServer, ToolInfo } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
+import { useMcpServersPagination } from "@/hooks/useMcpServersPagination";
 
 function McpPageContent() {
   const { data: session } = useSession();
-  const [publicServers, setPublicServers] = useState<McpServer[] | null>(null);
   const [userServers, setUserServers] = useState<McpServer[] | null>(null);
-  const [publicServersCount, setPublicServersCount] = useState(0);
   const [userServersCount, setUserServersCount] = useState(0);
-  const [publicError, setPublicError] = useState<string | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
-  const [publicLoading, setPublicLoading] = useState(true);
   const [userLoading, setUserLoading] = useState(false);
 
-  // Pagination state
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [endCursor, setEndCursor] = useState<string | null>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  const fetchPublicServers = async (reset = true) => {
-    if (reset) {
-      setPublicLoading(true);
-      setPublicServers(null);
-      setEndCursor(null);
-    }
-    setPublicError(null);
-
-    try {
-      const res = await fetch(`/api/mcp?first=10`, { method: "GET" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.errors?.[0]?.message || res.statusText);
-
-      // Extract nodes and pagination info from edges structure
-      const edges = json?.data?.mcpServers?.edges || [];
-      const servers = edges.map((edge: { node: unknown }) => edge.node);
-      const pageInfo = json?.data?.mcpServers?.pageInfo;
-      const totalCount = json?.data?.mcpServers?.totalCount || 0;
-
-      // Merge with stored connection state from localStorage
-      const storedConnections = connectionStore.getAll();
-      const mergedServers = servers.map((server: McpServer) => {
-        const stored = storedConnections[server.name];
-        if (stored && stored.connectionStatus === 'CONNECTED') {
-          return {
-            ...server,
-            connectionStatus: stored.connectionStatus,
-            tools: stored.tools,
-          };
-        }
-        // If not in localStorage, it's disconnected
-        return {
-          ...server,
-          connectionStatus: server.connectionStatus || 'DISCONNECTED',
-          tools: server.tools || [],
-        };
-      });
-
-      setPublicServers(mergedServers);
-      setPublicServersCount(totalCount);
-      setHasNextPage(pageInfo?.hasNextPage ?? false);
-      setEndCursor(pageInfo?.endCursor ?? null);
-    } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : "Failed to load public servers";
-      setPublicError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setPublicLoading(false);
-    }
-  };
-
-  const loadMorePublicServers = async () => {
-    if (!hasNextPage || isLoadingMore || !endCursor) return;
-
-    setIsLoadingMore(true);
-
-    try {
-      const res = await fetch(`/api/mcp?first=10&after=${encodeURIComponent(endCursor)}`, {
-        method: "GET"
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.errors?.[0]?.message || res.statusText);
-
-      // Extract nodes and pagination info
-      const edges = json?.data?.mcpServers?.edges || [];
-      const newServers = edges.map((edge: { node: unknown }) => edge.node);
-      const pageInfo = json?.data?.mcpServers?.pageInfo;
-
-      // Merge new servers with stored connection state from localStorage
-      const storedConnections = connectionStore.getAll();
-      const mergedNewServers = newServers.map((server: McpServer) => {
-        const stored = storedConnections[server.name];
-        if (stored && stored.connectionStatus === 'CONNECTED') {
-          return {
-            ...server,
-            connectionStatus: stored.connectionStatus,
-            tools: stored.tools,
-          };
-        }
-        // If not in localStorage, it's disconnected
-        return {
-          ...server,
-          connectionStatus: server.connectionStatus || 'DISCONNECTED',
-          tools: server.tools || [],
-        };
-      });
-
-      // Append merged servers to existing list
-      setPublicServers(prev => prev ? [...prev, ...mergedNewServers] : mergedNewServers);
-      setHasNextPage(pageInfo?.hasNextPage ?? false);
-      setEndCursor(pageInfo?.endCursor ?? null);
-    } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : "Failed to load more servers";
-      toast.error(errorMessage);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
+  // Use GraphQL pagination hook for public servers
+  const {
+    servers: publicServers,
+    loading: publicLoading,
+    error: publicError,
+    hasNextPage,
+    isLoadingMore,
+    totalCount: publicServersCount,
+    loadMore: loadMorePublicServers,
+    refetch: refetchPublicServers,
+  } = useMcpServersPagination(10);
 
   const fetchUserServers = useCallback(async () => {
     if (!session) return;
@@ -250,8 +155,8 @@ function McpPageContent() {
           });
         }
 
-        // Update local state
-        const updateServer = (s: McpServer) => {
+        // Update local state - hook will pick up from localStorage
+        setUserServers(prev => prev ? prev.map(s => {
           if (s.name === server.name) {
             return {
               ...s,
@@ -261,10 +166,10 @@ function McpPageContent() {
             };
           }
           return s;
-        };
+        }) : prev);
 
-        setPublicServers(prev => prev ? prev.map(updateServer) : prev);
-        setUserServers(prev => prev ? prev.map(updateServer) : prev);
+        // Refetch public servers to update from localStorage
+        refetchPublicServers();
 
         return { success: true, tools };
       }
@@ -305,8 +210,8 @@ function McpPageContent() {
         // Remove from localStorage
         connectionStore.remove(server.name);
 
-        // Update local state
-        const updateServer = (s: McpServer) => {
+        // Update local state - hook will pick up from localStorage
+        setUserServers(prev => prev ? prev.map(s => {
           if (s.name === server.name) {
             return {
               ...s,
@@ -316,10 +221,10 @@ function McpPageContent() {
             };
           }
           return s;
-        };
+        }) : prev);
 
-        setPublicServers(prev => prev ? prev.map(updateServer) : prev);
-        setUserServers(prev => prev ? prev.map(updateServer) : prev);
+        // Refetch public servers to update from localStorage
+        refetchPublicServers();
 
         return { success: true };
       }
@@ -343,7 +248,7 @@ function McpPageContent() {
     }
 
     // Refresh servers list
-    await fetchPublicServers();
+    await refetchPublicServers();
     if (session) {
       await fetchUserServers();
     }
@@ -364,7 +269,7 @@ function McpPageContent() {
     }
 
     // Refresh servers list
-    await fetchPublicServers();
+    await refetchPublicServers();
     if (session) {
       await fetchUserServers();
     }
@@ -381,21 +286,15 @@ function McpPageContent() {
     }
 
     // Refresh servers list
-    await fetchPublicServers();
+    await refetchPublicServers();
     if (session) {
       await fetchUserServers();
     }
   };
 
   const handleUpdatePublicServer = (serverId: string, updates: Partial<McpServer>) => {
-    setPublicServers(prevServers => {
-      if (!prevServers) return prevServers;
-      return prevServers.map(server => 
-        server.id === serverId 
-          ? { ...server, ...updates }
-          : server
-      );
-    });
+    // Public servers are managed by the hook, refetch to get latest
+    refetchPublicServers();
   };
 
   const handleUpdateUserServer = (serverId: string, updates: Partial<McpServer>) => {
@@ -466,7 +365,7 @@ function McpPageContent() {
               });
 
               // Update server state with connection status and tools
-              const updateServer = (server: McpServer) => {
+              setUserServers(prev => prev ? prev.map(server => {
                 if (server.name === serverName) {
                   return {
                     ...server,
@@ -476,10 +375,10 @@ function McpPageContent() {
                   };
                 }
                 return server;
-              };
+              }) : prev);
 
-              setPublicServers(prev => prev ? prev.map(updateServer) : prev);
-              setUserServers(prev => prev ? prev.map(updateServer) : prev);
+              // Refetch public servers to update from localStorage
+              refetchPublicServers();
 
               toast.success(`Connected to ${serverName} successfully`);
 
@@ -499,9 +398,7 @@ function McpPageContent() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchPublicServers();
-  }, []);
+  // Public servers are auto-loaded by the hook
 
   useEffect(() => {
     if (session) {
@@ -510,11 +407,11 @@ function McpPageContent() {
   }, [session, fetchUserServers]);
 
   const refreshAllServers = useCallback(async () => {
-    await fetchPublicServers();
+    await refetchPublicServers();
     if (session) {
       await fetchUserServers();
     }
-  }, [session, fetchUserServers]);
+  }, [session, fetchUserServers, refetchPublicServers]);
 
   return (
     <>
@@ -531,7 +428,7 @@ function McpPageContent() {
         publicError={publicError}
         userError={userError}
         session={session}
-        onRefreshPublic={fetchPublicServers}
+        onRefreshPublic={refetchPublicServers}
         onRefreshUser={fetchUserServers}
         onServerAction={handleServerAction}
         onServerAdd={handleServerAdd}
