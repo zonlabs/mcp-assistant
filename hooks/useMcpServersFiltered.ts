@@ -6,6 +6,7 @@ import { gql } from "@apollo/client";
 import { McpServer, Category } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { MCP_SERVERS_QUERY } from "@/lib/graphql";
+import { useConnectionContext } from "@/contexts/ConnectionContext";
 
 const GET_MCP_SERVERS = gql`${MCP_SERVERS_QUERY}`;
 
@@ -24,6 +25,7 @@ export function useMcpServersFiltered(
   first: number = 10
 ) {
   const { searchQuery, categorySlug, categories } = options;
+  const { connections } = useConnectionContext();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Build GraphQL filter variables
@@ -94,7 +96,7 @@ export function useMcpServersFiltered(
     if (!isFiltering) return [];
     const rawServers = data?.mcpServers?.edges?.map((edge) => edge.node) || [];
     return mergeWithConnectionState(rawServers);
-  }, [data, isFiltering, mergeWithConnectionState]);
+  }, [data, isFiltering, mergeWithConnectionState, connections]);
 
   const pageInfo = data?.mcpServers?.pageInfo;
 

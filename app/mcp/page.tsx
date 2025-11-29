@@ -7,6 +7,7 @@ import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
 import { McpServer, ToolInfo } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { useMcpServersPagination } from "@/hooks/useMcpServersPagination";
+import { ConnectionProvider } from "@/contexts/ConnectionContext";
 
 function McpPageContent() {
   const { data: session } = useSession();
@@ -447,7 +448,9 @@ function McpPageContent() {
 export default function McpPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <McpPageContent />
+      <ConnectionProvider>
+        <McpPageContent />
+      </ConnectionProvider>
     </Suspense>
   );
 }

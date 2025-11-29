@@ -23,6 +23,24 @@ const STORAGE_KEY = 'mcp_connections';
 const EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 class ConnectionStore {
+  private listeners = new Set<() => void>();
+
+  /**
+   * Subscribe to connection changes
+   * Returns an unsubscribe function
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  /**
+   * Notify all subscribers of a change
+   */
+  private notify(): void {
+    this.listeners.forEach(listener => listener());
+  }
+
   /**
    * Get all stored connections
    */
@@ -84,6 +102,7 @@ class ConnectionStore {
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
+      this.notify(); // Notify subscribers of the change
     } catch (error) {
       console.error('[ConnectionStore] Failed to store connection:', error);
     }
@@ -115,6 +134,7 @@ class ConnectionStore {
       const connections = this.getAll();
       delete connections[serverName];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
+      this.notify(); // Notify subscribers of the change
     } catch (error) {
       console.error('[ConnectionStore] Failed to remove connection:', error);
     }
@@ -128,6 +148,7 @@ class ConnectionStore {
 
     try {
       localStorage.removeItem(STORAGE_KEY);
+      this.notify(); // Notify subscribers of the change
     } catch (error) {
       console.error('[ConnectionStore] Failed to clear connections:', error);
     }

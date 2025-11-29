@@ -26,6 +26,7 @@ import { ServerPlaceholder } from "./ServerPlaceholder";
 import ToolsExplorer from "./ToolsExplorer";
 import ToolExecutionPanel from "./ToolExecutionPanel";
 import { connectionStore } from "@/lib/mcp/connection-store";
+import { useConnectionContext } from "@/contexts/ConnectionContext";
 
 interface McpClientLayoutProps {
   publicServers: McpServer[] | null;
@@ -81,7 +82,8 @@ export default function McpClientLayout({
   const [serverToDelete, setServerToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'public' | 'user'>('public');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [activeServersCount, setActiveServersCount] = useState(0);
+
+  const { activeCount: activeServersCount, connections } = useConnectionContext();
 
   const searchParams = useSearchParams();
   const categorySlug = searchParams.get("category");
@@ -93,13 +95,36 @@ export default function McpClientLayout({
 
   // Update selected server when servers list changes
   useEffect(() => {
-    if (selectedServer && currentServers) {
-      const updatedServer = currentServers.find(server => server.name === selectedServer.name);
+    if (selectedServer) {
+      // First try to find in current list
+      const updatedServer = currentServers?.find(server => server.name === selectedServer.name);
+
       if (updatedServer) {
         setSelectedServer(updatedServer);
+      } else {
+        // If not in current list (e.g. filtered out or on another page), 
+        // check if we have connection info for it
+        const storedConnection = connectionStore.get(selectedServer.name);
+        if (storedConnection) {
+          // Update connection status from store (connected)
+          setSelectedServer(prev => prev ? ({
+            ...prev,
+            connectionStatus: storedConnection.connectionStatus,
+            tools: storedConnection.tools || [],
+            transport: storedConnection.transport || prev.transport,
+            url: storedConnection.url || prev.url,
+          }) : null);
+        } else {
+          // No connection in store means it was disconnected
+          setSelectedServer(prev => prev ? ({
+            ...prev,
+            connectionStatus: 'DISCONNECTED',
+            tools: [],
+          }) : null);
+        }
       }
     }
-  }, [currentServers, selectedServer]);
+  }, [currentServers, selectedServer?.name, connections]); // connections from context triggers update
 
   // Close tool tester when server selection changes
   useEffect(() => {
@@ -114,28 +139,7 @@ export default function McpClientLayout({
     }
   }, [categorySlug]);
 
-  // Update active servers count
-  const updateActiveCount = () => {
-    const connections = connectionStore.getAll();
-    const connectedCount = Object.values(connections).filter(
-      conn => conn.connectionStatus === 'CONNECTED'
-    ).length;
-    setActiveServersCount(connectedCount);
-  };
-
-  // Validate connections on mount
-  useEffect(() => {
-    const validateAndCount = async () => {
-      await connectionStore.getValidConnections();
-      updateActiveCount();
-    };
-    validateAndCount();
-  }, []);
-
-  // Update count when servers change
-  useEffect(() => {
-    updateActiveCount();
-  }, [publicServers, userServers]);
+  // Remove the updateActiveCount function and related useEffects - now handled by context
 
   const handleAddServer = () => {
     setModalMode('add');
