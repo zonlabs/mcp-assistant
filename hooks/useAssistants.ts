@@ -2,8 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import { Assistant } from "@/types/mcp";
-import { MY_ASSISTANTS_QUERY, UPDATE_ASSISTANT_MUTATION, DELETE_ASSISTANT_MUTATION } from "@/lib/graphql";
-import { createAssistantAction, updateAssistantAction } from "@/app/actions/assistants";
+import { MY_ASSISTANTS_QUERY, CREATE_ASSISTANT_MUTATION, UPDATE_ASSISTANT_MUTATION, DELETE_ASSISTANT_MUTATION } from "@/lib/graphql";
 
 export interface AssistantsState {
   assistants: Assistant[] | null;
@@ -92,16 +91,33 @@ export function useAssistants(): AssistantsState {
     }
   }, []);
 
-  // Create a new assistant using server action (secure - API key not exposed)
+  // Create a new assistant
   const createAssistant = useCallback(async (data: { name: string; instructions: string; description?: string; isActive?: boolean; config?: any }) => {
     try {
-      const result = await createAssistantAction(data);
+      const response = await fetch('/api/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: CREATE_ASSISTANT_MUTATION,
+          variables: {
+            name: data.name,
+            instructions: data.instructions,
+            description: data.description,
+            isActive: data.isActive,
+            config: data.config,
+          },
+        }),
+      });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create assistant');
+      const result = await response.json();
+
+      if (!response.ok || result.errors) {
+        throw new Error(result.errors?.[0]?.message || 'Failed to create assistant');
       }
 
-      const newAssistant = result.data;
+      const newAssistant = result.data?.createAssistant;
       if (newAssistant) {
         setAssistants(prev => prev ? [...prev.map(a => data.isActive ? { ...a, isActive: false } : a), newAssistant] : [newAssistant]);
       }
@@ -113,16 +129,30 @@ export function useAssistants(): AssistantsState {
     }
   }, []);
 
-  // Update an existing assistant using server action (secure - API key not exposed)
+  // Update an existing assistant
   const updateAssistant = useCallback(async (id: string, data: { name?: string; instructions?: string; description?: string; isActive?: boolean; config?: any }) => {
     try {
-      const result = await updateAssistantAction(id, data);
+      const response = await fetch('/api/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: UPDATE_ASSISTANT_MUTATION,
+          variables: {
+            id,
+            ...data,
+          },
+        }),
+      });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update assistant');
+      const result = await response.json();
+
+      if (!response.ok || result.errors) {
+        throw new Error(result.errors?.[0]?.message || 'Failed to update assistant');
       }
 
-      const updatedAssistant = result.data;
+      const updatedAssistant = result.data?.updateAssistant;
       if (updatedAssistant) {
         setAssistants(prev => prev ? prev.map(a => a.id === id ? { ...a, ...updatedAssistant } : a ) : null);
       }
