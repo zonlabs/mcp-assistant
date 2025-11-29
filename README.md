@@ -216,25 +216,3 @@ mcp-client/
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-## 🔗 Links
-
-- **Website**: [https://www.mcp-assistant.in/](https://www.mcp-assistant.in/)
-- **Documentation**: [Model Context Protocol](https://modelcontextprotocol.io/)
-- **Next.js**: [https://nextjs.org/](https://nextjs.org/)
-- **CopilotKit**: [https://docs.copilotkit.ai/](https://docs.copilotkit.ai/)
-
----
-
-<div align="center">
-  <p>Made with ❤️ for the MCP community</p>
-</div>
