@@ -1,0 +1,33 @@
+name: Deploy to Linode
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            # Navigate to app directory
+            cd mcp-assistant
+
+            # Pull the latest changes
+            git pull origin main
+
+            # Install dependencies
+            npm install
+
+            # Build the application with increased memory limit
+            NODE_OPTIONS="--max_old_space_size=1024" npm run build
+
+            # Restart the PM2 process
+            pm2 restart mcp-assistant
