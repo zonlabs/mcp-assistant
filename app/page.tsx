@@ -108,23 +108,15 @@ export default function Home() {
       >
         {/* Main Hero Content - Centered */}
         <div className="container mx-auto text-center max-w-5xl">
-          {/* Main Title */}
-          <motion.h1
-            variants={item}
-            className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70"
-          >
-            MCP Assistant
-          </motion.h1>
-
           {/* Tagline */}
-          <motion.h2
+          <motion.h1
             variants={item}
             className="text-2xl sm:text-3xl md:text-5xl font-bold text-foreground mb-4 sm:mb-5 tracking-tight leading-[1.1]"
           >
-            A Web Based MCP Client to access
+           A Web Based MCP Client to access
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-primary bg-[length:200%_auto] animate-gradient">
               {/* without the hassle */}
-              <br /> remote MCP&apos;s
+              <br/> remote MCP&apos;s
             </span>
           </motion.h1>
 
@@ -252,9 +244,9 @@ export default function Home() {
             A seamless flow from your interface to AI-powered agents with dynamic MCP server connections
           </p>
         </motion.div>
-        <McpArchitecture className="max-w-6xl w-full" />
+          <McpArchitecture className="max-w-6xl w-full" />
       </motion.div>
-
+      
       {/* Feature Highlights Section */}
       <div id="features" className="relative pb-28 bg-gradient-to-b from-background via-muted/20 to-background overflow-hidden">
         {/* Gradient blobs */}
