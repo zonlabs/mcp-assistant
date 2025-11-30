@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Retrieve client from session store
+    // await sessionStore.clearAll(); testing
     const client = await sessionStore.getClient(sessionId);
     if (!client) {
       console.log('[List Tools] Client not found for sessionId:', sessionId);
