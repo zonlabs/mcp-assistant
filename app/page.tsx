@@ -108,13 +108,13 @@ export default function Home() {
       >
         {/* Main Hero Content - Centered */}
         <div className="container mx-auto text-center max-w-5xl">
-          {/* Main Title */}
+          {/* Main Title
           <motion.h1
             variants={item}
             className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70"
           >
             MCP Assistant
-          </motion.h1>
+          </motion.h1> */}
 
           {/* Tagline */}
           <motion.h2
@@ -133,8 +133,13 @@ export default function Home() {
             variants={item}
             className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-4 sm:mb-5 max-w-3xl mx-auto leading-relaxed"
           >
-            The MCP Assistant Web Client is a browser-based implementation of a Model Context Protocol (MCP) client that allows users to easily connect to and interact with any MCP-compatible server.
+            <span className="font-semibold text-foreground">
+              MCP Assistant
+            </span>{' '}
+            is a web-based Model Context Protocol (MCP) client that lets you easily connect to and
+            interact with remote MCP-compatible servers directly from your browser.
           </motion.p>
+
 
           {/* Additional Description */}
           <motion.p

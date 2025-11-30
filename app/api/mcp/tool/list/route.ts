@@ -70,9 +70,26 @@ export async function GET(request: NextRequest) {
         console.log('[List Tools] Could not fetch OAuth headers:', headerError);
       }
 
+      // Get URL and transport from session store
+      const sessionData = await sessionStore['redis'].get(`${sessionStore['KEY_PREFIX']}${sessionId}`);
+      let url = null;
+      let transport = null;
+      
+      if (sessionData) {
+        try {
+          const parsed = JSON.parse(sessionData);
+          url = parsed.serverUrl || null;
+          transport = parsed.transportType || null;
+        } catch (parseError) {
+          console.log('[List Tools] Could not parse session data:', parseError);
+        }
+      }
+
       return NextResponse.json({
         tools: result.tools,
         headers, // Include headers in response
+        url, // Include server URL
+        transport, // Include transport type
       });
     } catch (error: unknown) {
       console.log('[List Tools] Error fetching tools:', error);

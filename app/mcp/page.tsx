@@ -133,12 +133,17 @@ function McpPageContent() {
 
         // Step 3: Fetch tools from connected server
         let tools: ToolInfo[] = [];
+        let serverUrl = server.url;
+        let serverTransport = server.transport;
         if (connectResult.success && connectResult.sessionId) {
           const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);
 
           if (toolsResponse.ok) {
             const toolsResult = await toolsResponse.json();
             tools = toolsResult.tools || [];
+            // Get URL and transport from API response
+            serverUrl = toolsResult.url;
+            serverTransport = toolsResult.transport;
           } else {
             const errorData = await toolsResponse.json();
             console.error('[MCP Connect] Failed to fetch tools:', errorData);
@@ -151,8 +156,8 @@ function McpPageContent() {
             sessionId: connectResult.sessionId,
             connectionStatus: 'CONNECTED',
             tools: tools,
-            transport: server.transport,
-            url: server.url,
+            transport: serverTransport,
+            url: serverUrl,
           });
         }
 
@@ -323,12 +328,13 @@ function McpPageContent() {
         .then(data => {
           const tools = data.tools || [];
 
-          // TODO: get url and transport from tools/list
-          // Store connection in localStorage
+          // Store connection in localStorage with URL and transport from API
           connectionStore.set(serverName, {
             sessionId,
             connectionStatus: 'CONNECTED',
             tools,
+            url: data.url || undefined,
+            transport: data.transport || undefined,
           });
 
           // Update server state with connection status and tools

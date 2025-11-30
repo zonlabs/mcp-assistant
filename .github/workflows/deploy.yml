@@ -23,6 +23,9 @@ jobs:
             # Navigate to app directory
             cd mcp-assistant
 
+            # Discard any local changes (like package-lock.json from npm install)
+            git reset --hard
+
             # Pull the latest changes
             git pull origin main
 
