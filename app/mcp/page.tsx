@@ -317,79 +317,45 @@ function McpPageContent() {
     const serverName = searchParams.get('server');
 
     if (step === 'success' && sessionId && serverName) {
-      // OAuth authorization completed, fetch server config then tools
-
-      // First, fetch server config to get transport and url
-      fetch('/api/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: `
-            query($name: String!) {
-              mcpServers(filters: { name: { exact: $name } }) {
-                edges {
-                  node {
-                    name
-                    transport
-                    url
-                  }
-                }
-              }
-            }
-          `,
-          variables: { name: serverName }
-        }),
-      })
+      // OAuth authorization completed, fetch tools directly
+      fetch(`/api/mcp/tool/list?sessionId=${sessionId}`)
         .then(res => res.json())
-        .then(configResult => {
-          const serverConfig = configResult.data?.mcpServers?.edges?.[0]?.node;
+        .then(data => {
+          const tools = data.tools || [];
 
-          if (!serverConfig) {
-            throw new Error('Server configuration not found');
-          }
+          // TODO: get url and transport from tools/list
+          // Store connection in localStorage
+          connectionStore.set(serverName, {
+            sessionId,
+            connectionStatus: 'CONNECTED',
+            tools,
+          });
 
-          // Now fetch tools
-          return fetch(`/api/mcp/tool/list?sessionId=${sessionId}`)
-            .then(res => res.json())
-            .then(data => {
-              const tools = data.tools || [];
-
-              // Store connection in localStorage with transport and url
-              connectionStore.set(serverName, {
-                sessionId: sessionId,
-                connectionStatus: 'CONNECTED',
-                tools: tools,
-                transport: serverConfig.transport,
-                url: serverConfig.url,
-              });
-
-              // Update server state with connection status and tools
-              setUserServers(prev => prev ? prev.map(server => {
-                if (server.name === serverName) {
-                  return {
+          // Update server state with connection status and tools
+          setUserServers(prev =>
+            prev
+              ? prev.map(server =>
+                server.name === serverName
+                  ? {
                     ...server,
                     connectionStatus: 'CONNECTED',
-                    tools: tools,
-                    updated_at: new Date().toISOString()
-                  };
-                }
-                return server;
-              }) : prev);
+                    tools,
+                    updated_at: new Date().toISOString(),
+                  }
+                  : server
+              )
+              : prev
+          );
 
-              // Refetch public servers to update from localStorage
-              refetchPublicServers();
+          // Refetch public servers to sync from localStorage
+          refetchPublicServers();
 
-              toast.success(`Connected to ${serverName} successfully`);
-
-              // Clean up URL
-              window.history.replaceState({}, '', '/mcp');
-            });
+          toast.success(`Connected to ${serverName} successfully`);
+          window.history.replaceState({}, '', '/mcp');
         })
         .catch(error => {
           console.error('[OAuth Callback] Failed:', error);
-          toast.error('Connected but failed to fetch server data');
+          toast.error('Connected but failed to fetch tools');
           window.history.replaceState({}, '', '/mcp');
         });
     } else if (step === 'error') {
@@ -398,6 +364,7 @@ function McpPageContent() {
       window.history.replaceState({}, '', '/mcp');
     }
   }, []);
+
 
   // Public servers are auto-loaded by the hook
 
