@@ -42,23 +42,23 @@ export default function ChatInput({
     const sessionId = localStorage.getItem("copilotkit-session");
 
     if (session?.user?.email) {
-    // Authenticated user
-    const email = session.user.email;
-    const derivedId = email.endsWith("@gmail.com")
-      ? email.replace(/@gmail\.com$/, "")
-      : email;
-    localStorage.setItem("copilotkit-session", derivedId);
-    return derivedId;
+      // Authenticated user
+      const email = session.user.email;
+      const derivedId = email.endsWith("@gmail.com")
+        ? email.replace(/@gmail\.com$/, "")
+        : email;
+      localStorage.setItem("copilotkit-session", derivedId);
+      return derivedId;
 
-  } else {
-    // Anonymous user
-    if (!sessionId) {
-      const randomId = crypto.randomUUID();
-      localStorage.setItem("copilotkit-session", randomId);
-      return randomId;
+    } else {
+      // Anonymous user
+      if (!sessionId) {
+        const randomId = crypto.randomUUID();
+        localStorage.setItem("copilotkit-session", randomId);
+        return randomId;
+      }
+      return sessionId;
     }
-    return sessionId;
-  }
   };
 
   // Fetch assistants from context
@@ -122,7 +122,7 @@ export default function ChatInput({
     },
   });
 
-  console.log(state, 'state');
+  // console.log(state, 'state');
   // Update coagent state when active assistant changes
   useEffect(() => {
     const llmConfig = getLLMConfig();
@@ -169,7 +169,7 @@ export default function ChatInput({
     // Update local state
     setSelectedModel(modelId);
     // Push to coagent state
-    setState({...state, model: modelId});
+    setState({ ...state, model: modelId });
     setDropdownState(null);
   };
 
@@ -481,7 +481,7 @@ export default function ChatInput({
                            text-white rounded-lg p-1.5 sm:p-2 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center
                            transition-all duration-200 shadow-lg cursor-pointer disabled:cursor-not-allowed"
                 >
-                    <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               </div>
             </div>

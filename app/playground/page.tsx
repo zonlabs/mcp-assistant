@@ -9,6 +9,12 @@ import HumanInTheLoop from "@/components/playground/HumanInTheLoop";
 import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import { AssistantMessage } from "@/components/playground/ChatMessage";
+import { A2AAgentManager } from "@/components/playground/A2AAgentManager";
+import { MessageToA2A } from "@/components/playground/a2a/MessageToA2A";
+import { MessageFromA2A } from "@/components/playground/a2a/MessageFromA2A";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRenderToolCall } from "@copilotkit/react-core";
 
 interface ChatInputWrapperProps {
   onSend: (message: string) => void;
@@ -33,36 +39,73 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
 };
 
 const PlaygroundPage = () => {
-  
   const { activeAssistant } = usePlayground();
   const askMode = activeAssistant?.config?.ask_mode;
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Render A2A agent communication messages
+  useRenderToolCall({
+    name: "send_message_to_a2a_agent",
+    render: ({ status, args }) => {
+      return (
+        <>
+          <MessageToA2A status={status} args={args} />
+          <MessageFromA2A status={status} args={args} />
+        </>
+      );
+    },
+  });
 
   return (
-    <div
-      className="max-w-2xl mx-auto"
-      style={
-        {
-          "--copilot-kit-background-color": "var(--background)",
-        } as CopilotKitCSSProperties
-      }
-    >
-      {/* Render plan state if agent is using plan-and-execute mode */}
-      {/* note MCPToolCall component doesn't get triggered with plan-and-execute */}
-      {/* <PlanStateRenderer /> */}
+    <div className="flex h-[calc(100vh-64px)] gap-4">
+      {/* A2A Agent Manager Sidebar */}
+      <div
+        className={`transition-all duration-300 ${
+          isSidebarOpen ? "w-80" : "w-0"
+        } overflow-hidden`}
+      >
+        {isSidebarOpen && (
+          <div className="h-full border-r pr-4 overflow-y-auto">
+            <A2AAgentManager />
+          </div>
+        )}
+      </div>
 
-      {/* Human-in-the-loop or tool renderer */}
-      {askMode ? <HumanInTheLoop /> : <ToolRenderer />}
+      {/* Toggle Button */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="fixed left-4 top-20 z-10 p-2 rounded-md bg-background border shadow-md hover:bg-accent"
+      >
+        {isSidebarOpen ? (
+          <ChevronLeft className="w-4 h-4" />
+        ) : (
+          <ChevronRight className="w-4 h-4" />
+        )}
+      </button>
 
-      <CopilotChat
-        labels={{
-          initial: "Hello! I am your MCP assistant. How can I help you today?",
-          title: "MCP Playground",
-          placeholder: "Ask about your connected servers...",
-        }}
-        className="h-[84vh] rounded-md"
-        Input={ChatInputWrapper}
-        AssistantMessage={AssistantMessage}
-      />
+      {/* Main Chat Area */}
+      <div
+        className="flex-1 max-w-2xl mx-auto"
+        style={
+          {
+            "--copilot-kit-background-color": "var(--background)",
+          } as CopilotKitCSSProperties
+        }
+      >
+        {/* Human-in-the-loop or tool renderer */}
+        {askMode ? <HumanInTheLoop /> : <ToolRenderer />}
+
+        <CopilotChat
+          labels={{
+            initial: "Hello! I am your MCP assistant. How can I help you today?",
+            title: "MCP Playground",
+            placeholder: "Ask about your connected servers...",
+          }}
+          className="h-[84vh] rounded-md"
+          Input={ChatInputWrapper}
+          AssistantMessage={AssistantMessage}
+        />
+      </div>
     </div>
   );
 };
