@@ -37,11 +37,11 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
 };
 
 const PlaygroundPage = () => {
-  const { activeAssistant } = usePlayground();
+  const { activeAssistant, agentState } = usePlayground();
   const askMode = activeAssistant?.config?.ask_mode;
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-
+  console.log('agentstate:', agentState)
   // Extract A2A agents from active assistant config
   // const a2aAgents = (activeAssistant?.config as any)?.a2a_agents || null;
 
@@ -80,10 +80,11 @@ const PlaygroundPage = () => {
           } as CopilotKitCSSProperties
         }
       >
-        {/* A2A Message Renderer */}
-        {<A2AMessageRenderer />}
         {/* Human-in-the-loop or tool renderer */}
-        {/* {(askMode) ? <HumanInTheLoop /> : <ToolRenderer />} */}
+        {(askMode) ? <HumanInTheLoop /> : <ToolRenderer />}
+
+        {/* A2A Message Renderer - Registers tool renderer for send_message_to_a2a_agent */}
+        <A2AMessageRenderer />
 
         <CopilotChat
           labels={{

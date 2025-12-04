@@ -97,6 +97,7 @@ export type AgentState = {
   selectedTools?: string[]; // Selected tool names to filter
   llm_provider?: string; // LLM provider (openai, deepseek, etc.)
   llm_api_key?: string; // User's API key for the provider
+  current_tool_call?: {name: string, args: any, result: any} | null;
 };
 
 export interface Tool {

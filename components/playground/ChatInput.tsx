@@ -33,48 +33,27 @@ export default function ChatInput({
   pushToTalkState = "idle",
   onPushToTalkStateChange
 }: CustomChatInputProps) {
-
   // Generate sessionId for authenticated or anonymous users (browser only)
   const { data: session } = useSession();
-  const getSessionId = (session: Session | null) => {
-    if (typeof window === "undefined") return undefined;
 
-    const sessionId = localStorage.getItem("copilotkit-session");
+  // Fetch assistants and shared state from context
+  const {
+    assistants,
+    activeAssistant,
+    setActiveAssistant,
+    createAssistant,
+    updateAssistant,
+    deleteAssistant,
+    loading,
+    selectedModel,
+    setSelectedModel,
+    toolSelection,
+    setToolSelection,
+    agentState: state,
+    setAgentState: setState
+  } = usePlayground();
 
-    if (session?.user?.email) {
-      // Authenticated user
-      const email = session.user.email;
-      const derivedId = email.endsWith("@gmail.com")
-        ? email.replace(/@gmail\.com$/, "")
-        : email;
-      localStorage.setItem("copilotkit-session", derivedId);
-      return derivedId;
-
-    } else {
-      // Anonymous user
-      if (!sessionId) {
-        const randomId = crypto.randomUUID();
-        localStorage.setItem("copilotkit-session", randomId);
-        return randomId;
-      }
-      return sessionId;
-    }
-  };
-
-  // Fetch assistants from context
-  const { assistants, activeAssistant, setActiveAssistant, createAssistant, updateAssistant, deleteAssistant, loading } = usePlayground();
-
-  // Separate state for model - independent of coagent state
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
-
-  // MCP tool selection state
-  const [toolSelection, setToolSelection] = useState<MCPToolSelection>({
-    selectedServers: [],
-    selectedTools: [],
-    mcpConfig: {},
-  });
-
-  // Get LLM config from localStorage or assistant config
+  // Helper to get LLM config for assistant updates (still needed for saving)
   const getLLMConfig = () => {
     if (typeof window === "undefined") return { provider: undefined, apiKey: undefined };
 
@@ -102,49 +81,6 @@ export default function ChatInput({
 
     return { provider: undefined, apiKey: undefined };
   };
-
-  const { state, setState } = useCoAgent<AgentState>({
-    name: "mcpAssistant",
-    initialState: {
-      model: selectedModel,
-      status: undefined,
-      sessionId: getSessionId(session),
-      assistant: activeAssistant ? {
-        ...activeAssistant,
-        config: {
-          ...activeAssistant.config,
-          llm_provider: getLLMConfig().provider || activeAssistant.config?.llm_provider,
-          llm_api_key: getLLMConfig().apiKey || activeAssistant.config?.llm_api_key,
-        }
-      } : null,
-      mcp_config: toolSelection.mcpConfig,
-      selectedTools: toolSelection.selectedTools,
-    },
-  });
-
-  // console.log(state, 'state');
-  // Update coagent state when active assistant changes
-  useEffect(() => {
-    const llmConfig = getLLMConfig();
-    const updatedAssistant = activeAssistant ? {
-      ...activeAssistant,
-      config: {
-        ...activeAssistant.config,
-        llm_provider: llmConfig.provider || activeAssistant.config?.llm_provider,
-        llm_api_key: llmConfig.apiKey || activeAssistant.config?.llm_api_key,
-      }
-    } : null;
-
-    setState({
-      model: selectedModel,
-      status: state.status,
-      sessionId: state.sessionId,
-      assistant: updatedAssistant,
-      mcp_config: state.mcp_config,
-      selectedTools: state.selectedTools,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAssistant?.id]);
 
   const [message, setMessage] = useState("");
   const [dropdownState, setDropdownState] = useState<"model" | "assistant" | "mcp" | null>(null);
