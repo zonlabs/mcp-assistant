@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowUp,
@@ -162,6 +162,7 @@ export default function ChatInput({
         datetime_context: assistant.config?.datetime_context !== undefined ? assistant.config.datetime_context : true,
         llm_provider: assistant.config?.llm_provider,
         llm_api_key: assistant.config?.llm_api_key,
+        llm_name: assistant.config?.llm_name,
       }
     });
     setDropdownState(null);
@@ -309,6 +310,32 @@ export default function ChatInput({
     }
   };
 
+  // Determine which models to show in the dropdown
+  const modelsToShow = React.useMemo(() => {
+    const customLlmName = activeAssistant?.config?.llm_name;
+    if (customLlmName && customLlmName.trim()) {
+      // Show only the specified LLM
+      return [{
+        id: customLlmName,
+        name: customLlmName,
+        description: `Model configured for ${activeAssistant.name}`,
+        provider: activeAssistant?.config?.llm_provider || "OpenAI",
+        tag: "Configured"
+      }];
+    }
+    // Show default models
+    return AVAILABLE_MODELS;
+  }, [activeAssistant]);
+
+  // Auto-select custom model when assistant has llm_name
+  React.useEffect(() => {
+    const customLlmName = activeAssistant?.config?.llm_name;
+    if (customLlmName && customLlmName.trim() && selectedModel !== customLlmName) {
+      setSelectedModel(customLlmName);
+      setState({ ...state, model: customLlmName });
+    }
+  }, [activeAssistant, selectedModel, setSelectedModel, setState, state]);
+
   return (
     <>
       <AuthDialog open={dialogState === "auth"} onOpenChange={v => setDialogState(v ? "auth" : null)} />
@@ -394,7 +421,7 @@ export default function ChatInput({
                   selectedModel={selectedModel}
                   setShowModelDropdown={(open) => setDropdownState(open ? "model" : null)}
                   showModelDropdown={dropdownState === "model"}
-                  AVAILABLE_MODELS={AVAILABLE_MODELS}
+                  AVAILABLE_MODELS={modelsToShow}
                   handleModelChange={handleModelChange}
                 />
 

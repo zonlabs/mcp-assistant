@@ -46,34 +46,45 @@ const PlaygroundPage = () => {
   // const a2aAgents = (activeAssistant?.config as any)?.a2a_agents || null;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] gap-4">
+    <div className="flex h-[calc(100vh-64px)]">
       {/* A2A Agent Manager Sidebar */}
       <div
-        className={`transition-all duration-300 ${isSidebarOpen ? "w-80" : "w-0"
-          } overflow-hidden`}
+        className={`transition-all duration-300 ${isSidebarOpen ? "w-80" : "w-12"
+          } border-r relative flex flex-col`}
       >
         {isSidebarOpen && (
-          <div className="h-full border-r pr-4 overflow-y-auto">
-            <A2AAgentManager />
-          </div>
+          <>
+            {/* Toggle Button - Integrated with sidebar header */}
+            <div className="flex items-center justify-end pt-3 pr-3 pb-2">
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="h-[calc(100%-56px)] pr-4 pl-4 overflow-y-auto">
+              <A2AAgentManager />
+            </div>
+          </>
+        )}
+
+        {/* Toggle Button - When collapsed */}
+        {!isSidebarOpen && (
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="absolute right-0 top-4 p-1.5 rounded-l-md bg-background border border-r-0 hover:bg-accent transition-colors cursor-pointer shadow-sm"
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         )}
       </div>
 
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="fixed left-4 top-20 z-10 p-2 rounded-md bg-background border shadow-md hover:bg-accent"
-      >
-        {isSidebarOpen ? (
-          <ChevronLeft className="w-4 h-4" />
-        ) : (
-          <ChevronRight className="w-4 h-4" />
-        )}
-      </button>
-
       {/* Main Chat Area */}
       <div
-        className="flex-1 max-w-2xl mx-auto"
+        className="flex-1 max-w-2xl mx-auto px-4"
         style={
           {
             "--copilot-kit-background-color": "var(--background)",

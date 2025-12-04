@@ -43,7 +43,7 @@ export const MessageFromA2A: React.FC<MessageActionRenderProps> = ({ status, arg
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-700 text-white">
                 Orchestrator
               </span>
-              <span className="text-[9px] text-gray-500 mt-0.5">MCP Hub</span>
+              <span className="text-[9px] text-gray-500 mt-0.5">MCP Assistant</span>
             </div>
           </div>
 

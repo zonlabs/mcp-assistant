@@ -32,6 +32,7 @@ export type AssistantFormData = {
     datetime_context: boolean;
     llm_provider?: string;
     llm_api_key?: string;
+    llm_name?: string;
   };
 };
 
@@ -152,34 +153,53 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
               Configure your LLM provider and API key (optional, overrides global settings)
             </p>
 
-            <div className="space-y-2">
-              <Label htmlFor="llm-provider">Provider</Label>
-              <Select
-                value={formData.config.llm_provider || "openai"}
-                onValueChange={value => {
-                  setFormData({ ...formData, config: { ...formData.config, llm_provider: value } });
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="llm-provider">Provider</Label>
+                <Select
+                  value={formData.config.llm_provider || "openai"}
+                  onValueChange={value => {
+                    setFormData({ ...formData, config: { ...formData.config, llm_provider: value } });
 
-                  // Update localStorage if checkbox is unchecked and we have an API key
-                  if (!saveApiKey && formData.config.llm_api_key) {
-                    localStorage.setItem('llm_config', JSON.stringify({
-                      llm_provider: value,
-                      llm_api_key: formData.config.llm_api_key
-                    }));
-                  }
-                }}
-              >
-                <SelectTrigger id="llm-provider">
-                  <SelectValue placeholder="Select provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROVIDERS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    // Update localStorage if checkbox is unchecked and we have an API key
+                    if (!saveApiKey && formData.config.llm_api_key) {
+                      localStorage.setItem('llm_config', JSON.stringify({
+                        llm_provider: value,
+                        llm_api_key: formData.config.llm_api_key
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger id="llm-provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="llm-name">LLM Name</Label>
+                <Input
+                  id="llm-name"
+                  placeholder="e.g., gpt-4, claude-3"
+                  value={formData.config.llm_name || ""}
+                  onChange={e => {
+                    setFormData({ ...formData, config: { ...formData.config, llm_name: e.target.value } });
+                  }}
+                  className="text-sm"
+                />
+              </div>
             </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              If LLM Name is specified, it will replace default models in the dropdown
+            </p>
 
             <div className="space-y-2">
               <Label htmlFor="llm-api-key">API Key</Label>
@@ -295,9 +315,6 @@ const AssistantDialog: React.FC<AssistantDialogProps> = ({
                   onChange={e => setFormData({ ...formData, config: { ...formData.config, temperature: parseFloat(e.target.value) || 0.7 } })}
                   className="flex-1"
                 />
-                <span className="text-xs text-gray-500 dark:text-gray-400 min-w-[50px]">
-                  {formData.config.temperature}
-                </span>
               </div>
             </div>
           </div>

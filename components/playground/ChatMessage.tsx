@@ -2,7 +2,7 @@
 
 import { UserMessageProps, AssistantMessageProps } from "@copilotkit/react-ui";
 import { Markdown } from "@copilotkit/react-ui";
-import { User, Bot } from "lucide-react";
+import { User } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ReactNode, useEffect, useState } from "react";
@@ -119,17 +119,17 @@ export function AssistantMessage({ message, isLoading }: AssistantMessageProps) 
 
       {/* Message */}
       <div className={`flex-1 space-y-2 ${showAvatar ? 'max-w-[80%]' : 'w-full'}`}>
-        {/* Render tool calls and actions (always visible, even during loading) */}
-        {subComponent && (
-          <div className="w-full">
-            {subComponent}
-          </div>
-        )}
-
         {/* Message content */}
         {messageContent && !isLoading && (
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <Markdown content={messageContent} />
+          </div>
+        )}
+
+        {/* Render tool calls and actions (always visible, even during loading) */}
+        {subComponent && (
+          <div className="w-full">
+            {subComponent}
           </div>
         )}
 

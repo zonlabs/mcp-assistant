@@ -14,8 +14,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle2, AlertCircle, Zap, Shield, Loader2 } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, AlertCircle, Zap, Shield, Loader2, MoreVertical } from "lucide-react";
 import { toast } from "react-hot-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type A2AAgentInfo = {
   name: string;
@@ -193,7 +199,7 @@ export function A2AAgentManager() {
         <h3 className="text-lg font-semibold">A2A Agents</h3>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline" disabled={!activeAssistant}>
+            <Button size="sm" variant="outline" disabled={!activeAssistant} className="cursor-pointer">
               <Plus className="w-4 h-4 mr-2" />
               Add Agent
             </Button>
@@ -228,12 +234,14 @@ export function A2AAgentManager() {
                   setAgentUrl("");
                 }}
                 disabled={isValidating}
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleValidateAndSave}
                 disabled={isValidating || !agentUrl.trim()}
+                className="cursor-pointer"
               >
                 {isValidating ? (
                   <>
@@ -250,68 +258,69 @@ export function A2AAgentManager() {
       </div>
 
       {/* A2A Agents List */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {!activeAssistant ? (
-          <div className="text-sm text-muted-foreground text-center py-8 border rounded-lg border-dashed">
-            No active assistant selected. Please select or create an assistant first.
+          <div className="text-sm text-muted-foreground text-center py-8">
+            No active assistant selected.
           </div>
         ) : existingAgents.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-8 border rounded-lg border-dashed">
-            No A2A agents configured for this assistant. Add one to enable agent-to-agent delegation.
+          <div className="text-sm text-muted-foreground text-center py-8">
+            No agents configured yet.
           </div>
         ) : (
           existingAgents.map((agent: A2AAgentInfo) => {
             return (
               <div
                 key={agent.url}
-                className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-all bg-card"
+                className="group py-3 px-3 rounded-md hover:bg-accent/50 transition-colors"
               >
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    {/* Agent name and status */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <h4 className="font-semibold text-base">{agent.name}</h4>
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Validated
-                      </span>
-                    </div>
+                {/* Agent name and status */}
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                  <h4 className="font-medium text-sm flex-1 truncate">{agent.name}</h4>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400">
+                    Validated
+                  </span>
 
-                    {/* Description */}
-                    {agent.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {agent.description}
-                      </p>
-                    )}
-
-                    {/* URL and Actions */}
-                    <div className="flex items-center gap-3 pt-2 border-t">
-                      <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
-                        {agent.url}
-                      </code>
+                  {/* Actions Dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => testConnection(agent)}
-                        className="text-xs h-7"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       >
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Test
+                        <MoreVertical className="w-3.5 h-3.5" />
                       </Button>
-                    </div>
-                  </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => testConnection(agent)} className="cursor-pointer">
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
+                        Test Connection
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteAgent(agent.url)}
+                        className="text-destructive focus:text-destructive cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Remove Agent
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-                  {/* Delete Button */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDeleteAgent(agent.url)}
-                    className="ml-2"
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                {/* Description */}
+                {agent.description && (
+                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2 pl-5">
+                    {agent.description}
+                  </p>
+                )}
+
+                {/* URL */}
+                <div className="pl-5">
+                  <code className="text-[10px] text-muted-foreground truncate block">
+                    {agent.url}
+                  </code>
                 </div>
               </div>
             );
