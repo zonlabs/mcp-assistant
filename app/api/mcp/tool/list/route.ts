@@ -74,27 +74,11 @@ export async function GET(request: NextRequest) {
       const result = await client.listTools();
       console.log('[List Tools] Found', result.tools.length, 'tools');
 
-      // Also fetch OAuth headers if they exist
-      let headers = null;
-      try {
-        const oauthProvider = (client as unknown as { oauthProvider?: { tokens: () => { access_token?: string } } }).oauthProvider;
-        if (oauthProvider) {
-          const tokens = oauthProvider.tokens();
-          if (tokens && tokens.access_token) {
-            headers = {
-              Authorization: `Bearer ${tokens.access_token}`
-            };
-          }
-        }
-      } catch (headerError) {
-        console.log('[List Tools] Could not fetch OAuth headers:', headerError);
-      }
-
       // Get URL and transport from session store
       const sessionData = await sessionStore['redis'].get(`${sessionStore['KEY_PREFIX']}${sessionId}`);
       let url = null;
       let transport = null;
-      
+
       if (sessionData) {
         try {
           const parsed = JSON.parse(sessionData);
@@ -107,7 +91,6 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         tools: result.tools,
-        headers, // Include headers in response
         url, // Include server URL
         transport, // Include transport type
       });

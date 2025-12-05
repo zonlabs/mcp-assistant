@@ -138,7 +138,7 @@ export default function ToolExecutionPanel({
       }
 
       // Call the API endpoint
-      const response = await fetch('/api/mcp/call-tool', {
+      const response = await fetch('/api/mcp/tool/call', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

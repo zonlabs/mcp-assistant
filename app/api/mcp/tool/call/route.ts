@@ -1,54 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { sessionStore } from '@/lib/mcp/session-store';
+import { NextRequest, NextResponse } from "next/server";
+import { sessionStore } from "@/lib/mcp/session-store";
 
-interface CallToolRequestBody {
-  sessionId: string;
-  toolName: string;
-  toolArgs: Record<string, unknown>;
-}
-
-/**
- * POST /api/mcp/tool/call
- *
- * Call a tool on a connected MCP server
- *
- * Request body:
- * {
- *   "sessionId": "abc123xyz",
- *   "toolName": "example_tool",
- *   "toolArgs": {
- *     "param1": "value1",
- *     "param2": "value2"
- *   }
- * }
- *
- * Response:
- * {
- *   "content": [
- *     {
- *       "type": "text",
- *       "text": "Tool execution result"
- *     }
- *   ],
- *   "isError": false
- * }
- */
 export async function POST(request: NextRequest) {
   try {
-    const body: CallToolRequestBody = await request.json();
-    const { sessionId, toolName, toolArgs } = body;
+    const body = await request.json();
+    const { serverName, toolName, toolInput, sessionId } = body;
 
-    if (!sessionId) {
+    if (!serverName || !toolName || !toolInput) {
       return NextResponse.json(
-        { error: 'Session ID is required' },
+        { errors: [{ message: "Missing required fields: serverName, toolName, toolInput" }] },
         { status: 400 }
       );
     }
 
-    if (!toolName) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: 'Tool name is required' },
-        { status: 400 }
+        {
+          data: {
+            callMcpServerTool: {
+              success: false,
+              message: "Session ID required. Please reconnect to the server.",
+              toolName,
+              serverName,
+              result: null,
+              error: "Session ID required. Please reconnect to the server."
+            }
+          }
+        },
+        { status: 200 }
       );
     }
 
@@ -56,38 +35,81 @@ export async function POST(request: NextRequest) {
     const client = await sessionStore.getClient(sessionId);
     if (!client) {
       return NextResponse.json(
-        { error: 'Invalid session ID or session expired' },
-        { status: 404 }
+        {
+          data: {
+            callMcpServerTool: {
+              success: false,
+              message: "Invalid session or session expired. Please reconnect.",
+              toolName,
+              serverName,
+              result: null,
+              error: "Invalid session or session expired"
+            }
+          }
+        },
+        { status: 200 }
       );
     }
 
     try {
       // Call the tool on the MCP server
-      const result = await client.callTool(toolName, toolArgs || {});
+      const result = await client.callTool(toolName, toolInput || {});
+
+      // Extract clean content from MCP format
+      let cleanResult: unknown = result.content;
+
+      // Handle MCP format: [{ type: "text", text: "..." }]
+      if (Array.isArray(result.content)) {
+        const textContents = result.content
+          .filter((item: { type?: string; text?: string }) => item.type === 'text' && item.text)
+          .map((item: { type?: string; text?: string }) => item.text)
+          .join('\n\n');
+
+        if (textContents) {
+          // Try to parse as JSON
+          try {
+            cleanResult = JSON.parse(textContents);
+          } catch {
+            // Not JSON, use plain text
+            cleanResult = textContents;
+          }
+        }
+      }
 
       return NextResponse.json({
-        content: result.content,
-        isError: result.isError || false,
+        data: {
+          callMcpServerTool: {
+            success: true,
+            message: `Tool ${toolName} executed successfully`,
+            toolName,
+            serverName,
+            result: cleanResult,
+            error: null
+          }
+        }
       });
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        return NextResponse.json(
-          { error: `Failed to call tool: ${error.message}` },
-          { status: 500 }
-        );
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return NextResponse.json(
-        { error: 'Failed to call tool' },
-        { status: 500 }
+        {
+          data: {
+            callMcpServerTool: {
+              success: false,
+              message: `Error calling tool ${toolName}`,
+              toolName,
+              serverName,
+              result: null,
+              error: errorMessage
+            }
+          }
+        },
+        { status: 200 }
       );
     }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to parse request body' },
-      { status: 400 }
+      { errors: [{ message: error instanceof Error ? error.message : "Internal server error" }] },
+      { status: 500 }
     );
   }
 }

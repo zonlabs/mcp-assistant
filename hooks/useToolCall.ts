@@ -59,7 +59,7 @@ export function useToolCall() {
       }
 
       // Call the tool
-      const response = await fetch('/api/mcp/call-tool', {
+      const response = await fetch('/api/mcp/tool/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

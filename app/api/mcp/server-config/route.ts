@@ -6,7 +6,9 @@ import type { McpServerConfig } from '@/types/mcp';
  * POST /api/mcp/server-config
  *
  * Fetches MCP server configurations from session store using sessionIds
- * This endpoint runs server-side only and never exposes tokens to the client
+
+ * Request headers:
+ * - Origin or Referer: Must match allowed backend URL
  *
  * Request body:
  * {
@@ -24,6 +26,34 @@ import type { McpServerConfig } from '@/types/mcp';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Validate request origin (Known backend only)
+    const allowedBackendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
+    const origin = request.headers.get('origin');
+    const referer = request.headers.get('referer');
+
+    // Check if request is from allowed backend domain
+    const requestOrigin = origin || (referer ? new URL(referer).origin : null);
+
+    if (!requestOrigin) {
+      console.warn('[Server Config] Unauthorized access attempt - no origin/referer');
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Normalize URLs for comparison (remove trailing slashes)
+    const normalizedOrigin = requestOrigin.replace(/\/$/, '');
+    const normalizedBackend = allowedBackendUrl.replace(/\/$/, '');
+
+    if (normalizedOrigin !== normalizedBackend) {
+      console.warn(`[Server Config] Unauthorized access attempt from: ${requestOrigin}`);
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const sessionIds: string[] = body.sessionIds;
 
