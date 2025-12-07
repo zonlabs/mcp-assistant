@@ -91,7 +91,6 @@ export default function McpClientLayout({
 
   // Get current servers and error based on active tab
   const currentServers = activeTab === 'public' ? publicServers : userServers;
-  const currentError = activeTab === 'public' ? publicError : userError;
 
   // Update selected server when servers list changes
   useEffect(() => {
@@ -139,6 +138,12 @@ export default function McpClientLayout({
     }
   }, [categorySlug]);
 
+  // set default selected server to first server in list
+  useEffect(() => {
+    if (currentServers && currentServers.length > 0) {
+      setSelectedServer(currentServers[0]);
+    }
+  }, [currentServers]);
   // Remove the updateActiveCount function and related useEffects - now handled by context
 
   const handleAddServer = () => {
@@ -201,28 +206,6 @@ export default function McpClientLayout({
     visible: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: 20 }
   };
-
-  if (currentError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-destructive">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{currentError}</p>
-            <Button
-              onClick={activeTab === 'public' ? onRefreshPublic : onRefreshUser}
-              variant="outline"
-              className="w-full"
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -299,7 +282,7 @@ export default function McpClientLayout({
               )}
 
               <AnimatePresence mode="wait">
-                {selectedServer ? (
+                {selectedServer && (
                   <motion.div
                     key={selectedServer.name}
                     initial={{ opacity: 0, y: 20 }}
@@ -330,8 +313,6 @@ export default function McpClientLayout({
                       />
                     </div>
                   </motion.div>
-                ) : (
-                  <ServerPlaceholder type="no-selection" />
                 )}
               </AnimatePresence>
             </div>

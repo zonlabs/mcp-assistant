@@ -429,33 +429,37 @@ export function ServerSidebar({
                     ))}
                   </div>
                 ) : userServers && userServers.length > 0 ? (
-                  <div className="space-y-2">
-                    {userServers.map((server) => (
-                      <ServerListItem
-                        key={server.id}
-                        server={server}
-                        isSelected={selectedServer?.name === server.name}
-                        onClick={() => onServerSelect(server)}
-                        onEdit={
-                          !(
-                            server.isPublic &&
-                            server.owner !== session?.user?.email?.split("@")[0]
-                          )
-                            ? onEditServer
-                            : undefined
-                        }
-                        onDelete={
-                          !(
-                            server.isPublic &&
-                            server.owner !== session?.user?.email?.split("@")[0]
-                          )
-                            ? onDeleteServer
-                            : undefined
-                        }
-                        showActions={true}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      {userServers.map((server) => (
+                        <ServerListItem
+                          key={server.id}
+                          server={server}
+                          isSelected={selectedServer?.name === server.name}
+                          onClick={() => onServerSelect(server)}
+                          onEdit={
+                            !(
+                              server.isPublic &&
+                              server.owner !== session?.user?.email?.split("@")[0]
+                            )
+                              ? onEditServer
+                              : undefined
+                          }
+                          onDelete={
+                            !(
+                              server.isPublic &&
+                              server.owner !== session?.user?.email?.split("@")[0]
+                            )
+                              ? onDeleteServer
+                              : undefined
+                          }
+                          showActions={true}
+                        />
+                      ))}
+                    </div>
+                    {/* Extra spacing at bottom */}
+                    <div className="h-16" />
+                  </>
                 ) : (
                   <ServerPlaceholder type="no-servers" tab="user" />
                 )}

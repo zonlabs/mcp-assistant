@@ -27,7 +27,7 @@ export function ServerListItem({
     const upperStatus = status?.toUpperCase();
     if (upperStatus === "CONNECTED") return "bg-green-500 animate-pulse";
     if (upperStatus === "FAILED") return "bg-red-500 animate-pulse";
-    return "bg-yellow-500";
+    return "hidden";
   };
 
   return (
