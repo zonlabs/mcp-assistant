@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,13 +18,25 @@ export function RegistryBrowser() {
   const [selectedServer, setSelectedServer] =
     useState<ParsedRegistryServer | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'search' | 'next' | 'prev' | null>(null);
 
   const { servers, loading, error, hasNextPage, hasPreviousPage, goToNextPage, goToPreviousPage, refetch } =
     useRegistryServers(debouncedSearch);
 
   const handleSearch = useCallback(() => {
+    setLoadingAction('search');
     setDebouncedSearch(searchQuery);
   }, [searchQuery]);
+
+  const handleNextPage = useCallback(() => {
+    setLoadingAction('next');
+    goToNextPage();
+  }, [goToNextPage]);
+
+  const handlePreviousPage = useCallback(() => {
+    setLoadingAction('prev');
+    goToPreviousPage();
+  }, [goToPreviousPage]);
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -36,6 +48,13 @@ export function RegistryBrowser() {
     setSearchQuery("");
     setDebouncedSearch("");
   };
+
+  // Clear loading action when loading completes
+  useEffect(() => {
+    if (!loading) {
+      setLoadingAction(null);
+    }
+  }, [loading]);
 
   const handleViewDetails = (server: ParsedRegistryServer) => {
     setSelectedServer(server);
@@ -107,9 +126,9 @@ export function RegistryBrowser() {
                 <Button
                   onClick={handleSearch}
                   disabled={loading}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 z-10"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 z-10 cursor-pointer"
                 >
-                  {loading ? (
+                  {loading && loadingAction === 'search' ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     "Search"
@@ -138,6 +157,40 @@ export function RegistryBrowser() {
           <h2 className="text-xl font-semibold text-foreground">
             {debouncedSearch ? "Search Results" : "All Servers"}
           </h2>
+
+          {/* Pagination Controls */}
+          {(hasNextPage || hasPreviousPage) && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={!hasPreviousPage || loading}
+                className="gap-2 cursor-pointer"
+              >
+                {loading && loadingAction === 'prev' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={!hasNextPage || loading}
+                className="gap-2 cursor-pointer"
+              >
+                Next
+                {loading && loadingAction === 'next' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Error Alert */}
@@ -188,30 +241,6 @@ export function RegistryBrowser() {
                 </motion.div>
               ))}
             </motion.div>
-
-            {/* Pagination */}
-            {(hasNextPage || hasPreviousPage) && (
-              <div className="flex justify-center gap-4 pt-12">
-                <Button
-                  variant="outline"
-                  onClick={goToPreviousPage}
-                  disabled={!hasPreviousPage || loading}
-                  className="gap-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={goToNextPage}
-                  disabled={!hasNextPage || loading}
-                  className="gap-2"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
           </>
         )}
 
