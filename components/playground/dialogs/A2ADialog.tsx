@@ -51,6 +51,7 @@ export const A2ADialog = ({
               value={a2aUrl}
               onChange={(e) => setA2AUrl(e.target.value)}
               disabled={isValidating}
+              className="mt-2"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Agent name and description will be fetched automatically after validation

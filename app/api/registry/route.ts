@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { RegistryListResponse, ParsedRegistryServer } from "@/types/mcp";
 
-const REGISTRY_API_BASE = "https://registry.modelcontextprotocol.io";
-
 /**
  * GET /api/registry - List MCP servers from the official registry
  *
@@ -10,6 +8,7 @@ const REGISTRY_API_BASE = "https://registry.modelcontextprotocol.io";
  * - search: string - Search query to filter servers
  * - cursor: string - Pagination cursor
  * - limit: number - Number of servers per page (default: 24)
+ * - updated_since: string - Filter servers updated since timestamp (RFC3339 datetime)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,14 +17,22 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor");
     const limit = searchParams.get("limit") || "10";
 
+    const updatedSince = searchParams.get("updated_since");
+
     // Build query parameters for registry API
     const params = new URLSearchParams();
     if (search) params.append("search", search);
     if (cursor) params.append("cursor", cursor);
+    if (updatedSince) params.append("updated_since", updatedSince);
     params.append("limit", limit);
-    params.append("version", "latest"); // Only fetch latest versions
+    // params.append("version", "latest"); // Only fetch latest versions - Commented out to allow seeing all if needed, or keep it? 
+    // The user didn't ask to remove "latest", but "updated_since" might conflict if we only want latest. 
+    // Let's keep "version=latest" as it was there before, unless it breaks "updated_since".
+    // Registry API docs say "Filter by version ('latest' for latest version...)". 
+    // It's likely fine to keep it.
+    params.append("version", "latest");
 
-    const url = `${REGISTRY_API_BASE}/v0.1/servers?${params.toString()}`;
+    const url = `${process.env.REGISTRY_API_BASE}/v0.1/servers?${params.toString()}`;
     
     console.log("Fetching registry URL:", url);
     console.log("Query params:", {

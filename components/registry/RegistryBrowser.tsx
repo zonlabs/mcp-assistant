@@ -76,9 +76,8 @@ export function RegistryBrowser() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 mb-2 border-0"
             >
-              <Package className="h-8 w-8 text-primary" />
+              <Package className="h-10 w-10 text-primary" />
             </motion.div>
             <motion.h1
               initial={{ opacity: 0 }}

@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Users, MessageSquarePlus, LucideIcon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Network,
+  LucideIcon,
+} from "lucide-react";
 import { A2AAgentManager } from "./A2AAgentManager";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +18,13 @@ interface SidebarNavLinkProps {
   onClick: () => void;
 }
 
-const SidebarNavLink = ({ icon: Icon, label, isActive, isCollapsed, onClick }: SidebarNavLinkProps) => {
+const SidebarNavLink = ({
+  icon: Icon,
+  label,
+  isActive,
+  isCollapsed,
+  onClick,
+}: SidebarNavLinkProps) => {
   return (
     <button
       onClick={onClick}
@@ -36,10 +47,6 @@ export const PlaygroundSidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [activeSection, setActiveSection] = useState<"agents">("agents");
 
-  const handleNewChat = () => {
-    window.location.reload();
-  };
-
   return (
     <div
       className={cn(
@@ -54,24 +61,27 @@ export const PlaygroundSidebar = () => {
           className="p-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
           aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
-          {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          {isOpen ? (
+            <ChevronLeft className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
         </button>
       </div>
 
       {/* Navigation Links */}
-      <div className={cn("pb-3 space-y-1 border-b flex-shrink-0", isOpen ? "px-2" : "px-1")}>
+      <div
+        className={cn(
+          "pb-3 space-y-1 border-b flex-shrink-0",
+          isOpen ? "px-2" : "px-1"
+        )}
+      >
         <SidebarNavLink
-          icon={Users}
-          label="A2A Agents"
+          icon={Network}
+          label="A2A (Experimental)"
           isActive={activeSection === "agents"}
           isCollapsed={!isOpen}
           onClick={() => setActiveSection("agents")}
-        />
-        <SidebarNavLink
-          icon={MessageSquarePlus}
-          label="New Chat"
-          isCollapsed={!isOpen}
-          onClick={handleNewChat}
         />
       </div>
 
@@ -84,7 +94,12 @@ export const PlaygroundSidebar = () => {
           )}
         >
           {isOpen && (
-            <div className="h-full pr-4 pl-4 pt-4 overflow-y-auto">
+            <div className="h-full pr-4 pl-4 pt-4 overflow-y-auto space-y-4">
+              {/* Experimental Note */}
+              <div className="rounded-md border border-dashed bg-accent/20 p-3 text-xs text-muted-foreground">
+                <strong>Experimental:</strong> A2A protocol support is still in progress.
+                Feel free to test interactions with open remote agents that implement the A2A standard.
+              </div>
               <A2AAgentManager />
             </div>
           )}
