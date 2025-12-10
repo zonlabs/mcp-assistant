@@ -1,86 +1,102 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
-import { connectionStore, StoredConnection } from "@/lib/mcp/connection-store";
+import React, { createContext, useContext, ReactNode, useMemo, useEffect, useRef, useState } from "react";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
+import { StoredConnection, connectionStore } from "@/lib/mcp/connection-store";
 
 interface ConnectionContextValue {
     connections: Record<string, StoredConnection>;
     activeCount: number;
-    syncConnections: () => void;
+    isValidating: boolean;
+    progress: { validated: number; total: number } | null;
 }
 
 const ConnectionContext = createContext<ConnectionContextValue | undefined>(undefined);
 
 interface ConnectionProviderProps {
     children: ReactNode;
-    /** Optional filter function to validate only specific connections */
-    validateFilter?: (serverId: string) => boolean;
+    /** Optional filter function to filter connections */
+    filter?: (serverId: string) => boolean;
 }
 
-export function ConnectionProvider({ children, validateFilter }: ConnectionProviderProps) {
-    const [connections, setConnections] = useState<Record<string, StoredConnection>>({});
-    const [activeCount, setActiveCount] = useState(0);
-    const isValidatingRef = useRef(false);
+export function ConnectionProvider({ children, filter }: ConnectionProviderProps) {
+    const hasValidated = useRef(false);
+    const [isValidating, setIsValidating] = useState(true); // Start as true
+    const [progress, setProgress] = useState<{ validated: number; total: number } | null>(null);
 
-    const syncConnections = useCallback(() => {
-        const allConnections = connectionStore.getAll();
-        setConnections(allConnections);
+    // Use the refactored hook for all connection data
+    const {
+        connections: allConnections,
+        activeConnectionCount: totalActiveCount,
+        validateConnections,
+    } = useMcpConnection();
 
-        // Apply filter when counting active connections
-        const connectionsToCount = validateFilter
-            ? Object.entries(allConnections).filter(([serverId]) => validateFilter(serverId))
-            : Object.entries(allConnections);
+    // Apply filter to connections and count
+    // Only show connections after validation completes
+    const { connections, activeCount } = useMemo(() => {
+        // While validating, show empty state
+        // REMOVED: Do not hide connections while validating (Issue #1 fixed)
+        // We want to show them immediately, potentially with "Validating..." status
 
-        const connectedCount = connectionsToCount.filter(
-            ([_, conn]) => conn.connectionStatus === 'CONNECTED'
-        ).length;
-        setActiveCount(connectedCount);
-    }, [validateFilter]);
 
-    // Initial load and validation
+        if (!filter) {
+            return {
+                connections: allConnections,
+                activeCount: totalActiveCount,
+            };
+        }
+
+        const filteredConnections = Object.entries(allConnections)
+            .filter(([serverId]) => filter(serverId))
+            .reduce((acc, [id, conn]) => {
+                acc[id] = conn;
+                return acc;
+            }, {} as Record<string, StoredConnection>);
+
+        const filteredActiveCount = Object.values(filteredConnections)
+            .filter(conn => conn.connectionStatus === 'CONNECTED')
+            .length;
+
+        return {
+            connections: filteredConnections,
+            activeCount: filteredActiveCount,
+        };
+    }, [allConnections, totalActiveCount, filter, isValidating]);
+
+    // Validate connections on mount (only once)
     useEffect(() => {
-        const validateAndLoad = async () => {
-            // Prevent concurrent validation calls
-            if (isValidatingRef.current) {
-                return;
-            }
+        if (hasValidated.current) return;
 
-            isValidatingRef.current = true;
+        const validate = async () => {
+            hasValidated.current = true;
+            setIsValidating(true);
+            setProgress(null);
+
             try {
-                await connectionStore.getValidConnections(validateFilter);
-                syncConnections();
+                await validateConnections(
+                    filter,
+                    (validated, total) => {
+                        setProgress({ validated, total });
+                    }
+                );
             } finally {
-                isValidatingRef.current = false;
-            }
-        };
-        validateAndLoad();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [validateFilter]); // Only re-run when filter changes, not when syncConnections changes
-
-    // Listen for storage events (changes from other tabs/windows)
-    useEffect(() => {
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'mcp_connections') {
-                syncConnections();
+                setIsValidating(false);
+                setProgress(null);
             }
         };
 
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, [syncConnections]);
+        validate();
+    }, [filter, validateConnections]);
 
-    // Subscribe to connection store changes (same-tab updates)
-    useEffect(() => {
-        const unsubscribe = connectionStore.subscribe(() => {
-            // console.log('Connection store updated');
-            syncConnections();
-        });
-
-        return unsubscribe;
-    }, [syncConnections]);
+    const contextValue = useMemo<ConnectionContextValue>(() => ({
+        connections,
+        activeCount,
+        isValidating,
+        progress,
+    }), [connections, activeCount, isValidating, progress]);
 
     return (
-        <ConnectionContext.Provider value={{ connections, activeCount, syncConnections }}>
+        <ConnectionContext.Provider value={contextValue}>
             {children}
         </ConnectionContext.Provider>
     );

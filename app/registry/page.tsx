@@ -41,7 +41,7 @@ export default function RegistryPage() {
       }
     >
       {/* Only validate registry server connections (NOT starting with mcp_) */}
-      <ConnectionProvider validateFilter={registryServerFilter}>
+      <ConnectionProvider filter={registryServerFilter}>
         <RegistryPageContent />
       </ConnectionProvider>
     </Suspense>

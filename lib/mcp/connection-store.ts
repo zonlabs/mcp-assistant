@@ -183,23 +183,55 @@ class ConnectionStore {
     }
   }
 
-  async getValidConnections(filterFn?: (serverId: string) => boolean): Promise<Map<string, { tools: ToolInfo[] }>> {
+  // Validate connections progressively - notifies after EACH connection is validated
+  async validateConnections(
+    filterFn?: (serverId: string) => boolean,
+    onProgress?: (validatedCount: number, totalCount: number) => void
+  ): Promise<void> {
     const connections = this.getAll();
-    const validServersData = new Map<string, { tools: ToolInfo[] }>();
 
     const serverIdsToValidate = Object.keys(connections).filter(serverId =>
       !filterFn || filterFn(serverId)
     );
 
+    const total = serverIdsToValidate.length;
+    let completed = 0;
+
+    // Validate each connection and notify immediately after each one
     const validationPromises = serverIdsToValidate.map(async (serverId) => {
+      // Mark as validating immediately
+      this.update(serverId, { connectionStatus: 'VALIDATING' });
+      
       const data = await this.validateConnection(serverId);
+
+        // If validation succeeded, update the connection's tools in the store
       if (data) {
-        validServersData.set(serverId, data);
+        const connection = this.get(serverId);
+        if (connection) {
+          this.update(serverId, { 
+            tools: data.tools,
+            connectionStatus: 'CONNECTED' 
+          });
+        }
+      } else {
+        // Validation failed
+        this.update(serverId, { connectionStatus: 'DISCONNECTED' });
       }
+
+      // Update progress
+      completed++;
+      if (onProgress) {
+        onProgress(completed, total);
+      }
+
+      // Notify subscribers immediately after each validation
+      // This triggers re-renders progressively as each connection is validated
+      this.notify();
+
+      return data;
     });
 
     await Promise.all(validationPromises);
-    return validServersData;
   }
 }
 

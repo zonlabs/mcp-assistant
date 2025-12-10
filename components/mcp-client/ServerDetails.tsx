@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -22,7 +22,7 @@ import ServerManagement from "./ServerManagement";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Session } from "next-auth";
-import { connectionStore } from "@/lib/mcp/connection-store";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 interface ServerDetailsProps {
   server: McpServer;
@@ -44,12 +44,8 @@ export function ServerDetails({
 }: ServerDetailsProps) {
   const [urlCopied, setUrlCopied] = useState(false);
 
-  // Subscribe to connection store updates for reactive connection status
-  const storeSnapshot = useSyncExternalStore(
-    (callback) => connectionStore.subscribe(callback),
-    () => JSON.stringify(connectionStore.getAll()),
-    () => JSON.stringify({})
-  );
+  // Get connection status from hook
+  const { connection } = useMcpConnection({ serverId: server.id });
 
   const handleCopyUrl = () => {
     if (server.url) {
@@ -58,10 +54,6 @@ export function ServerDetails({
       setTimeout(() => setUrlCopied(false), 2000);
     }
   };
-
-  // Get connection reactively
-  const connections = JSON.parse(storeSnapshot);
-  const connection = connections[server.id];
 
   return (
     <div className="p-4 sm:p-6 border-b border-border">

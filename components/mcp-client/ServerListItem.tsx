@@ -26,7 +26,8 @@ export function ServerListItem({
   const getStatusColor = (status?: string | null) => {
     const upperStatus = status?.toUpperCase();
     if (upperStatus === "CONNECTED") return "bg-green-500 animate-pulse";
-    if (upperStatus === "FAILED") return "bg-red-500 animate-pulse";
+    if (upperStatus === "FAILED") return "bg-red-500";
+    if (upperStatus === "VALIDATING") return "bg-yellow-500 animate-pulse";
     return "hidden";
   };
 
@@ -67,12 +68,12 @@ export function ServerListItem({
 
       <div
         className={`cursor-pointer transition-all duration-200 ${showActions
-            ? `px-3 py-2 ${isSelected
-              ? "bg-primary/10 border-l-2 border-primary rounded-lg"
-              : "border-l-2 border-transparent hover:bg-muted/50"
-            }`
-            : `hover:rounded-lg hover:bg-muted/20 ${isSelected ? "bg-primary/5 rounded-lg" : ""
-            }`
+          ? `px-3 py-2 ${isSelected
+            ? "bg-primary/10 border-l-2 border-primary rounded-lg"
+            : "border-l-2 border-transparent hover:bg-muted/50"
+          }`
+          : `hover:rounded-lg hover:bg-muted/20 ${isSelected ? "bg-primary/5 rounded-lg" : ""
+          }`
           }`}
         onClick={onClick}
       >
