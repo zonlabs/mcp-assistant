@@ -202,7 +202,7 @@ class ConnectionStore {
 
   /**
    * Validate a connection by checking if its sessionId is still active on the backend
-   * Removes the connection from localStorage if invalid
+   * Removes the connection from localStorage ONLY if session is invalid (not for temporary errors)
    * Returns the tools data if valid, null if invalid
    * NOTE: Headers are NOT returned to client for security - they're fetched server-side
    */
@@ -219,8 +219,9 @@ class ConnectionStore {
       const response = await fetch(`/api/mcp/tool/list?sessionId=${connection.sessionId}`);
 
       if (!response.ok) {
-        // Session is invalid, remove from localStorage
-        this.remove(serverId);
+        if (response.status === 401 || response.status === 403 || response.status === 404) {
+          this.remove(serverId);
+        }
         return null;
       }
 
@@ -230,9 +231,8 @@ class ConnectionStore {
         tools: data.tools || []
       };
     } catch (error) {
-      console.error('[ConnectionStore] Failed to validate session:', error);
-      // On error, assume session is invalid and clean up
-      this.remove(serverId);
+      // Network errors, timeouts, etc. - don't remove connection
+      console.warn('[ConnectionStore] Validation error for', serverId, '- keeping connection:', error);
       return null;
     }
   }
