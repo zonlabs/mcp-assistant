@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ParsedRegistryServer } from "@/types/mcp";
-import { useConnectionPersistence } from "./useConnectionPersistence";
+import { useMcpConnection } from "./useMcpConnection";
 
-/**
- * Hook for fetching MCP servers from the official registry
- * Supports auto-debounced search and cursor-based pagination
- */
 export function useRegistryServers(itemsPerPage: number = 10) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -17,7 +13,7 @@ export function useRegistryServers(itemsPerPage: number = 10) {
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { mergeWithStoredState } = useConnectionPersistence();
+  const { mergeWithStoredState } = useMcpConnection();
 
   const hasNextPage = nextCursor !== null;
   const hasPreviousPage = cursorHistory.length > 0;

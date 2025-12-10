@@ -23,7 +23,7 @@ import ToolsExplorer from "@/components/mcp-client/ToolsExplorer";
 import ToolExecutionPanel from "@/components/mcp-client/ToolExecutionPanel";
 import type { ParsedRegistryServer, ToolInfo, McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
-import { useConnectionPersistence } from "@/hooks/useConnectionPersistence";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 import { connectionStore } from "@/lib/mcp/connection-store";
 
 interface ServerDetailProps {
@@ -42,7 +42,7 @@ export function ServerDetail({ server }: ServerDetailProps) {
     disconnect,
     isConnecting,
     connectionError,
-  } = useConnectionPersistence();
+  } = useMcpConnection();
 
   // Subscribe to connection store for reactive updates
   const storeSnapshot = useSyncExternalStore(

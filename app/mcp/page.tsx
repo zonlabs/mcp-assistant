@@ -9,7 +9,7 @@ import { connectionStore } from "@/lib/mcp/connection-store";
 import { useMcpServersPagination } from "@/hooks/useMcpServersPagination";
 import { ConnectionProvider } from "@/components/providers/ConnectionProvider";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { useConnectionPersistence } from "@/hooks/useConnectionPersistence";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 function McpPageContent() {
   const { data: session } = useSession();
@@ -19,7 +19,7 @@ function McpPageContent() {
   const [userLoading, setUserLoading] = useState(false);
 
   // Use connection persistence hook for connect/disconnect operations
-  const { connect, disconnect } = useConnectionPersistence();
+  const { connect, disconnect } = useMcpConnection();
 
   // Use GraphQL pagination hook for public servers
   const {
