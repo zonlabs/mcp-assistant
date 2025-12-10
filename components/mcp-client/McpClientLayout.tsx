@@ -17,9 +17,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { McpServer } from "@/types/mcp";
-import ServerFormModal from "./ServerFormModal";
+import ServerForm from "./ServerForm";
 import { ServerSidebar } from "./ServerSidebar";
 import { ServerDetails } from "./ServerDetails";
 import { ServerPlaceholder } from "./ServerPlaceholder";
@@ -75,9 +74,11 @@ export default function McpClientLayout({
   const [toolTesterOpen, setToolTesterOpen] = useState(false);
   const [selectedToolName, setSelectedToolName] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+
+  // View State Management
+  const [viewMode, setViewMode] = useState<'browse' | 'add' | 'edit'>('browse');
   const [editingServer, setEditingServer] = useState<McpServer | null>(null);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serverToDelete, setServerToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'public' | 'user'>('public');
@@ -95,17 +96,13 @@ export default function McpClientLayout({
   // Update selected server when servers list changes
   useEffect(() => {
     if (selectedServer) {
-      // First try to find in current list
       const updatedServer = currentServers?.find(server => server.name === selectedServer.name);
 
       if (updatedServer) {
         setSelectedServer(updatedServer);
       } else {
-        // If not in current list (e.g. filtered out or on another page),
-        // check if we have connection info for it
         const storedConnection = connectionStore.get(selectedServer.id);
         if (storedConnection) {
-          // Update connection status from store (connected)
           setSelectedServer(prev => prev ? ({
             ...prev,
             connectionStatus: storedConnection.connectionStatus,
@@ -114,7 +111,6 @@ export default function McpClientLayout({
             url: storedConnection.url || prev.url,
           }) : null);
         } else {
-          // No connection in store means it was disconnected
           setSelectedServer(prev => prev ? ({
             ...prev,
             connectionStatus: 'DISCONNECTED',
@@ -123,7 +119,7 @@ export default function McpClientLayout({
         }
       }
     }
-  }, [currentServers, selectedServer?.name, connections]); // connections from context triggers update
+  }, [currentServers, selectedServer?.name, connections]);
 
   // Close tool tester when server selection changes
   useEffect(() => {
@@ -138,24 +134,15 @@ export default function McpClientLayout({
     }
   }, [categorySlug]);
 
-  // set default selected server to first server in list
-  // useEffect(() => {
-  //   if (currentServers && currentServers.length > 0) {
-  //     setSelectedServer(currentServers[0]);
-  //   }
-  // }, [currentServers]);
-  // Remove the updateActiveCount function and related useEffects - now handled by context
-
   const handleAddServer = () => {
-    setModalMode('add');
+    setViewMode('add');
+    setSelectedServer(null); // Deselect to show form clearly? Or keep selection? 
     setEditingServer(null);
-    setModalOpen(true);
   };
 
   const handleEditServer = (server: McpServer) => {
-    setModalMode('edit');
+    setViewMode('edit');
     setEditingServer(server);
-    setModalOpen(true);
   };
 
   const handleDeleteServer = (serverName: string) => {
@@ -170,6 +157,7 @@ export default function McpClientLayout({
       await onServerDelete(serverToDelete);
       if (selectedServer?.name === serverToDelete) {
         setSelectedServer(null);
+        setViewMode('browse');
       }
       setDeleteDialogOpen(false);
       setServerToDelete(null);
@@ -178,12 +166,13 @@ export default function McpClientLayout({
     }
   };
 
-  const handleModalSubmit = async (data: Record<string, unknown>) => {
-    if (modalMode === 'add') {
+  const handleFormSubmit = async (data: Record<string, unknown>) => {
+    if (viewMode === 'add') {
       await onServerAdd(data);
     } else {
       await onServerUpdate(data);
     }
+    setViewMode('browse');
   };
 
   const handleCategorySelect = (categorySlug: string) => {
@@ -199,6 +188,11 @@ export default function McpClientLayout({
 
     const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
     router.replace(newUrl, { scroll: false });
+  };
+
+  const handleServerSelect = (server: McpServer) => {
+    setSelectedServer(server);
+    setViewMode('browse'); // Switch back to details view if selecting a server
   };
 
   const mainVariants = {
@@ -236,7 +230,7 @@ export default function McpClientLayout({
               userLoading={userLoading}
               activeServersCount={activeServersCount}
               selectedServer={selectedServer}
-              onServerSelect={setSelectedServer}
+              onServerSelect={handleServerSelect}
               onAddServer={handleAddServer}
               onEditServer={handleEditServer}
               onDeleteServer={handleDeleteServer}
@@ -282,7 +276,38 @@ export default function McpClientLayout({
               )}
 
               <AnimatePresence mode="wait">
-                {selectedServer ? (
+                {viewMode === 'add' ? (
+                  <motion.div
+                    key="add-form"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex-1 h-full"
+                  >
+                    <ServerForm
+                      mode="add"
+                      session={session}
+                      onSubmit={handleFormSubmit}
+                      onCancel={() => setViewMode('browse')}
+                    />
+                  </motion.div>
+                ) : viewMode === 'edit' && editingServer ? (
+                  <motion.div
+                    key="edit-form"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex-1 h-full"
+                  >
+                    <ServerForm
+                      mode="edit"
+                      server={editingServer}
+                      session={session}
+                      onSubmit={handleFormSubmit}
+                      onCancel={() => setViewMode('browse')}
+                    />
+                  </motion.div>
+                ) : selectedServer ? (
                   <motion.div
                     key={selectedServer.name}
                     initial={{ opacity: 0, y: 20 }}
@@ -344,16 +369,6 @@ export default function McpClientLayout({
           </AnimatePresence>
         </motion.div>
       </div>
-
-      {/* Server Form Modal */}
-      <ServerFormModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleModalSubmit}
-        server={editingServer}
-        mode={modalMode}
-        session={session}
-      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
