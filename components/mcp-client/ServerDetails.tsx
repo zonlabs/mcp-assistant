@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -44,6 +44,13 @@ export function ServerDetails({
 }: ServerDetailsProps) {
   const [urlCopied, setUrlCopied] = useState(false);
 
+  // Subscribe to connection store updates for reactive connection status
+  const storeSnapshot = useSyncExternalStore(
+    (callback) => connectionStore.subscribe(callback),
+    () => JSON.stringify(connectionStore.getAll()),
+    () => JSON.stringify({})
+  );
+
   const handleCopyUrl = () => {
     if (server.url) {
       navigator.clipboard.writeText(server.url);
@@ -52,7 +59,9 @@ export function ServerDetails({
     }
   };
 
-  const connection = connectionStore.get(server.name);
+  // Get connection reactively
+  const connections = JSON.parse(storeSnapshot);
+  const connection = connections[server.id];
 
   return (
     <div className="p-4 sm:p-6 border-b border-border">

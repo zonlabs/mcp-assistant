@@ -76,7 +76,7 @@ export function useMcpServersFiltered(
   const mergeWithConnectionState = useCallback((servers: McpServer[]) => {
     const storedConnections = connectionStore.getAll();
     return servers.map((server) => {
-      const stored = storedConnections[server.name];
+      const stored = storedConnections[server.id];
       if (stored && stored.connectionStatus === "CONNECTED") {
         return {
           ...server,

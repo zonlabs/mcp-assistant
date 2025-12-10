@@ -28,55 +28,61 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCallback(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const error = searchParams.get('error');
-    const errorDescription = searchParams.get('error_description');
-    const code = searchParams.get('code');
-    const state = searchParams.get('state'); // OAuth state parameter contains sessionId + serverName
+  const searchParams = request.nextUrl.searchParams;
+  const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
+  const code = searchParams.get('code');
+  const state = searchParams.get('state');
 
-    // Check if OAuth provider returned an error
-    if (error) {
-      const errorUrl = new URL('/mcp', getAppUrl());
-      errorUrl.searchParams.set('step', 'error');
-      const errorMessage = errorDescription || error;
-      errorUrl.searchParams.set('error', errorMessage);
-      return NextResponse.redirect(errorUrl);
-    }
+  // Parse state to extract all data (parse once, use everywhere)
+  let sessionId: string | undefined = undefined;
+  let serverId: string | undefined = undefined;
+  let serverName: string | undefined = undefined;
+  let serverUrl: string | undefined = undefined;
+  let sourceUrl: string = '/mcp'; // Default fallback
 
-    if (!code) {
-      const errorUrl = new URL('/mcp', getAppUrl());
-      errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Authorization code is required');
-      return NextResponse.redirect(errorUrl);
-    }
-
-    if (!state) {
-      const errorUrl = new URL('/mcp', getAppUrl());
-      errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
-      return NextResponse.redirect(errorUrl);
-    }
-
-    // Parse state JSON to get sessionId, serverName, and serverUrl
-    let sessionId: string;
-    let serverName: string | undefined;
-    let serverUrl: string | undefined;
-
+  if (state) {
     try {
       const stateData = JSON.parse(state);
       sessionId = stateData.sessionId;
+      serverId = stateData.serverId;
       serverName = stateData.serverName;
       serverUrl = stateData.serverUrl;
+      sourceUrl = stateData.sourceUrl || '/mcp';
     } catch {
       // Fallback: treat state as plain sessionId for backward compatibility
       sessionId = state;
     }
+  }
+
+  // Check if OAuth provider returned an error
+  if (error) {
+    const errorUrl = new URL(sourceUrl, getAppUrl());
+    errorUrl.searchParams.set('step', 'error');
+    errorUrl.searchParams.set('error', errorDescription || error);
+    return NextResponse.redirect(errorUrl);
+  }
+
+  if (!code) {
+    const errorUrl = new URL(sourceUrl, getAppUrl());
+    errorUrl.searchParams.set('step', 'error');
+    errorUrl.searchParams.set('error', 'Authorization code is required');
+    return NextResponse.redirect(errorUrl);
+  }
+
+  if (!state || !sessionId) {
+    const errorUrl = new URL(sourceUrl, getAppUrl());
+    errorUrl.searchParams.set('step', 'error');
+    errorUrl.searchParams.set('error', 'Session ID is required (state parameter missing)');
+    return NextResponse.redirect(errorUrl);
+  }
+
+  try {
 
     // Retrieve client from session store
     const client = await sessionStore.getClient(sessionId);
     if (!client) {
-      const errorUrl = new URL('/mcp', getAppUrl());
+      const errorUrl = new URL(sourceUrl, getAppUrl());
       if (serverName) {
         errorUrl.searchParams.set('server', serverName);
       }
@@ -85,55 +91,39 @@ async function handleCallback(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
-    try {
-      // Complete OAuth authorization with the code
-      await client.finishAuth(code);
+    // Complete OAuth authorization with the code
+    await client.finishAuth(code);
 
-      // Re-save client with updated OAuth tokens (important for serverless!)
-      await sessionStore.setClient(
-        sessionId,
-        client,
-        serverUrl || client.getServerUrl(),
-        client.getCallbackUrl(),
-        client.getTransportType()
-      );
+    // Re-save client with updated OAuth tokens (important for serverless!)
+    await sessionStore.setClient(
+      sessionId,
+      client,
+      serverUrl || client.getServerUrl(),
+      client.getCallbackUrl(),
+      client.getTransportType()
+    );
 
-      // Redirect back to MCP page with success parameters
-      const successUrl = new URL('/mcp', getAppUrl());
-      if (serverName) {
-        successUrl.searchParams.set('server', serverName);
-      }
-      successUrl.searchParams.set('sessionId', sessionId);
-      successUrl.searchParams.set('step', 'success');
-
-      return NextResponse.redirect(successUrl);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        // Redirect to MCP page with error parameter
-        const errorUrl = new URL('/mcp', getAppUrl());
-        if (serverName) {
-          errorUrl.searchParams.set('server', serverName);
-        }
-        errorUrl.searchParams.set('step', 'error');
-        errorUrl.searchParams.set('error', error.message);
-        return NextResponse.redirect(errorUrl);
-      }
-      const errorUrl = new URL('/mcp', getAppUrl());
-      if (serverName) {
-        errorUrl.searchParams.set('server', serverName);
-      }
-      errorUrl.searchParams.set('step', 'error');
-      errorUrl.searchParams.set('error', 'Authorization failed');
-      return NextResponse.redirect(errorUrl);
+    // Redirect back to source page with success parameters
+    const successUrl = new URL(sourceUrl, getAppUrl());
+    if (serverId) {
+      successUrl.searchParams.set('serverId', serverId);
     }
+    if (serverName) {
+      successUrl.searchParams.set('server', serverName);
+    }
+    successUrl.searchParams.set('sessionId', sessionId);
+    successUrl.searchParams.set('step', 'success');
+
+    return NextResponse.redirect(successUrl);
   } catch (error: unknown) {
-    const errorUrl = new URL('/mcp', getAppUrl());
+    // Handle any errors during OAuth completion
+    const errorUrl = new URL(sourceUrl, getAppUrl());
     errorUrl.searchParams.set('step', 'error');
 
     if (error instanceof Error) {
       errorUrl.searchParams.set('error', error.message);
     } else {
-      errorUrl.searchParams.set('error', 'Failed to process callback');
+      errorUrl.searchParams.set('error', 'Failed to complete OAuth authorization');
     }
 
     return NextResponse.redirect(errorUrl);

@@ -101,9 +101,9 @@ export default function McpClientLayout({
       if (updatedServer) {
         setSelectedServer(updatedServer);
       } else {
-        // If not in current list (e.g. filtered out or on another page), 
+        // If not in current list (e.g. filtered out or on another page),
         // check if we have connection info for it
-        const storedConnection = connectionStore.get(selectedServer.name);
+        const storedConnection = connectionStore.get(selectedServer.id);
         if (storedConnection) {
           // Update connection status from store (connected)
           setSelectedServer(prev => prev ? ({
@@ -139,11 +139,11 @@ export default function McpClientLayout({
   }, [categorySlug]);
 
   // set default selected server to first server in list
-  useEffect(() => {
-    if (currentServers && currentServers.length > 0) {
-      setSelectedServer(currentServers[0]);
-    }
-  }, [currentServers]);
+  // useEffect(() => {
+  //   if (currentServers && currentServers.length > 0) {
+  //     setSelectedServer(currentServers[0]);
+  //   }
+  // }, [currentServers]);
   // Remove the updateActiveCount function and related useEffects - now handled by context
 
   const handleAddServer = () => {
@@ -282,7 +282,7 @@ export default function McpClientLayout({
               )}
 
               <AnimatePresence mode="wait">
-                {selectedServer && (
+                {selectedServer ? (
                   <motion.div
                     key={selectedServer.name}
                     initial={{ opacity: 0, y: 20 }}
@@ -313,6 +313,8 @@ export default function McpClientLayout({
                       />
                     </div>
                   </motion.div>
+                ) : (
+                  <ServerPlaceholder type="no-selection" />
                 )}
               </AnimatePresence>
             </div>

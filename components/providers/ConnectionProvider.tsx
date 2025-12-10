@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { connectionStore, StoredConnection } from "@/lib/mcp/connection-store";
 
 interface ConnectionContextValue {
@@ -11,28 +11,51 @@ interface ConnectionContextValue {
 
 const ConnectionContext = createContext<ConnectionContextValue | undefined>(undefined);
 
-export function ConnectionProvider({ children }: { children: ReactNode }) {
+interface ConnectionProviderProps {
+    children: ReactNode;
+    /** Optional filter function to validate only specific connections */
+    validateFilter?: (serverId: string) => boolean;
+}
+
+export function ConnectionProvider({ children, validateFilter }: ConnectionProviderProps) {
     const [connections, setConnections] = useState<Record<string, StoredConnection>>({});
     const [activeCount, setActiveCount] = useState(0);
+    const isValidatingRef = useRef(false);
 
     const syncConnections = useCallback(() => {
         const allConnections = connectionStore.getAll();
         setConnections(allConnections);
 
-        const connectedCount = Object.values(allConnections).filter(
-            conn => conn.connectionStatus === 'CONNECTED'
+        // Apply filter when counting active connections
+        const connectionsToCount = validateFilter
+            ? Object.entries(allConnections).filter(([serverId]) => validateFilter(serverId))
+            : Object.entries(allConnections);
+
+        const connectedCount = connectionsToCount.filter(
+            ([_, conn]) => conn.connectionStatus === 'CONNECTED'
         ).length;
         setActiveCount(connectedCount);
-    }, []);
+    }, [validateFilter]);
 
     // Initial load and validation
     useEffect(() => {
         const validateAndLoad = async () => {
-            await connectionStore.getValidConnections();
-            syncConnections();
+            // Prevent concurrent validation calls
+            if (isValidatingRef.current) {
+                return;
+            }
+
+            isValidatingRef.current = true;
+            try {
+                await connectionStore.getValidConnections(validateFilter);
+                syncConnections();
+            } finally {
+                isValidatingRef.current = false;
+            }
         };
         validateAndLoad();
-    }, [syncConnections]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [validateFilter]); // Only re-run when filter changes, not when syncConnections changes
 
     // Listen for storage events (changes from other tabs/windows)
     useEffect(() => {

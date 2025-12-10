@@ -1,20 +1,43 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { ParsedRegistryServer } from "@/types/mcp";
+import { useConnectionPersistence } from "./useConnectionPersistence";
 
 /**
  * Hook for fetching MCP servers from the official registry
- * Supports search and cursor-based pagination
+ * Supports auto-debounced search and cursor-based pagination
  */
-export function useRegistryServers(searchQuery?: string, itemsPerPage: number = 10) {
+export function useRegistryServers(itemsPerPage: number = 10) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [servers, setServers] = useState<ParsedRegistryServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentCursor, setCurrentCursor] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { mergeWithStoredState } = useConnectionPersistence();
 
   const hasNextPage = nextCursor !== null;
   const hasPreviousPage = cursorHistory.length > 0;
+
+  // Auto-debounce search query
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500); // 500ms debounce delay
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   const fetchServers = useCallback(
     async (cursor: string | null = null) => {
@@ -23,7 +46,7 @@ export function useRegistryServers(searchQuery?: string, itemsPerPage: number = 
         setError(null);
 
         const params = new URLSearchParams();
-        if (searchQuery) params.append("search", searchQuery);
+        if (debouncedSearch) params.append("search", debouncedSearch);
         params.append("limit", itemsPerPage.toString());
         if (cursor) params.append("cursor", cursor);
 
@@ -52,7 +75,7 @@ export function useRegistryServers(searchQuery?: string, itemsPerPage: number = 
         setLoading(false);
       }
     },
-    [searchQuery, itemsPerPage]
+    [debouncedSearch, itemsPerPage]
   );
 
   const goToNextPage = useCallback(() => {
@@ -89,10 +112,10 @@ export function useRegistryServers(searchQuery?: string, itemsPerPage: number = 
     setCursorHistory([]);
     fetchServers(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, itemsPerPage]);
+  }, [debouncedSearch, itemsPerPage]);
 
   return {
-    servers,
+    servers: mergeWithStoredState(servers),
     loading,
     error,
     hasNextPage,
@@ -100,6 +123,9 @@ export function useRegistryServers(searchQuery?: string, itemsPerPage: number = 
     goToNextPage,
     goToPreviousPage,
     refetch,
+    searchQuery,
+    setSearchQuery,
+    debouncedSearch,
   };
 }
 

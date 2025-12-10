@@ -3,9 +3,11 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Globe, ArrowRight } from "lucide-react";
+import { ExternalLink, Globe, ArrowRight, CheckCircle2 } from "lucide-react";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import type { ParsedRegistryServer } from "@/types/mcp";
+import { useSyncExternalStore } from "react";
+import { connectionStore } from "@/lib/mcp/connection-store";
 
 interface RegistryServerCardProps {
   server: ParsedRegistryServer;
@@ -17,6 +19,17 @@ export function RegistryServerCard({
   onViewDetails,
 }: RegistryServerCardProps) {
   const displayName = server.title || server.name;
+
+  // Subscribe to connection store for reactive connection status
+  const storeSnapshot = useSyncExternalStore(
+    (callback) => connectionStore.subscribe(callback),
+    () => JSON.stringify(connectionStore.getAll()),
+    () => JSON.stringify({})
+  );
+
+  const connections = JSON.parse(storeSnapshot);
+  const connection = connections[server.id];
+  const isConnected = connection?.connectionStatus === 'CONNECTED';
 
   return (
     <Card className="group relative overflow-hidden transition-all duration-300 border-0 bg-transparent shadow-none">
@@ -40,10 +53,20 @@ export function RegistryServerCard({
               <h3 className="font-semibold text-lg truncate text-foreground">
                 {displayName}
               </h3>
+              {isConnected && (
+                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+              )}
             </div>
-            <p className="text-xs text-muted-foreground truncate">
-              {server.vendor}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground truncate">
+                {server.vendor}
+              </p>
+              {isConnected && (
+                <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
+                  Connected
+                </Badge>
+              )}
+            </div>
           </div>
 
           <Badge variant="secondary" className="shrink-0 text-xs font-mono mt-1">

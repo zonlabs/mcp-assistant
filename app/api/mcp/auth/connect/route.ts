@@ -5,8 +5,10 @@ import { MCPOAuthClient, UnauthorizedError } from '@/lib/mcp/oauth-client';
 interface ConnectRequestBody {
   serverUrl: string;
   callbackUrl: string;
+  serverId?: string;
   serverName?: string;
   transportType?: 'sse' | 'streamable_http';
+  sourceUrl?: string;
 }
 
 /**
@@ -37,7 +39,7 @@ interface ConnectRequestBody {
 export async function POST(request: NextRequest) {
   try {
     const body: ConnectRequestBody = await request.json();
-    const { serverUrl, callbackUrl, serverName, transportType } = body;
+    const { serverUrl, callbackUrl, serverId, serverName, transportType, sourceUrl } = body;
 
     if (!serverUrl || !callbackUrl) {
       return NextResponse.json(
@@ -49,8 +51,8 @@ export async function POST(request: NextRequest) {
     const sessionId = sessionStore.generateSessionId();
     let authUrl: string | null = null;
 
-    // Create state object with sessionId, serverName, and serverUrl
-    const stateData = JSON.stringify({ sessionId, serverName, serverUrl });
+    // Create state object with sessionId, serverId, serverName, serverUrl, and sourceUrl
+    const stateData = JSON.stringify({ sessionId, serverId, serverName, serverUrl, sourceUrl });
 
     // Normalize transport type (default to streamable_http if not specified)
     let normalizedTransport: 'sse' | 'streamable_http' = 'streamable_http';

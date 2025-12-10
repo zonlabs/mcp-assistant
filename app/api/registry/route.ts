@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
     const servers: ParsedRegistryServer[] = apiData.servers.map((entry, index) => {
       const { server, _meta } = entry;
       const meta = _meta["io.modelcontextprotocol.registry/official"];
-
       // Extract vendor and name from full name (e.g., "ai.exa/exa" -> vendor: "ai.exa", name: "exa")
       const nameParts = server.name.split("/");
       const vendor = nameParts.length > 1 ? nameParts[0] : "unknown";
@@ -81,6 +80,10 @@ export async function GET(request: NextRequest) {
 
       // Get the first icon URL if available (from the icons array, not the MCP URL)
       const iconUrl = server.icons && server.icons.length > 0 ? server.icons[0].src : null;
+
+      // Get transport type from remotes
+      const transportType = server.remotes?.[0]?.type === "sse" ? "sse" :
+                           server.remotes?.[0]?.type === "streamable-http" ? "streamable_http" : null;
 
       return {
         id: `${server.name}:${server.version}`, // Unique ID combining name and version
@@ -95,6 +98,7 @@ export async function GET(request: NextRequest) {
         hasRemote: !!server.remotes && server.remotes.length > 0,
         hasPackage: !!server.packages && server.packages.length > 0,
         remoteUrl: server.remotes?.[0]?.url || null,
+        transportType,
         publishedAt: meta.publishedAt,
         updatedAt: meta.updatedAt,
         isLatest: meta.isLatest,

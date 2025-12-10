@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.gstatic.com',
       },
+      {
+        protocol: 'https',
+        hostname: '**', // Allow all HTTPS images for registry icons
+      },
     ],
   },
 };

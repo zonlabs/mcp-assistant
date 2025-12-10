@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useSyncExternalStore } from "react";
 import { useQuery } from "@apollo/client/react";
 import { gql } from "@apollo/client";
 import { McpServer } from "@/types/mcp";
@@ -32,11 +32,19 @@ export function useMcpServersPagination(first: number = 10) {
     fetchPolicy: "cache-and-network",
   });
 
+  // Subscribe to connection store updates
+  const storeSnapshot = useSyncExternalStore(
+    (callback) => connectionStore.subscribe(callback),
+    () => JSON.stringify(connectionStore.getAll()), // client snapshot
+    () => JSON.stringify({}) // server snapshot
+  );
+
   // Merge with localStorage connection state
   const mergeWithConnectionState = useCallback((servers: McpServer[]) => {
-    const storedConnections = connectionStore.getAll();
+    // Parse the snapshot to get current connections
+    const storedConnections = JSON.parse(storeSnapshot);
     return servers.map((server) => {
-      const stored = storedConnections[server.name];
+      const stored = storedConnections[server.id];
       if (stored && stored.connectionStatus === "CONNECTED") {
         return {
           ...server,
@@ -50,7 +58,7 @@ export function useMcpServersPagination(first: number = 10) {
         tools: server.tools || [],
       };
     });
-  }, []);
+  }, [storeSnapshot]);
 
   const servers = data?.mcpServers?.edges?.map((edge) => edge.node) || [];
   const mergedServers = mergeWithConnectionState(servers);

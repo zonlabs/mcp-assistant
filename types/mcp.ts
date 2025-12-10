@@ -195,7 +195,10 @@ export type ParsedRegistryServer = {
   hasRemote: boolean;
   hasPackage: boolean;
   remoteUrl: string | null;
+  transportType: "streamable_http" | "sse" | null;
   publishedAt: string;
   updatedAt: string;
   isLatest: boolean;
+  connectionStatus?: string;
+  tools?: ToolInfo[];
 };

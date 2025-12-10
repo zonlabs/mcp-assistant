@@ -9,7 +9,8 @@ import { ToolInfo } from '@/types/mcp';
 
 export interface StoredConnection {
   sessionId: string;
-  serverName: string;
+  serverId: string;
+  serverName: string; // Kept for OAuth callback compatibility
   connectionStatus: string;
   tools: ToolInfo[];
   connectedAt: string;
@@ -57,11 +58,11 @@ class ConnectionStore {
       const now = Date.now();
       const validConnections: Record<string, StoredConnection> = {};
 
-      for (const [serverName, connection] of Object.entries(connections)) {
+      for (const [serverId, connection] of Object.entries(connections)) {
         if (this.isStoredConnection(connection)) {
           const connectedAt = new Date(connection.connectedAt).getTime();
           if (now - connectedAt < EXPIRY_TIME) {
-            validConnections[serverName] = connection;
+            validConnections[serverId] = connection;
           }
         }
       }
@@ -79,25 +80,38 @@ class ConnectionStore {
   }
 
   /**
-   * Get connection for a specific server
+   * Get connection for a specific server by ID
    */
-  get(serverName: string): StoredConnection | null {
+  get(serverId: string): StoredConnection | null {
     const connections = this.getAll();
-    return connections[serverName] || null;
+    return connections[serverId] || null;
+  }
+
+  /**
+   * Get connection for a server by name (for OAuth callback compatibility)
+   */
+  getByName(serverName: string): StoredConnection | null {
+    const connections = this.getAll();
+    for (const connection of Object.values(connections)) {
+      if (connection.serverName === serverName) {
+        return connection;
+      }
+    }
+    return null;
   }
 
   /**
    * Store or update connection for a server
    */
-  set(serverName: string, connection: Omit<StoredConnection, 'serverName' | 'connectedAt'> & { connectedAt?: string }): void {
+  set(serverId: string, connection: Omit<StoredConnection, 'serverId' | 'connectedAt'> & { connectedAt?: string }): void {
     if (typeof window === 'undefined') return;
 
     try {
       const connections = this.getAll();
 
-      connections[serverName] = {
+      connections[serverId] = {
         ...connection,
-        serverName,
+        serverId,
         connectedAt: connection.connectedAt || new Date().toISOString(),
       };
 
@@ -111,14 +125,14 @@ class ConnectionStore {
   /**
    * Update connection status and tools
    */
-  update(serverName: string, updates: Partial<StoredConnection>): void {
-    const existing = this.get(serverName);
+  update(serverId: string, updates: Partial<StoredConnection>): void {
+    const existing = this.get(serverId);
     if (!existing) {
-      console.warn('[ConnectionStore] Cannot update non-existent connection:', serverName);
+      console.warn('[ConnectionStore] Cannot update non-existent connection:', serverId);
       return;
     }
 
-    this.set(serverName, {
+    this.set(serverId, {
       ...existing,
       ...updates,
     });
@@ -127,12 +141,12 @@ class ConnectionStore {
   /**
    * Remove connection for a server
    */
-  remove(serverName: string): void {
+  remove(serverId: string): void {
     if (typeof window === 'undefined') return;
 
     try {
       const connections = this.getAll();
-      delete connections[serverName];
+      delete connections[serverId];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(connections));
       this.notify(); // Notify subscribers of the change
     } catch (error) {
@@ -157,16 +171,16 @@ class ConnectionStore {
   /**
    * Get sessionId for a server
    */
-  getSessionId(serverName: string): string | null {
-    const connection = this.get(serverName);
+  getSessionId(serverId: string): string | null {
+    const connection = this.get(serverId);
     return connection?.sessionId || null;
   }
 
   /**
    * Check if a server has an active connection
    */
-  hasConnection(serverName: string): boolean {
-    const connection = this.get(serverName);
+  hasConnection(serverId: string): boolean {
+    const connection = this.get(serverId);
     return connection?.connectionStatus === 'CONNECTED';
   }
 
@@ -178,6 +192,7 @@ class ConnectionStore {
       typeof value === 'object' &&
       value !== null &&
       'sessionId' in value &&
+      'serverId' in value &&
       'serverName' in value &&
       'connectionStatus' in value &&
       'tools' in value &&
@@ -191,10 +206,10 @@ class ConnectionStore {
    * Returns the tools data if valid, null if invalid
    * NOTE: Headers are NOT returned to client for security - they're fetched server-side
    */
-  async validateConnection(serverName: string): Promise<{ tools: ToolInfo[] } | null> {
+  async validateConnection(serverId: string): Promise<{ tools: ToolInfo[] } | null> {
     if (typeof window === 'undefined') return null;
 
-    const connection = this.get(serverName);
+    const connection = this.get(serverId);
     if (!connection || !connection.sessionId) {
       return null;
     }
@@ -205,7 +220,7 @@ class ConnectionStore {
 
       if (!response.ok) {
         // Session is invalid, remove from localStorage
-        this.remove(serverName);
+        this.remove(serverId);
         return null;
       }
 
@@ -217,27 +232,34 @@ class ConnectionStore {
     } catch (error) {
       console.error('[ConnectionStore] Failed to validate session:', error);
       // On error, assume session is invalid and clean up
-      this.remove(serverName);
+      this.remove(serverId);
       return null;
     }
   }
 
   /**
    * Get all valid connections (validates and cleans up expired ones)
-   * Returns a map of valid server names to their tools data
+   * Returns a map of valid server IDs to their tools data
    * NOTE: Headers are NOT included for security - they're fetched server-side
+   *
+   * @param filterFn Optional filter function to validate only specific connections
    */
-  async getValidConnections(): Promise<Map<string, { tools: ToolInfo[] }>> {
+  async getValidConnections(filterFn?: (serverId: string) => boolean): Promise<Map<string, { tools: ToolInfo[] }>> {
     const connections = this.getAll();
     const validServersData = new Map<string, { tools: ToolInfo[] }>();
 
-    // Validate all connections in parallel
-    const validationPromises = Object.keys(connections).map(async (serverName) => {
-      const data = await this.validateConnection(serverName);
+    // Filter connections if a filter function is provided
+    const serverIdsToValidate = Object.keys(connections).filter(serverId =>
+      !filterFn || filterFn(serverId)
+    );
+
+    // Validate filtered connections in parallel
+    const validationPromises = serverIdsToValidate.map(async (serverId) => {
+      const data = await this.validateConnection(serverId);
       if (data) {
-        validServersData.set(serverName, data);
+        validServersData.set(serverId, data);
       }
-      return { serverName, isValid: !!data };
+      return { serverId, isValid: !!data };
     });
 
     await Promise.all(validationPromises);

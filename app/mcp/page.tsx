@@ -8,6 +8,8 @@ import { McpServer, ToolInfo } from "@/types/mcp";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { useMcpServersPagination } from "@/hooks/useMcpServersPagination";
 import { ConnectionProvider } from "@/components/providers/ConnectionProvider";
+import { useOAuthCallback } from "@/hooks/useOAuthCallback";
+import { useConnectionPersistence } from "@/hooks/useConnectionPersistence";
 
 function McpPageContent() {
   const { data: session } = useSession();
@@ -15,6 +17,9 @@ function McpPageContent() {
   const [userServersCount, setUserServersCount] = useState(0);
   const [userError, setUserError] = useState<string | null>(null);
   const [userLoading, setUserLoading] = useState(false);
+
+  // Use connection persistence hook for connect/disconnect operations
+  const { connect, disconnect } = useConnectionPersistence();
 
   // Use GraphQL pagination hook for public servers
   const {
@@ -43,7 +48,7 @@ function McpPageContent() {
       // Merge with stored connection state from localStorage
       const storedConnections = connectionStore.getAll();
       const mergedServers = userServersList.map((server: McpServer) => {
-        const stored = storedConnections[server.name];
+        const stored = storedConnections[server.id];
         if (stored && stored.connectionStatus === 'CONNECTED') {
           return {
             ...server,
@@ -73,165 +78,15 @@ function McpPageContent() {
 
   const handleServerAction = async (server: McpServer, action: 'activate' | 'deactivate') => {
     try {
-      // Handle activate action directly with MCP connect API
       if (action === 'activate') {
-        // Use server data directly from the argument
-        if (!server.url) {
-          throw new Error('Server URL is required');
-        }
-
-        // For now, only support stdio and websocket via GraphQL
-        // HTTP-based transports (sse, streamable_http) need proper server implementation
-        if (server.transport === 'stdio' || server.transport === 'websocket') {
-          throw new Error(`Transport type '${server.transport}' must use the Django GraphQL connection. HTTP-based connection only supports servers with proper SSE/HTTP streaming endpoints.`);
-        }
-
-        // Normalize URL based on transport type
-        let normalizedUrl = server.url;
-
-        if (server.transport === 'sse') {
-          // SSE transport requires /sse endpoint - ensure it's present
-          if (!normalizedUrl.endsWith('/sse')) {
-            normalizedUrl = normalizedUrl + '/sse';
-          }
-        } else if (server.transport === 'streamable_http') {
-          // StreamableHTTP uses the base URL - remove /sse or /message suffix if present
-          if (normalizedUrl.endsWith('/sse')) {
-            normalizedUrl = normalizedUrl.slice(0, -4);
-          } else if (normalizedUrl.endsWith('/message')) {
-            normalizedUrl = normalizedUrl.slice(0, -8);
-          }
-        }
-
-        // Step 2: Connect to MCP server
-        const callbackUrl = `${window.location.origin}/api/mcp/auth/callback`;
-        const connectResponse = await fetch('/api/mcp/auth/connect', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            serverUrl: normalizedUrl,
-            callbackUrl: callbackUrl,
-            serverName: server.name, // Pass server name so it can be included in OAuth state
-            transportType: server.transport, // Pass transport type (sse, streamable_http, etc.)
-          }),
-        });
-
-        const connectResult = await connectResponse.json();
-
-        // Handle OAuth requirement
-        if (connectResult.requiresAuth && connectResult.authUrl) {
-          window.location.href = connectResult.authUrl;
-          return { success: false, requiresAuth: true };
-        }
-
-        // Handle connection error
-        if (connectResult.error) {
-          throw new Error(connectResult.error);
-        }
-
-        // Step 3: Fetch tools from connected server
-        let tools: ToolInfo[] = [];
-        let serverUrl = server.url;
-        let serverTransport = server.transport;
-        if (connectResult.success && connectResult.sessionId) {
-          const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${connectResult.sessionId}`);
-
-          if (toolsResponse.ok) {
-            const toolsResult = await toolsResponse.json();
-            tools = toolsResult.tools || [];
-            // Get URL and transport from API response
-            serverUrl = toolsResult.url;
-            serverTransport = toolsResult.transport;
-          } else {
-            const errorData = await toolsResponse.json();
-            console.error('[MCP Connect] Failed to fetch tools:', errorData);
-          }
-        }
-
-        // Store connection in localStorage
-        if (connectResult.success && connectResult.sessionId) {
-          connectionStore.set(server.name, {
-            sessionId: connectResult.sessionId,
-            connectionStatus: 'CONNECTED',
-            tools: tools,
-            transport: serverTransport,
-            url: serverUrl,
-          });
-        }
-
-        // Update local state - hook will pick up from localStorage
-        setUserServers(prev => prev ? prev.map(s => {
-          if (s.name === server.name) {
-            return {
-              ...s,
-              connectionStatus: 'CONNECTED',
-              tools: tools,
-              updated_at: new Date().toISOString()
-            };
-          }
-          return s;
-        }) : prev);
-
-        // Refetch public servers to update from localStorage
-        // refetchPublicServers();
-
-        return { success: true, tools };
+        // Use the shared connection hook - store will trigger reactive updates
+        await connect(server);
+        return { success: true };
       }
 
-      // Handle deactivate action directly with MCP disconnect API
       if (action === 'deactivate') {
-        // Get sessionId from localStorage
-        const connectionInfo = connectionStore.get(server.name);
-
-        if (!connectionInfo || !connectionInfo.sessionId) {
-          throw new Error('Connection information not found. Server may already be disconnected.');
-        }
-
-        // Use serverUrl from the server object argument
-        if (!server.url) {
-          throw new Error('Server URL is required');
-        }
-
-        const response = await fetch('/api/mcp/actions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'deactivate',
-            serverName: server.name,
-            sessionId: connectionInfo.sessionId,
-            serverUrl: server.url,
-          }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || result.errors) {
-          throw new Error(result.errors?.[0]?.message || 'Deactivation failed');
-        }
-
-        // Remove from localStorage
-        connectionStore.remove(server.name);
-
-        // Update local state - hook will pick up from localStorage
-        setUserServers(prev => prev ? prev.map(s => {
-          if (s.name === server.name) {
-            return {
-              ...s,
-              connectionStatus: 'DISCONNECTED',
-              tools: [],
-              updated_at: new Date().toISOString()
-            };
-          }
-          return s;
-        }) : prev);
-
-        // Refetch public servers to update from localStorage
-        // refetchPublicServers();
-
+        // Use the shared disconnection hook - store will trigger reactive updates
+        await disconnect(server);
         return { success: true };
       }
     } catch (error) {
@@ -314,66 +169,12 @@ function McpPageContent() {
     });
   };
 
-  // Handle OAuth callback redirect
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const step = searchParams.get('step');
-    const sessionId = searchParams.get('sessionId');
-    const serverName = searchParams.get('server');
-
-    if (step === 'success' && sessionId && serverName) {
-      // OAuth authorization completed, fetch tools directly
-      fetch(`/api/mcp/tool/list?sessionId=${sessionId}`)
-        .then(res => res.json())
-        .then(data => {
-          const tools = data.tools || [];
-
-          // Store connection in localStorage with URL and transport from API
-          connectionStore.set(serverName, {
-            sessionId,
-            connectionStatus: 'CONNECTED',
-            tools,
-            url: data.url || undefined,
-            transport: data.transport || undefined,
-          });
-
-          // Update server state with connection status and tools
-          setUserServers(prev =>
-            prev
-              ? prev.map(server =>
-                server.name === serverName
-                  ? {
-                    ...server,
-                    connectionStatus: 'CONNECTED',
-                    tools,
-                    updated_at: new Date().toISOString(),
-                  }
-                  : server
-              )
-              : prev
-          );
-
-          // Refetch public servers to sync from localStorage
-          refetchPublicServers();
-
-          toast.success(`Connected to ${serverName} successfully`);
-          window.history.replaceState({}, '', '/mcp');
-        })
-        .catch(error => {
-          console.error('[OAuth Callback] Failed:', error);
-          toast.error('Connected but failed to fetch tools');
-          window.history.replaceState({}, '', '/mcp');
-        });
-    } else if (step === 'error') {
-      const errorMsg = searchParams.get('error') || 'OAuth authorization failed';
-      toast.error(errorMsg);
-      window.history.replaceState({}, '', '/mcp');
-    }
-  }, []);
+  // Handle OAuth callback redirect using shared hook
+  // Store will trigger reactive updates automatically, no refetch needed
+  useOAuthCallback();
 
 
   // Public servers are auto-loaded by the hook
-
   useEffect(() => {
     if (session) {
       fetchUserServers();
@@ -389,9 +190,7 @@ function McpPageContent() {
 
   return (
     <>
-      {/* <Suspense fallback={null}> */}
       <OAuthCallbackHandler onRefreshServers={refreshAllServers} />
-      {/* </Suspense> */}
       <McpClientLayout
         publicServers={publicServers}
         userServers={userServers}
@@ -418,13 +217,16 @@ function McpPageContent() {
   );
 }
 
+// Stable filter function to prevent unnecessary re-renders
+const mcpServerFilter = (serverId: string) => serverId.startsWith('mcp_');
+
 export default function McpPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ConnectionProvider>
+      {/* Only validate user MCP server connections (starting with mcp_) */}
+      <ConnectionProvider validateFilter={mcpServerFilter}>
         <McpPageContent />
       </ConnectionProvider>
     </Suspense>
   );
 }
-
