@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { connectionStore, StoredConnection } from '@/lib/mcp/connection-store';
 import { ToolInfo } from '@/types/mcp';
 
@@ -27,65 +27,54 @@ export interface UseMcpToolsReturn {
  * Headers are retrieved server-side in the CopilotKit route
  */
 export function useMcpTools(): UseMcpToolsReturn {
-  const [mcpServers, setMcpServers] = useState<McpServerWithTools[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
 
-  const loadMcpServers = async () => {
-    if (typeof window === 'undefined') {
-      setLoading(false);
-      return;
-    }
+  // Subscribe to store updates using useSyncExternalStore
+  const storeSnapshot = useSyncExternalStore(
+    (callback) => connectionStore.subscribe(callback),
+    () => JSON.stringify(connectionStore.getAll()),
+    () => JSON.stringify({}) // Server-side fallback
+  );
 
+
+  
+  const currentServers = (() => {
     try {
-      // Validate all stored connections and get tools data in one call
-      // This returns Map<serverName, {tools}> (NO headers for security)
-      const validServersData = await connectionStore.getValidConnections();
-
-      if (validServersData.size === 0) {
-        setMcpServers([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get all connections (after cleanup from validation)
-      const connections = connectionStore.getAll();
-
-      // Build servers with data from validation (no additional API calls needed)
-      const serversWithData = Array.from(validServersData.entries()).map(([serverId, data]) => {
-        const connection = connections[serverId];
-        if (!connection || connection.connectionStatus !== 'CONNECTED') {
-          return null;
-        }
-
-        return {
-          serverName: connection.serverName, // Use the readable server name, not the ID
+      const connections = JSON.parse(storeSnapshot) as Record<string, StoredConnection>;
+      return Object.values(connections)
+        .filter(connection => connection.connectionStatus === 'CONNECTED')
+        .map(connection => ({
+          serverName: connection.serverName,
           sessionId: connection.sessionId,
           connectionStatus: connection.connectionStatus,
-          tools: data.tools, // Tools from validation call
+          tools: connection.tools,
           connectedAt: connection.connectedAt,
           transport: connection.transport,
           url: connection.url,
-          // NO headers - they're fetched server-side for security
-        } as McpServerWithTools;
-      }).filter((server): server is McpServerWithTools => server !== null);
+        } as McpServerWithTools));
+    } catch {
+      return [] as McpServerWithTools[];
+    }
+  })();
 
-      setMcpServers(serversWithData);
+  const loadMcpServers = async () => {
+    if (typeof window === 'undefined') return;
+
+    // Trigger validation but don't wait for it to finish.
+    // The UI will update automatically via store subscription.
+    setIsValidating(true);
+    try {
+      await connectionStore.validateConnections();
     } catch (error) {
-      console.error('[useMcpTools] Failed to load MCP servers:', error);
-      setMcpServers([]);
+      console.error('[useMcpTools] Failed to validate MCP servers:', error);
     } finally {
-      setLoading(false);
+      setIsValidating(false);
     }
   };
 
-  // Don't load automatically on mount - let the dropdown trigger it
-  // useEffect(() => {
-  //   loadMcpServers();
-  // }, []);
-
   return {
-    mcpServers,
-    loading,
-    loadMcpServers, // Expose this for manual triggering
+    mcpServers: currentServers,
+    loading: isValidating && currentServers.length === 0,
+    loadMcpServers,
   };
 }
