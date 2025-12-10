@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 import { connectionStore } from '@/lib/mcp/connection-store';
 import { McpServer, ParsedRegistryServer, ToolInfo } from '@/types/mcp';
 
-interface UseConnectionPersistenceProps {
+interface UseMcpConnectionProps {
   servers?: McpServer[] | null;
   setServers?: (servers: McpServer[] | null | ((prev: McpServer[] | null) => McpServer[] | null)) => void;
 }
@@ -20,19 +20,6 @@ type ConnectableServer = {
 
 const UNSUPPORTED_TRANSPORTS = ['stdio', 'websocket'];
 
-function normalizeUrl(url: string, transport: string): string {
-  if (transport === 'sse') {
-    return url.endsWith('/sse') ? url : `${url}/sse`;
-  }
-
-  if (transport === 'streamable_http') {
-    if (url.endsWith('/sse')) return url.slice(0, -4);
-    if (url.endsWith('/message')) return url.slice(0, -8);
-  }
-
-  return url;
-}
-
 function extractServerUrl(server: ConnectableServer): string | null {
   return server.remoteUrl || server.url || null;
 }
@@ -41,7 +28,7 @@ function extractTransport(server: ConnectableServer): string | null {
   return server.transportType || server.transport || null;
 }
 
-export function useConnectionPersistence({ servers, setServers }: UseConnectionPersistenceProps = {}) {
+export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps = {}) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -97,14 +84,13 @@ export function useConnectionPersistence({ servers, setServers }: UseConnectionP
     setConnectionError(null);
 
     try {
-      const normalizedUrl = normalizeUrl(serverUrl, transport);
       const sourceUrl = window.location.pathname;
 
       const response = await fetch("/api/mcp/auth/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serverUrl: normalizedUrl,
+          serverUrl: serverUrl,
           callbackUrl: `${window.location.origin}/api/mcp/auth/callback`,
           serverId: server.id,
           serverName: server.title || server.name,
