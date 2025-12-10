@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -21,10 +21,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import ToolsExplorer from "@/components/mcp-client/ToolsExplorer";
 import ToolExecutionPanel from "@/components/mcp-client/ToolExecutionPanel";
-import type { ParsedRegistryServer, ToolInfo, McpServer } from "@/types/mcp";
+import type { ParsedRegistryServer, McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
-import { connectionStore } from "@/lib/mcp/connection-store";
 
 interface ServerDetailProps {
   server: ParsedRegistryServer;
@@ -42,19 +41,9 @@ export function ServerDetail({ server }: ServerDetailProps) {
     disconnect,
     isConnecting,
     connectionError,
-  } = useMcpConnection();
-
-  // Subscribe to connection store for reactive updates
-  const storeSnapshot = useSyncExternalStore(
-    (callback) => connectionStore.subscribe(callback),
-    () => JSON.stringify(connectionStore.getAll()),
-    () => JSON.stringify({})
-  );
-
-  const connections = JSON.parse(storeSnapshot);
-  const connection = connections[server.id];
-  const isConnected = connection?.connectionStatus === 'CONNECTED';
-  const tools = connection?.tools || [];
+    isConnected,
+    tools,
+  } = useMcpConnection({ serverId: server.id });
 
   const handleConnect = () => connect(server);
 

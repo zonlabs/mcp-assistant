@@ -224,7 +224,7 @@ export default function McpPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       {/* Only validate user MCP server connections (starting with mcp_) */}
-      <ConnectionProvider validateFilter={mcpServerFilter}>
+      <ConnectionProvider filter={mcpServerFilter}>
         <McpPageContent />
       </ConnectionProvider>
     </Suspense>

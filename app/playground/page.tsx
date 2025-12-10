@@ -39,13 +39,13 @@ const PlaygroundPage = () => {
   const askMode = activeAssistant?.config?.ask_mode;
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div className="flex h-[calc(100vh-110px)]">
       {/* Sidebar */}
       <PlaygroundSidebar />
 
       {/* Main Chat Area */}
       <div
-        className="flex-1 max-w-2xl mx-auto px-4"
+        className="flex-1 max-w-2xl mx-auto px-4 flex flex-col h-full"
         style={
           {
             "--copilot-kit-background-color": "var(--background)",
@@ -64,7 +64,7 @@ const PlaygroundPage = () => {
             title: "MCP Playground",
             placeholder: "Ask about your connected servers...",
           }}
-          className="h-[84vh] rounded-md"
+          className="flex-1 min-h-0 rounded-md"
           Input={ChatInputWrapper}
           AssistantMessage={AssistantMessage}
         />

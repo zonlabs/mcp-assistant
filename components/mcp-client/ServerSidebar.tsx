@@ -411,8 +411,7 @@ export function ServerSidebar({
             </TabsContent>
 
             {/* User Servers */}
-            <TabsContent value="user" className="p-4 m-0 h-full">
-              <div className="space-y-3">
+            <TabsContent value="user" className="px-4 pb-6 m-0 flex flex-col gap-1">
                 {userLoading ? (
                   <div className="space-y-0">
                     {[...Array(8)].map((_, i) => (
@@ -430,7 +429,6 @@ export function ServerSidebar({
                   </div>
                 ) : userServers && userServers.length > 0 ? (
                   <>
-                    <div className="space-y-2">
                       {userServers.map((server) => (
                         <ServerListItem
                           key={server.id}
@@ -456,14 +454,12 @@ export function ServerSidebar({
                           showActions={true}
                         />
                       ))}
-                    </div>
                     {/* Extra spacing at bottom */}
                     <div className="h-16" />
                   </>
                 ) : (
                   <ServerPlaceholder type="no-servers" tab="user" />
                 )}
-              </div>
             </TabsContent>
           </div>
         </Tabs>

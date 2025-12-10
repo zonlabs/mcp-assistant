@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, Globe, ArrowRight, CheckCircle2 } from "lucide-react";
 import { ServerIcon } from "@/components/common/ServerIcon";
 import type { ParsedRegistryServer } from "@/types/mcp";
-import { useSyncExternalStore } from "react";
-import { connectionStore } from "@/lib/mcp/connection-store";
+import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 interface RegistryServerCardProps {
   server: ParsedRegistryServer;
@@ -20,16 +19,8 @@ export function RegistryServerCard({
 }: RegistryServerCardProps) {
   const displayName = server.title || server.shortName;
 
-  // Subscribe to connection store for reactive connection status
-  const storeSnapshot = useSyncExternalStore(
-    (callback) => connectionStore.subscribe(callback),
-    () => JSON.stringify(connectionStore.getAll()),
-    () => JSON.stringify({})
-  );
-
-  const connections = JSON.parse(storeSnapshot);
-  const connection = connections[server.id];
-  const isConnected = connection?.connectionStatus === 'CONNECTED';
+  // Get connection status from hook
+  const { isConnected } = useMcpConnection({ serverId: server.id });
 
   return (
     <Card className="group relative overflow-hidden transition-all duration-300 border-0 bg-transparent shadow-none">

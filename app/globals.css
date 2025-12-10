@@ -44,23 +44,30 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
   --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+
   @keyframes shimmer-slide {
-  to {
-    transform: translate(calc(100cqw - 100%), 0);
+    to {
+      transform: translate(calc(100cqw - 100%), 0);
     }
   }
+
   @keyframes spin-around {
-  0% {
-    transform: translateZ(0) rotate(0);
+    0% {
+      transform: translateZ(0) rotate(0);
     }
-  15%, 35% {
-    transform: translateZ(0) rotate(90deg);
+
+    15%,
+    35% {
+      transform: translateZ(0) rotate(90deg);
     }
-  65%, 85% {
-    transform: translateZ(0) rotate(270deg);
+
+    65%,
+    85% {
+      transform: translateZ(0) rotate(270deg);
     }
-  100% {
-    transform: translateZ(0) rotate(360deg);
+
+    100% {
+      transform: translateZ(0) rotate(360deg);
     }
   }
 }
@@ -138,18 +145,43 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Global Thin Scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    @apply bg-border/60 hover:bg-muted-foreground/50 transition-colors;
+    border-radius: 9999px;
   }
 }
 
 @layer utilities {
   .scrollbar-hide {
-    -ms-overflow-style: none;  /* Internet Explorer 10+ */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    /* Internet Explorer 10+ */
+    scrollbar-width: none;
+    /* Firefox */
   }
+
   .scrollbar-hide::-webkit-scrollbar {
-    display: none;  /* Safari and Chrome */
+    display: none;
+    /* Safari and Chrome */
   }
 
   /* Custom minimal scrollbar - only shows on hover */
@@ -203,6 +235,7 @@
 }
 
 @layer components {
+
   /* Prose styling for markdown content */
   .prose {
     @apply text-foreground;
@@ -228,7 +261,8 @@
     @apply italic;
   }
 
-  .prose ul, .prose ol {
+  .prose ul,
+  .prose ol {
     @apply my-2 pl-6 space-y-1;
   }
 
@@ -244,7 +278,12 @@
     @apply leading-relaxed;
   }
 
-  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
     @apply font-semibold text-foreground mt-3 mb-1.5;
   }
 
@@ -296,15 +335,21 @@
   }
 
   /* Compact prose for smaller spaces */
-  .prose-sm p, .prose-sm ul, .prose-sm ol {
+  .prose-sm p,
+  .prose-sm ul,
+  .prose-sm ol {
     @apply my-1;
   }
 
-  .prose-sm h1, .prose-sm h2, .prose-sm h3, .prose-sm h4 {
+  .prose-sm h1,
+  .prose-sm h2,
+  .prose-sm h3,
+  .prose-sm h4 {
     @apply mt-1.5 mb-0.5;
   }
 
-  .prose-sm ul, .prose-sm ol {
+  .prose-sm ul,
+  .prose-sm ol {
     @apply pl-4 space-y-0.5;
   }
 }

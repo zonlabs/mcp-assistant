@@ -1,11 +1,12 @@
-import { useState, useCallback, useSyncExternalStore } from 'react';
+import { useState, useCallback, useSyncExternalStore, useMemo } from 'react';
 import { toast } from "react-hot-toast";
-import { connectionStore } from '@/lib/mcp/connection-store';
+import { connectionStore, StoredConnection } from '@/lib/mcp/connection-store';
 import { McpServer, ParsedRegistryServer, ToolInfo } from '@/types/mcp';
 
 interface UseMcpConnectionProps {
   servers?: McpServer[] | null;
   setServers?: (servers: McpServer[] | null | ((prev: McpServer[] | null) => McpServer[] | null)) => void;
+  serverId?: string; // Optional: subscribe to a specific server only
 }
 
 type ConnectableServer = {
@@ -28,31 +29,75 @@ function extractTransport(server: ConnectableServer): string | null {
   return server.transportType || server.transport || null;
 }
 
-export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps = {}) {
+export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnectionProps = {}) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  // Subscribe to the connection store
   const storeSnapshot = useSyncExternalStore(
     (callback) => connectionStore.subscribe(callback),
     () => JSON.stringify(connectionStore.getAll()),
     () => JSON.stringify({})
   );
 
-  const getConnection = useCallback((serverId: string) => {
-    const connections = JSON.parse(storeSnapshot);
-    return connections[serverId] || null;
+  // Parse connections once
+  const connections = useMemo<Record<string, StoredConnection>>(() => {
+    try {
+      return JSON.parse(storeSnapshot);
+    } catch {
+      return {};
+    }
   }, [storeSnapshot]);
 
-  const mergeWithStoredState = useCallback((serverList: ParsedRegistryServer[]): ParsedRegistryServer[] => {
-    const storedConnections = JSON.parse(storeSnapshot);
+  // Get connection for a specific server
+  const getConnection = useCallback((id: string) => {
+    return connections[id] || null;
+  }, [connections]);
 
+  // Get connection status for a specific server
+  const getConnectionStatus = useCallback((id: string): 'CONNECTED' | 'DISCONNECTED' => {
+    return connections[id]?.connectionStatus === 'CONNECTED' ? 'CONNECTED' : 'DISCONNECTED';
+  }, [connections]);
+
+  // Check if a server is connected
+  const isServerConnected = useCallback((id: string): boolean => {
+    return connections[id]?.connectionStatus === 'CONNECTED';
+  }, [connections]);
+
+  // Get tools for a specific server
+  const getServerTools = useCallback((id: string): ToolInfo[] => {
+    return connections[id]?.tools || [];
+  }, [connections]);
+
+  // Get all active connections
+  const activeConnections = useMemo(() => {
+    return Object.entries(connections)
+      .filter(([_, conn]) => conn.connectionStatus === 'CONNECTED')
+      .reduce((acc, [id, conn]) => {
+        acc[id] = conn;
+        return acc;
+      }, {} as Record<string, StoredConnection>);
+  }, [connections]);
+
+  // Get count of active connections
+  const activeConnectionCount = useMemo(() => {
+    return Object.keys(activeConnections).length;
+  }, [activeConnections]);
+
+  // If serverId is provided, return connection data for that specific server
+  const connection = serverId ? getConnection(serverId) : null;
+  const isConnected = serverId ? isServerConnected(serverId) : false;
+  const tools = serverId ? getServerTools(serverId) : [];
+
+  // Merge server list with stored connection state
+  const mergeWithStoredState = useCallback(<T extends { id: string, connectionStatus?: string | null | undefined, tools?: ToolInfo[] }>(serverList: T[]): T[] => {
     return serverList.map((server) => {
-      const stored = storedConnections[server.id];
-      if (stored?.connectionStatus === 'CONNECTED') {
+      const stored = connections[server.id];
+      if (stored) {
         return {
           ...server,
           connectionStatus: stored.connectionStatus,
-          tools: stored.tools,
+          tools: stored.tools || [],
         };
       }
       return {
@@ -60,7 +105,7 @@ export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps 
         connectionStatus: server.connectionStatus || 'DISCONNECTED',
       };
     });
-  }, [storeSnapshot]);
+  }, [connections]);
 
   const connect = useCallback(async (server: ConnectableServer) => {
     const serverUrl = extractServerUrl(server);
@@ -108,15 +153,23 @@ export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps 
       }
 
       if (result.success && result.sessionId) {
+        // Validate connection before setting it as CONNECTED
         let fetchedTools: ToolInfo[] = [];
-        const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${result.sessionId}`);
-        if (toolsResponse.ok) {
+        try {
+          const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${result.sessionId}`);
+          if (!toolsResponse.ok) {
+            throw new Error("Failed to fetch tools - connection may be invalid");
+          }
           const toolsData = await toolsResponse.json();
           fetchedTools = toolsData.tools || [];
+        } catch (toolError) {
+          // If validation fails, don't set connection as CONNECTED
+          throw new Error(toolError instanceof Error ? toolError.message : "Failed to validate connection");
         }
 
         toast.success("Connected successfully!");
 
+        // Only set connection after successful validation
         connectionStore.set(server.id, {
           sessionId: result.sessionId,
           serverName: server.name,
@@ -135,7 +188,7 @@ export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps 
     } finally {
       setIsConnecting(false);
     }
-  }, [setServers]);
+  }, []);
 
   const disconnect = useCallback(async (server: ConnectableServer) => {
     const connection = getConnection(server.id);
@@ -164,12 +217,54 @@ export function useMcpConnection({ servers, setServers }: UseMcpConnectionProps 
     }
   }, [getConnection]);
 
+  // Validate a specific connection
+  const validateSingleConnection = useCallback(async (id: string) => {
+    return await connectionStore.validateConnection(id);
+  }, []);
+
+  // Validate connections - updates state after each connection is validated
+  const validateConnections = useCallback(
+    async (
+      filterFn?: (serverId: string) => boolean,
+      onProgress?: (validated: number, total: number) => void
+    ) => {
+      return await connectionStore.validateConnections(filterFn, onProgress);
+    },
+    []
+  );
+
   return {
+    // Connection state
     isConnecting,
     connectionError,
+
+    // Single server data (when serverId is provided)
+    connection,
+    isConnected,
+    tools,
+
+    // Helper functions
     getConnection,
-    mergeWithStoredState,
+    getConnectionStatus,
+    isServerConnected,
+    getServerTools,
+
+    // Active connections
+    activeConnections,
+    activeConnectionCount,
+
+    // All connections
+    connections,
+
+    // Actions
     connect,
     disconnect,
+
+    // Validation
+    validateSingleConnection,
+    validateConnections,
+
+    // Utilities
+    mergeWithStoredState,
   };
 }
