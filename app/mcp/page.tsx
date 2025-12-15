@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 import McpClientLayout from "@/components/mcp-client/McpClientLayout";
@@ -13,13 +13,13 @@ import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 function McpPageContent() {
   const { data: session } = useSession();
-  const [userServers, setUserServers] = useState<McpServer[] | null>(null);
+  const [rawUserServers, setRawUserServers] = useState<McpServer[] | null>(null);
   const [userServersCount, setUserServersCount] = useState(0);
   const [userError, setUserError] = useState<string | null>(null);
   const [userLoading, setUserLoading] = useState(false);
 
   // Use connection persistence hook for connect/disconnect operations
-  const { connect, disconnect } = useMcpConnection();
+  const { connect, disconnect, mergeWithStoredState } = useMcpConnection();
 
   // Use GraphQL pagination hook for public servers
   const {
@@ -45,27 +45,8 @@ function McpPageContent() {
       if (!res.ok) throw new Error(json?.errors?.[0]?.message || res.statusText);
       const userServersList = json?.data?.getUserMcpServers ?? [];
 
-      // Merge with stored connection state from localStorage
-      const storedConnections = connectionStore.getAll();
-      const mergedServers = userServersList.map((server: McpServer) => {
-        const stored = storedConnections[server.id];
-        if (stored && stored.connectionStatus === 'CONNECTED') {
-          return {
-            ...server,
-            connectionStatus: stored.connectionStatus,
-            tools: stored.tools,
-          };
-        }
-        // If not in localStorage, it's disconnected
-        return {
-          ...server,
-          connectionStatus: server.connectionStatus || 'DISCONNECTED',
-          tools: server.tools || [],
-        };
-      });
-
-      setUserServers(mergedServers);
-      setUserServersCount(mergedServers.length);
+      setRawUserServers(userServersList);
+      setUserServersCount(userServersList.length);
       // toast.success("Your servers loaded successfully");
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : "Failed to load your servers";
@@ -75,6 +56,11 @@ function McpPageContent() {
       setUserLoading(false);
     }
   }, [session]);
+
+  const userServers = useMemo(() => {
+    if (!rawUserServers) return null;
+    return mergeWithStoredState(rawUserServers);
+  }, [rawUserServers, mergeWithStoredState]);
 
   const handleServerAction = async (server: McpServer, action: 'activate' | 'deactivate') => {
     try {
@@ -159,7 +145,7 @@ function McpPageContent() {
   };
 
   const handleUpdateUserServer = (serverId: string, updates: Partial<McpServer>) => {
-    setUserServers(prevServers => {
+    setRawUserServers(prevServers => {
       if (!prevServers) return prevServers;
       return prevServers.map(server =>
         server.id === serverId

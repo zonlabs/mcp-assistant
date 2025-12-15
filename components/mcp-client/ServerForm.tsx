@@ -174,9 +174,9 @@ export default function ServerForm({
     };
 
     return (
-        <div className="h-full flex flex-col bg-background animate-in slide-in-from-bottom-4 duration-300">
+        <div className="h-full flex flex-col bg-background animate-in slide-in-from-bottom-4 duration-300 max-w-2xl mx-auto w-full">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-6 py-4">
                 <div className="flex items-center gap-2">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                         <Edit2 className="h-4 w-4 text-primary" />
@@ -190,7 +190,7 @@ export default function ServerForm({
 
             {/* Form Content */}
             <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-3xl mx-auto space-y-8">
+                <div className="w-full mx-auto space-y-8">
 
                     {/* Auth Warning */}
                     {!session && (
@@ -431,8 +431,7 @@ export default function ServerForm({
                                         Public
                                     </Label>
                                     <p className="text-xs text-muted-foreground">
-                                        Share this server with other users in the registry.
-                                    </p>
+                                        Make this server accessible to the public.                                    </p>
                                 </div>
                             </div>
                         </div>

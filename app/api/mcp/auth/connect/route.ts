@@ -9,6 +9,8 @@ interface ConnectRequestBody {
   serverName?: string;
   transportType?: 'sse' | 'streamable_http';
   sourceUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
 }
 
 /**
@@ -20,7 +22,9 @@ interface ConnectRequestBody {
  * {
  *   "serverUrl": "https://server.example.com/mcp",
  *   "callbackUrl": "http://localhost:3000/api/mcp/auth/callback",
- *   "serverName": "My Server" (optional)
+ *   "serverName": "My Server" (optional),
+ *   "clientId": "my-client-id" (optional),
+ *   "clientSecret": "my-client-secret" (optional)
  * }
  *
  * Response (success - no auth required):
@@ -35,11 +39,17 @@ interface ConnectRequestBody {
  *   "authUrl": "https://server.example.com/oauth/authorize?...",
  *   "sessionId": "abc123xyz"
  * }
+ *
+ * Response (success - connected with provided credentials):
+ * {
+ *   "success": true,
+ *   "sessionId": "abc123xyz"
+ * }
  */
 export async function POST(request: NextRequest) {
   try {
     const body: ConnectRequestBody = await request.json();
-    const { serverUrl, callbackUrl, serverId, serverName, transportType, sourceUrl } = body;
+    const { serverUrl, callbackUrl, serverId, serverName, transportType, sourceUrl, clientId, clientSecret } = body;
 
     if (!serverUrl || !callbackUrl) {
       return NextResponse.json(
@@ -54,14 +64,6 @@ export async function POST(request: NextRequest) {
     // Create state object with sessionId, serverId, serverName, serverUrl, and sourceUrl
     const stateData = JSON.stringify({ sessionId, serverId, serverName, serverUrl, sourceUrl });
 
-    // Normalize transport type (default to streamable_http if not specified)
-    let normalizedTransport: 'sse' | 'streamable_http' = 'streamable_http';
-    if (transportType === 'sse' || transportType === 'streamable_http') {
-      normalizedTransport = transportType;
-    }
-
-    console.log('[Connect API] Using transport type:', normalizedTransport);
-
     // Create MCP client with redirect handler and state data
     const client = new MCPOAuthClient(
       serverUrl,
@@ -70,7 +72,9 @@ export async function POST(request: NextRequest) {
         authUrl = redirectUrl;
       },
       stateData, // Pass state data (sessionId + serverName) for OAuth state parameter
-      normalizedTransport // Pass transport type
+      transportType, // Pass transport type
+      clientId, // Pass client ID if provided
+      clientSecret // Pass client secret if provided
     );
 
     try {
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
       await client.connect();
 
       // Connection successful, save client to session store with full config
-      await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, normalizedTransport);
+      await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType);
 
       return NextResponse.json({
         success: true,
@@ -91,7 +95,7 @@ export async function POST(request: NextRequest) {
         // OAuth authorization required
         console.log('[Connect API] OAuth required. AuthUrl:', authUrl);
         if (authUrl) {
-          await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, normalizedTransport);
+          await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType);
           return NextResponse.json(
             {
               requiresAuth: true,

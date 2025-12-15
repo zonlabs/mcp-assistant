@@ -5,7 +5,8 @@ import {
   UnauthorizedError as SDKUnauthorizedError,
   refreshAuthorization,
   discoverOAuthProtectedResourceMetadata,
-  discoverAuthorizationServerMetadata
+  discoverAuthorizationServerMetadata,
+  auth
 } from '@modelcontextprotocol/sdk/client/auth.js';
 import {
   ListToolsRequest,
@@ -51,7 +52,9 @@ export class MCPOAuthClient {
     private callbackUrl: string,
     private onRedirect: (url: string) => void,
     sessionId?: string,
-    transportType: TransportType = 'streamable_http'
+    transportType: TransportType = 'streamable_http',
+    private clientId?: string,
+    private clientSecret?: string
   ) {
     this.sessionId = sessionId;
     this.transportType = transportType;
@@ -70,15 +73,17 @@ export class MCPOAuthClient {
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       token_endpoint_auth_method: 'client_secret_post',
-      // Use standard OpenID Connect scopes that work with most OAuth providers
-      // Some servers might support 'mcp:tools', but most use standard scopes
-      // scope: '',
+      // Use provided credentials if available
+      ...(this.clientId ? { client_id: this.clientId } : {}),
+      ...(this.clientSecret ? { client_secret: this.clientSecret } : {}),
     };
 
     this.oauthProvider = new InMemoryOAuthClientProvider(
       this.callbackUrl,
       clientMetadata,
       (redirectUrl: URL) => {
+        console.log('[OAuth Client] Redirect URI:', redirectUrl.toString());
+
         this.onRedirect(redirectUrl.toString());
       },
       this.sessionId // Pass sessionId as the state parameter
