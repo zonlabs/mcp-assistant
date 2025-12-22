@@ -51,7 +51,7 @@ export default function RootLayout({
                 runtimeUrl="/api/copilotkit"
                 showDevConsole={false}
                 transcribeAudioUrl="/api/transcribe"
-                textToSpeechUrl="/api/tts"
+              // textToSpeechUrl="/api/tts"
               >
                 <div className="min-h-screen bg-background">
                   <div className="max-w-5xl mx-auto">
