@@ -91,6 +91,9 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
+      if (session.user && token.sub) {
+        (session.user as any).id = token.sub;
+      }
       return {
         ...session,
         googleIdToken: token.googleIdToken as string | undefined,

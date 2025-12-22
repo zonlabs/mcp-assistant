@@ -17,6 +17,7 @@ export interface SessionData {
   tokenExpiresAt?: number; // Track when the token expires (timestamp in ms)
   clientInformation?: OAuthClientInformationMixed;
   codeVerifier?: string;
+  userId?: string;
 }
 
 const nanoid = customAlphabet(
@@ -28,6 +29,7 @@ export class SessionStore {
   private redis: Redis;
   private readonly SESSION_TTL = 43200; // 12 hours
   private readonly KEY_PREFIX = 'mcp:session:';
+  private readonly USER_PREFIX = 'mcp:user:';
 
   constructor() {
     const redisUrl = process.env.REDIS_URL || process.env.NEXT_PUBLIC_REDIS_URL;
@@ -58,6 +60,10 @@ export class SessionStore {
     return `${this.KEY_PREFIX}${sessionId}`;
   }
 
+  private getUserKey(userId: string): string {
+    return `${this.USER_PREFIX}${userId}:sessions`;
+  }
+
   generateSessionId(): string {
     return nanoid();
   }
@@ -67,7 +73,8 @@ export class SessionStore {
     client?: MCPOAuthClient,
     serverUrl?: string,
     callbackUrl?: string,
-    transportType: 'sse' | 'streamable_http' = 'streamable_http'
+    transportType: 'sse' | 'streamable_http' = 'streamable_http',
+    userId?: string
   ): Promise<void> {
     try {
       const sessionKey = this.getSessionKey(sessionId);
@@ -118,9 +125,16 @@ export class SessionStore {
         tokenExpiresAt,
         clientInformation,
         codeVerifier,
+        userId,
       };
 
       await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
+
+      if (userId) {
+        const userKey = this.getUserKey(userId);
+        await this.redis.sadd(userKey, sessionId);
+      }
+
       console.log(`✅ Redis SET session data: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
     } catch (error) {
       console.error('❌ Failed to store session in Redis:', error);
@@ -164,8 +178,7 @@ export class SessionStore {
 
       await client.connect().catch((err) => {
         console.log(
-          `🔐 Client awaiting OAuth (expected mid-flow): ${
-            err instanceof Error ? err.message : String(err)
+          `🔐 Client awaiting OAuth (expected mid-flow): ${err instanceof Error ? err.message : String(err)
           }`
         );
       });
@@ -191,8 +204,7 @@ export class SessionStore {
       await client.connect();
     } catch (err) {
       console.log(
-        `🔄 Initial connect failed (often expected): ${
-          err instanceof Error ? err.message : String(err)
+        `🔄 Initial connect failed (often expected): ${err instanceof Error ? err.message : String(err)
         }`
       );
     }
@@ -226,6 +238,17 @@ export class SessionStore {
     const sessionData = await this.getSession(sessionId);
     if (!sessionData) return null;
     return this.recreateClient(sessionData);
+  }
+
+  async getUserMcpSessions(userId: string): Promise<string[]> {
+    const userKey = this.getUserKey(userId);
+    try {
+      const sessionIds = await this.redis.smembers(userKey);
+      return sessionIds;
+    } catch (error) {
+      console.error(`❌ Failed to get user sessions from Redis for user ${userId}:`, error);
+      return [];
+    }
   }
 
   /**
@@ -263,6 +286,20 @@ export class SessionStore {
   async removeSession(sessionId: string): Promise<void> {
     try {
       const sessionKey = this.getSessionKey(sessionId);
+
+      try {
+        const sessionDataStr = await this.redis.get(sessionKey);
+        if (sessionDataStr) {
+          const sessionData: SessionData = JSON.parse(sessionDataStr);
+          if (sessionData.userId) {
+            const userKey = this.getUserKey(sessionData.userId);
+            await this.redis.srem(userKey, sessionId);
+          }
+        }
+      } catch (e) {
+        console.error(`Error checking userId during removeSession:`, e);
+      }
+
       await this.redis.del(sessionKey);
       console.log(`✅ Removed session: ${sessionId}`);
     } catch (error) {

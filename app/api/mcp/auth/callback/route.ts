@@ -91,6 +91,10 @@ async function handleCallback(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
+    // Retrieve session data to preserve userId
+    const sessionData = await sessionStore.getSession(sessionId);
+    const userId = sessionData?.userId;
+
     // Complete OAuth authorization with the code
     await client.finishAuth(code);
 
@@ -100,7 +104,8 @@ async function handleCallback(request: NextRequest) {
       client,
       serverUrl || client.getServerUrl(),
       client.getCallbackUrl(),
-      client.getTransportType()
+      client.getTransportType(),
+      userId
     );
 
     // Redirect back to source page with success parameters

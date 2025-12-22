@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/mcp/session-store';
 import { MCPOAuthClient, UnauthorizedError } from '@/lib/mcp/oauth-client';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 interface ConnectRequestBody {
   serverUrl: string;
@@ -48,6 +50,8 @@ interface ConnectRequestBody {
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const userId = (session?.user as any)?.id;
     const body: ConnectRequestBody = await request.json();
     const { serverUrl, callbackUrl, serverId, serverName, transportType, sourceUrl, clientId, clientSecret } = body;
 
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
       await client.connect();
 
       // Connection successful, save client to session store with full config
-      await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType);
+      await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType, userId);
 
       return NextResponse.json({
         success: true,
@@ -95,7 +99,7 @@ export async function POST(request: NextRequest) {
         // OAuth authorization required
         console.log('[Connect API] OAuth required. AuthUrl:', authUrl);
         if (authUrl) {
-          await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType);
+          await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType, userId);
           return NextResponse.json(
             {
               requiresAuth: true,

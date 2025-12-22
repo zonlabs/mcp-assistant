@@ -25,9 +25,11 @@ import { sessionStore } from '@/lib/mcp/session-store';
  * }
  */
 export async function GET(request: NextRequest) {
+  let sessionId: string | null = null;
   try {
     const searchParams = request.nextUrl.searchParams;
-    const sessionId = searchParams.get('sessionId');
+    sessionId = searchParams.get('sessionId');
+    // await sessionStore.clearAll();
 
     console.log('[List Tools] Request received for sessionId:', sessionId);
 
@@ -109,6 +111,12 @@ export async function GET(request: NextRequest) {
     }
   } catch (error: unknown) {
     console.log('[List Tools] Unexpected error:', error);
+
+    // Check for invalid refresh token error and clear session
+    if (sessionId && error instanceof Error && (error.message.includes('Invalid refresh token') || error.name === 'InvalidGrantError' || (error as any).code === 'InvalidGrantError')) {
+      console.log(`[List Tools] Clearing session ${sessionId} due to invalid refresh token`);
+      await sessionStore.removeSession(sessionId);
+    }
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
