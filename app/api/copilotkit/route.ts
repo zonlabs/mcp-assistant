@@ -32,6 +32,7 @@ export const POST = async (req: NextRequest) => {
 
     for (const sessionId of mcpSessions) {
       const client = await sessionStore.getClient(sessionId);
+      console.log("[api/copilotkit] resolved client:", client);
       if (!client) continue;
 
       const transport = client.getTransportType();
@@ -44,7 +45,9 @@ export const POST = async (req: NextRequest) => {
 
       try {
         const oauthProvider = client.oauthProvider;
+        console.log("[api/copilotkit] resolved oauthProvider:", oauthProvider);
         const tokens = oauthProvider?.tokens();
+        console.log("[api/copilotkit] resolved tokens:", tokens);
 
         if (tokens?.access_token) {
           headers = {
