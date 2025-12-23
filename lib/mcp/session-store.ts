@@ -172,7 +172,14 @@ export class SessionStore {
       sessionId: sessionData.sessionId,
       transportType: sessionData.transportType,
       tokens: sessionData.tokens,
-      clientInformation: sessionData.clientInformation as any
+      tokenExpiresAt: sessionData.tokenExpiresAt,
+      clientInformation: sessionData.clientInformation as any,
+      onSaveTokens: (tokens: OAuthTokens) => {
+        console.log(`✅ [onSaveTokens] onSaveTokens ${JSON.stringify(tokens)}`);
+        this.updateTokens(sessionData.sessionId, tokens).catch(err => {
+          console.error(`❌ [onSaveTokens] Failed to update tokens in Redis for session ${sessionData.sessionId}:`, err);
+        });
+      }
     });
 
     // If no tokens, this is a mid-OAuth flow session
@@ -271,14 +278,14 @@ export class SessionStore {
         return;
       }
 
-      // Calculate token expiration
+      // // Calculate token expiration
       let tokenExpiresAt: number | undefined;
       if (tokens.expires_in) {
-        const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
-        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
+        // const bufferMs = 5 * 60 * 1000; // 5 minutes buffer
+        tokenExpiresAt = Date.now() + (tokens.expires_in * 1000);
       }
 
-      // Update session data with new tokens
+      // // Update session data with new tokens
       sessionData.tokens = tokens;
       sessionData.tokenExpiresAt = tokenExpiresAt;
 

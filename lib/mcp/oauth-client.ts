@@ -31,9 +31,11 @@ export interface MCPOAuthClientOptions {
   sessionId?: string;
   transportType?: TransportType;
   tokens?: OAuthTokens;
+  tokenExpiresAt?: number;
   clientInformation?: OAuthClientInformationFull;
   clientId?: string;
   clientSecret?: string;
+  onSaveTokens?: (tokens: OAuthTokens) => void;
 }
 
 /**
@@ -62,9 +64,11 @@ export class MCPOAuthClient {
   private callbackUrl: string;
   private onRedirect: (url: string) => void;
   private tokens?: OAuthTokens;
+  private tokenExpiresAt?: number;
   private clientInformation?: OAuthClientInformationFull;
   private clientId?: string;
   private clientSecret?: string;
+  private onSaveTokens?: (tokens: OAuthTokens) => void;
 
   constructor(
     options: MCPOAuthClientOptions
@@ -75,9 +79,11 @@ export class MCPOAuthClient {
     this.sessionId = options.sessionId;
     this.transportType = options.transportType || 'streamable_http';
     this.tokens = options.tokens;
+    this.tokenExpiresAt = options.tokenExpiresAt;
     this.clientInformation = options.clientInformation;
     this.clientId = options.clientId;
     this.clientSecret = options.clientSecret;
+    this.onSaveTokens = options.onSaveTokens;
 
     // console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
   }
@@ -121,7 +127,8 @@ export class MCPOAuthClient {
       },
       this.sessionId, // Pass sessionId as the state parameter
       this.tokens,
-      this.clientInformation
+      this.clientInformation,
+      this.tokenExpiresAt
     );
 
     this.client = new Client(
@@ -163,28 +170,8 @@ export class MCPOAuthClient {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
       if (error instanceof SDKUnauthorizedError ||
         (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
-
-        console.log('[OAuth Client] Connection failed with 401, attempting token refresh...');
-        const refreshed = await this.refreshToken();
-
-        if (refreshed) {
-          try {
-            // Re-create transport with new tokens (just in case)
-            // Actually transport uses oauthProvider which has new tokens now.
-            await this.client.connect(this.transport);
-            console.log('[OAuth Client] Reconnected after refresh');
-            return;
-          } catch (retryError) {
-            console.error('[OAuth Client] Failed to reconnect after refresh:', retryError);
-          }
-        }
-
         throw new UnauthorizedError('OAuth authorization required');
       } else {
-        // Enhance error message with URL info
-        if (error instanceof Error) {
-          throw new Error(`Failed to connect to ${this.serverUrl}: ${error.message}`);
-        }
         throw error;
       }
     }
@@ -251,29 +238,14 @@ export class MCPOAuthClient {
     }
 
     // Get valid tokens before making request
-    await this.getValidTokens();
+    // await this.getValidTokens();
 
     const request: ListToolsRequest = {
       method: 'tools/list',
       params: {},
     };
 
-    try {
-      return await this.client.request(request, ListToolsResultSchema);
-    } catch (error) {
-      // If unauthorized, try refreshing token once and retry
-      if (error instanceof SDKUnauthorizedError ||
-        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
-        console.log('[OAuth Client] Received 401, attempting token refresh...');
-        const refreshed = await this.refreshToken();
-
-        if (refreshed) {
-          await this.reconnect();
-          return await this.client.request(request, ListToolsResultSchema);
-        }
-      }
-      throw error;
-    }
+    return await this.client.request(request, ListToolsResultSchema);
   }
 
   /**
@@ -292,7 +264,7 @@ export class MCPOAuthClient {
     }
 
     // Get valid tokens before making request
-    await this.getValidTokens();
+    // await this.getValidTokens();
 
     const request: CallToolRequest = {
       method: 'tools/call',
@@ -302,22 +274,7 @@ export class MCPOAuthClient {
       },
     };
 
-    try {
-      return await this.client.request(request, CallToolResultSchema);
-    } catch (error) {
-      // If unauthorized, try refreshing token once and retry
-      if (error instanceof SDKUnauthorizedError ||
-        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
-        console.log('[OAuth Client] Received 401, attempting token refresh...');
-        const refreshed = await this.refreshToken();
-
-        if (refreshed) {
-          await this.reconnect();
-          return await this.client.request(request, CallToolResultSchema);
-        }
-      }
-      throw error;
-    }
+    return await this.client.request(request, CallToolResultSchema);
   }
 
   /**
@@ -350,6 +307,19 @@ export class MCPOAuthClient {
       const resourceMetadata = await discoverOAuthProtectedResourceMetadata(this.serverUrl);
       const authServerUrl = resourceMetadata?.authorization_servers?.[0] || this.serverUrl;
       const authMetadata = await discoverAuthorizationServerMetadata(authServerUrl);
+      console.log('[OAuth Client] Discovered OAuth metadata:', authMetadata);
+      console.log('[OAuth Client] Discovered auth server URL:', authServerUrl);
+      console.log('[OAuth Client] Client information:', clientInformation);
+      console.log('[OAuth Client] Refresh token:', tokens.refresh_token);
+
+      // test
+      // this.onSaveTokens?.({
+      //   access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzb19vaWRjX2tleV9wYWlyXzAxSzNONE05ME1FUUQwNTczUk4yUlpYSzk5In0.eyJpc3MiOiJodHRwczovL3N1cnByaXNpbmctdGVjaG5vbG9neS0xNS1zdGFnaW5nLmF1dGhraXQuYXBwIiwiYXVkIjoiY2xpZW50XzAxSzNONE05OTBQUVY1QlFRWFo5QjAySFIwIiwic3ViIjoidXNlcl8wMUs3NktTN0VDNzNIS0JONUI3QkdCM0I0VyIsInNpZCI6ImFwcF9jb25zZW50XzAxS0Q2NktGV0VZQktYSFdXQkQyVzFQN1k5IiwianRpIjoiMDFLRDY4VDk4M1cxUUZKNUhKVEhETk4ySzAiLCJleHAiOjE3NjY1MTYxMTcsImlhdCI6MTc2NjUxNTg3N30.PoaM-ms3TxLHH5hZ7Cp350_YTNAh6hzT7Y1aaDgA8c07W32D_p8pSEzKHpmyFkrJpk3VYWesChbKn7QVbX629p_btr7m6gaNKavaMETisBrjltoOGoURJ_a1sXbVmCg1Ee-IY2FGoUru3mKdg7CWX5UI9Zn9G2d_UezW33WcIYRpNCI_xLo3GxKGwnccNWA604i_rxNWGMwOquQsBRLw5GaNyBidmGTp8iEF21gZmUwJf91edQMuH8iyLePXMBbkf7qWgVkPlD0JUeJpO3S5wygI4bLb9HnHGPCgtdd82linia3QcRWejyIVA6YtHS9Xj0GQ1SfgZx0pvA5PONXXbQ',
+      //   id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzb19vaWRjX2tleV9wYWlyXzAxSzNONE05ME1FUUQwNTczUk4yUlpYSzk5In0.eyJpc3MiOiJodHRwczovL3N1cnByaXNpbmctdGVjaG5vbG9neS0xNS1zdGFnaW5nLmF1dGhraXQuYXBwIiwiYXVkIjoiY2xpZW50XzAxS0Q2Nks3UkU1WVBLOE01Rk1TVDVaUks3Iiwic3ViIjoidXNlcl8wMUs3NktTN0VDNzNIS0JONUI3QkdCM0I0VyIsImV4cCI6MTc2NjUxOTQ3NywiaWF0IjoxNzY2NTE1ODc3fQ.fudtJCIOic5OC2gMwLAniEONdsnA8FhBefSTOKPeXteAgPzRQmkOQcTsc2v6s-V2c9uSfObETfCEBeGr9oT9piEliNVF3bhVkAwB4bTIAW7R0er9bQZI_F_-Hiq7RFha5PoBaE2iasGSd3VmsvEZn-BtYRKsU7BUTZlCzuqc-DKs9MGX1wg3D2ePiMukbKLNcjWbjF7VJm5hQJ-4y9a9ThQo7dQx7CwHPNOdpCKBXkS3f0u8qmK5ka5tT43OZPab5-FZN8q0P6rQ8ky1BsVKyMelcGIXchNh8owTtYUuRwPUDynxNpcsT1Omqr5cRvjmRDF-Ga9u1wWWIFZLLSJanw',
+      //   token_type: 'bearer',
+      //   expires_in: 240,
+      //   refresh_token: 'aVKMVBx189Zu5HJgH94agNH42'
+      // })
 
       // Use the MCP SDK's refreshAuthorization function
       const newTokens = await refreshAuthorization(authServerUrl, {
@@ -360,6 +330,12 @@ export class MCPOAuthClient {
 
       // Save the new tokens
       this.oauthProvider.saveTokens(newTokens);
+
+      // Notify about token update
+      if (this.onSaveTokens) {
+        this.onSaveTokens(newTokens);
+      }
+
       console.log('[OAuth Client] ✅ Token refresh successful');
 
       return true;
@@ -384,15 +360,8 @@ export class MCPOAuthClient {
     // Check if token is expired
     if (this.oauthProvider.isTokenExpired()) {
       console.log('[OAuth Client] Token expired, attempting refresh...');
-      const refreshed = await this.refreshToken();
-
-      if (refreshed) {
-        // Reconnect with new tokens
-        await this.reconnect();
-        return true;
-      }
-
-      return false;
+      await this.refreshToken()
+      return true;
     }
 
     return true; // Token is still valid

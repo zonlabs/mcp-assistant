@@ -78,7 +78,12 @@ export async function POST(request: NextRequest) {
       sessionId: stateData,
       transportType,
       clientId,
-      clientSecret
+      clientSecret,
+      onSaveTokens: (tokens) => {
+        sessionStore.updateTokens(sessionId, tokens).catch(err => {
+          console.error(`❌ Failed to update tokens in Redis for session ${sessionId}:`, err);
+        });
+      }
     });
 
     try {
