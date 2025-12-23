@@ -24,6 +24,18 @@ import { InMemoryOAuthClientProvider } from './oauth-provider';
  */
 export type TransportType = 'sse' | 'streamable_http';
 
+export interface MCPOAuthClientOptions {
+  serverUrl: string;
+  callbackUrl: string;
+  onRedirect: (url: string) => void;
+  sessionId?: string;
+  transportType?: TransportType;
+  tokens?: OAuthTokens;
+  clientInformation?: OAuthClientInformationFull;
+  clientId?: string;
+  clientSecret?: string;
+}
+
 /**
  * Custom error for OAuth authorization requirements
  */
@@ -46,21 +58,28 @@ export class MCPOAuthClient {
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private sessionId?: string;
   private transportType: TransportType;
+  private serverUrl: string;
+  private callbackUrl: string;
+  private onRedirect: (url: string) => void;
+  private tokens?: OAuthTokens;
+  private clientInformation?: OAuthClientInformationFull;
+  private clientId?: string;
+  private clientSecret?: string;
 
   constructor(
-    private serverUrl: string,
-    private callbackUrl: string,
-    private onRedirect: (url: string) => void,
-    sessionId?: string,
-    transportType: TransportType = 'streamable_http',
-    private tokens?: OAuthTokens,
-    private clientInformation?: OAuthClientInformationFull,
-    private clientId?: string,
-    private clientSecret?: string,
+    options: MCPOAuthClientOptions
   ) {
-    console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
-    this.sessionId = sessionId;
-    this.transportType = transportType;
+    this.serverUrl = options.serverUrl;
+    this.callbackUrl = options.callbackUrl;
+    this.onRedirect = options.onRedirect;
+    this.sessionId = options.sessionId;
+    this.transportType = options.transportType || 'streamable_http';
+    this.tokens = options.tokens;
+    this.clientInformation = options.clientInformation;
+    this.clientId = options.clientId;
+    this.clientSecret = options.clientSecret;
+
+    // console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
   }
 
   /**

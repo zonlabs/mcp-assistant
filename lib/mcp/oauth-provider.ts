@@ -110,6 +110,7 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     if (!this._tokens || !this._tokenExpiresAt) {
       return false; // No tokens to expire
     }
+    console.log('[InMemoryOAuthClientProvider] Token expired:', Date.now() >= this._tokenExpiresAt);
     return Date.now() >= this._tokenExpiresAt;
   }
 

@@ -165,15 +165,15 @@ export class SessionStore {
     if (!sessionData) return null;
 
     // Create client with same parameters
-    const client = new MCPOAuthClient(
-      sessionData.serverUrl,
-      sessionData.callbackUrl,
-      () => { },
-      sessionData.sessionId,
-      sessionData.transportType,
-      sessionData.tokens,
-      sessionData.clientInformation as any // Cast as any or specific type if needed, but sessionData.clientInformation is OAuthClientInformationMixed
-    );
+    const client = new MCPOAuthClient({
+      serverUrl: sessionData.serverUrl,
+      callbackUrl: sessionData.callbackUrl,
+      onRedirect: () => { },
+      sessionId: sessionData.sessionId,
+      transportType: sessionData.transportType,
+      tokens: sessionData.tokens,
+      clientInformation: sessionData.clientInformation as any
+    });
 
     // If no tokens, this is a mid-OAuth flow session
     if (!sessionData.tokens) {
