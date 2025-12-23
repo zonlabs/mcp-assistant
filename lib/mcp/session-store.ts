@@ -5,6 +5,7 @@ import type {
   OAuthClientInformationMixed,
 } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { customAlphabet } from 'nanoid';
+import { redis } from './redis';
 
 export interface SessionData {
   sessionId: string;
@@ -26,34 +27,13 @@ const nanoid = customAlphabet(
 );
 
 export class SessionStore {
-  private redis: Redis;
+  // private redis: Redis;
   private readonly SESSION_TTL = 43200; // 12 hours
   private readonly KEY_PREFIX = 'mcp:session:';
   private readonly USER_PREFIX = 'mcp:user:';
 
-  constructor() {
-    const redisUrl = process.env.REDIS_URL || process.env.NEXT_PUBLIC_REDIS_URL;
-    if (!redisUrl) {
-      throw new Error('REDIS_URL environment variable is required');
-    }
-
-    this.redis = new Redis(redisUrl, {
-      retryStrategy: (times) => Math.min(times * 50, 2000),
-      maxRetriesPerRequest: 3,
-      lazyConnect: false,
-      enableReadyCheck: true,
-      connectTimeout: 10000,
-    });
-
-    this.redis.on('ready', () => {
-      console.log('✅ Session Store: Redis connected');
-    });
-    this.redis.on('error', (err) => {
-      console.error('❌ Session Store: Redis error:', err.message);
-    });
-    this.redis.on('reconnecting', () => {
-      console.log('🔄 Session Store: Reconnecting to Redis...');
-    });
+  constructor(private redis: Redis) {
+  
   }
 
   private getSessionKey(sessionId: string): string {
@@ -352,4 +332,4 @@ export class SessionStore {
   }
 }
 
-export const sessionStore = new SessionStore();
+export const sessionStore = new SessionStore(redis);
