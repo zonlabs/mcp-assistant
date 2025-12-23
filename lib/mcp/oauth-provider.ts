@@ -33,7 +33,7 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     tokenExpiresAt?: number // Add clientInformation to constructor
   ) {
     // console.log('[InMemoryOAuthClientProvider] Initializing with tokens:', tokens ? 'Yes' : 'No', tokens);
-    console.log('[InMemoryOAuthClientProvider] clientInformation:', clientInformation);
+    // console.log('[InMemoryOAuthClientProvider] clientInformation:', clientInformation);
     this._onRedirect =
       onRedirect ||
       ((url) => {

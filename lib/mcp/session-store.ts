@@ -213,45 +213,25 @@ export class SessionStore {
     console.log(`🔐 Restoring OAuth session: ${sessionData.sessionId}`);
 
     // Connect to initialize OAuth provider
-    // try {
-    await client.connect();
-    // } catch (err) {
-    //   console.log(
-    //     `🔄 Initial connect failed (often expected): ${err instanceof Error ? err.message : String(err)}`
-    //   );
-    // }
+    try{
 
-    const oauthProvider = client.oauthProvider;
-    if (!oauthProvider) {
-      throw new Error('OAuth provider not initialized');
-    }
-
-    // Restore OAuth state
-    if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
-      oauthProvider.saveClientInformation(sessionData.clientInformation);
-    }
-    if (sessionData.tokens && 'access_token' in sessionData.tokens) {
-      console.log(`✅ [sessionStore] Restoring tokens for ${sessionData.sessionId}`);
-      oauthProvider.saveTokens(sessionData.tokens);
-
-      // Restore token expiration if available
-      if (sessionData.tokenExpiresAt && '_tokenExpiresAt' in oauthProvider) {
-        console.log(`✅ [sessionStore] Restoring tokenExpiresAt for ${sessionData.sessionId}`);
-        (oauthProvider as any)._tokenExpiresAt = sessionData.tokenExpiresAt;
-      }
-    }
-    if (sessionData.codeVerifier) {
-      oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
-    }
-
-    // Reconnect with restored OAuth state
-    try {
       await client.connect();
-      console.log(`✅ OAuth session restored: ${sessionData.sessionId}`);
+      const oauthProvider = client.oauthProvider;
+      if (!oauthProvider) {
+        throw new Error('OAuth provider not initialized');
+      }
+      // similarly we can add additional signature in MCPOAuthClient class to save the client information and code verifier (for now we are doing this way)
+      if (sessionData.clientInformation && 'redirect_uris' in sessionData.clientInformation) {
+        oauthProvider.saveClientInformation(sessionData.clientInformation);
+      }
+      if (sessionData.codeVerifier) {
+        oauthProvider.saveCodeVerifier(sessionData.codeVerifier);
+      }
       return client;
-    } catch (reconnectError) {
-      console.error(`❌ Reconnection failed for session ${sessionData.sessionId}:`, reconnectError);
-      throw reconnectError;
+    }
+    catch(err){
+      console.error(`❌ Failed to restore OAuth session for ${sessionData.sessionId}:`, err);
+      throw err;
     }
   }
 
