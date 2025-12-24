@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import ChatInput from "../../components/playground/ChatInput";
@@ -35,6 +36,15 @@ const ChatInputWrapper = ({ onSend }: ChatInputWrapperProps) => {
 };
 
 const PlaygroundPage = () => {
+  // TODO: to be removed in future
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) return null;
+
   const { activeAssistant } = usePlayground();
   const askMode = activeAssistant?.config?.ask_mode;
 
