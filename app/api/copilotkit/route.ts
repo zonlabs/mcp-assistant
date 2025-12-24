@@ -28,8 +28,9 @@ export const POST = async (req: NextRequest) => {
     const mcpSessions = await sessionStore.getUserMcpSessions(userId);
 
     for (const sessionId of mcpSessions) {
+    try {
       const client = await sessionStore.getClient(sessionId);
-      console.log("[api/copilotkit] resolved client:", client);
+      // console.log("[api/copilotkit] resolved client:", client);
       if (!client) continue;
 
       const transport = client.getTransportType();
@@ -40,29 +41,30 @@ export const POST = async (req: NextRequest) => {
       // 🔐 MCP OAuth token (optional)
       let headers: Record<string, string> | undefined;
 
-      try {
+    
         const oauthProvider = client.oauthProvider;
-        console.log("[api/copilotkit] resolved oauthProvider:", oauthProvider);
+        // console.log("[api/copilotkit] resolved oauthProvider:", oauthProvider);
         const tokens = oauthProvider?.tokens();
-        console.log("[api/copilotkit] resolved tokens:", tokens);
+        // console.log("[api/copilotkit] resolved tokens:", tokens);
 
         if (tokens?.access_token) {
           headers = {
             Authorization: `Bearer ${tokens.access_token}`,
           };
         }
-      } catch (error) {
-        console.warn(
-          `[MCP] Failed to get OAuth token for sessionId ${sessionId}`,
-          error
-        );
-      }
-
       mcpConfig[sessionId] = {
         transport,
         url,
         ...(headers && { headers }),
       };
+    }
+    catch (error) {
+     await sessionStore.removeSession(sessionId);
+      console.warn(
+        `[MCP] Failed to get OAuth token for sessionId ${sessionId}`,
+        error
+      );
+    }
     }
   }
 

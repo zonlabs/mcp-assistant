@@ -33,7 +33,7 @@ export class SessionStore {
   private readonly USER_PREFIX = 'mcp:user:';
 
   constructor(private redis: Redis) {
-  
+    
   }
 
   private getSessionKey(sessionId: string): string {
@@ -209,7 +209,8 @@ export class SessionStore {
       }
       return client;
     }
-    catch(err){
+    catch (err) {
+      this.removeSession(sessionData.sessionId);
       console.error(`❌ Failed to restore OAuth session for ${sessionData.sessionId}:`, err);
       throw err;
     }

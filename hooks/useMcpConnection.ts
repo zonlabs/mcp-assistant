@@ -147,7 +147,7 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
       const result = await response.json();
 
       if (result.requiresAuth && result.authUrl) {
-        toast.success("Redirecting to OAuth authorization...");
+        toast.success("Redirecting to authorization server...");
         window.location.href = result.authUrl;
         return;
       }

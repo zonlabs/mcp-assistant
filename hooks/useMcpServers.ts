@@ -99,7 +99,7 @@ export function useMcpServers(session: Session | null): McpServersData {
         if (connectResult?.requiresAuth) {
           const authUrl = connectResult.authorizationUrl;
           if (authUrl) {
-            // toast.success(`Redirecting to OAuth authorization for ${serverName}...`);
+            // toast.success(`Redirecting to authorization server for ${serverName}...`);
             // Redirect to OAuth authorization URL
             setTimeout(() => {
               window.location.href = authUrl;
