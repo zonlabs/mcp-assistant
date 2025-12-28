@@ -44,14 +44,14 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-                <div className="min-h-screen bg-background">
-                  <div className="max-w-5xl mx-auto">
-                    <Header />
-                    <main>
-                      {children}
-                    </main>
-                  </div>
+              <div className="min-h-screen">
+                <div className="max-w-5xl mx-auto">
+                  <Header />
+                  <main>
+                    {children}
+                  </main>
                 </div>
+              </div>
             </ThemeProvider>
           </ApolloProvider>
         </AuthProvider>

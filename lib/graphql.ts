@@ -92,8 +92,8 @@ ${MCP_SERVER_CONFIG_FRAGMENT}
  * Uses cursor-based pagination (edges structure) like MCP_SERVERS_QUERY.
  */
 export const RECENT_MCP_SERVERS_QUERY = `
-  query RecentMcpServers($first: Int, $after: String, $order: MCPServerOrder) {
-    mcpServers(first: $first, after: $after, order: $order) {
+  query RecentMcpServers($first: Int, $after: String, $order: MCPServerOrder, $filters: MCPServerFilter) {
+    mcpServers(first: $first, after: $after, order: $order, filters: $filters) {
       edges {
         node {
           id

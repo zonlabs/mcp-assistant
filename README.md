@@ -22,15 +22,74 @@ MCP Assistant addresses common pain points developers face when working with the
 
 Whether you're building MCP integrations, testing MCP servers, or simply exploring the MCP ecosystem, MCP Assistant streamlines the entire workflow.
 
-## 🌟 Features
+## 🌟 Features & Capabilities
 
-| MCP Protocol | Agent–User Interaction (AG-UI Protocol) |
-| :--- | :--- |
-| • Supported transport via SSE and Streamable HTTP<br>• Configure and manage multiple servers simultaneously<br>• OAuth 2.0 Authorization Server Metadata (RFC8414) and OpenID Connect Discovery 1.0 support<br>• Real-time connection status monitoring<br>• Tool execution | • **Stream text message events** - Real-time message streaming for responsive interactions<br>• **Backend tool rendering** - Visualize tool outputs in chats<br>• **Tool output streaming** - Stream tool results and logs as real-time events<br>• **Interrupts (human in the loop)** - Pause and approve workflows without losing state<br>• **Shared state** - Context-aware responses using MCP tools |
+### 🔌 Model Context Protocol (MCP)
+- **Multi-Transport Support**: Seamless connections via SSE and Streamable HTTP.
+- **Dynamic Management**: Configure and manage multiple remote servers simultaneously.
+- **Enterprise Auth**: Built-in support for OAuth 2.0 (RFC8414) and OpenID Connect Discovery.
+- **Live Monitoring**: Real-time status tracking for all connected MCP instances.
+- **Direct Execution**: Native tool discovery and execution environment.
+
+### 🤖 Agent–User Interaction (AG-UI)
+- **Real-time Streaming**: Sub-second text message event streaming for fluid chats.
+- **Rich Tool Rendering**: Advanced backend-driven visualization for tool outputs.
+- **Interactive Logs**: Stream tool results and execution logs as live events.
+- **Human-in-the-Loop**: Pause, inspect, and approve workflows with persistent state.
+- **Shared Context**: Intelligent context sharing between the client and MCP tools.
 
 ---
 
-##  Getting Started with MCP Assistant
+## 🏗️ Architecture Overview
+
+MCP Assistant is built to be fast, secure, and easy to use, making it simple to connect and interact with all your tools in real-time.
+
+```mermaid
+flowchart TD
+    subgraph Browser["browser"]
+        B[User Browser]
+    end
+
+    subgraph MCPA["MCP ASSISTANT"]
+        subgraph UI["ui"]
+            direction TB
+            MAR["mcp assistant registry"]
+            MPR["modelcontextprotocol registry"]
+            PG["playground"]
+        end
+
+        subgraph Backend["mcp assistant backend"]
+            LA["langgraph agent"]
+            DB[("database")]
+        end
+    end
+
+    subgraph External["External APIs"]
+        MCP_IO["modelcontextprotocol.io"]
+    end
+
+    subgraph ToolsResources["Tools / Resources"]
+        C7["context7"]
+        DW["Deepwiki"]
+    end
+
+    B -- "HTTPS" --> UI
+    
+    %% Registry/Playground connections
+    MAR -- "Graphql" --> DB
+    PG -- "Execute" --> LA
+    MPR -- "HTTPS" --> MCP_IO
+    
+    PG -- "ag-ui-protocol\n(state containing mcp info.: URL, Transport, Authorization token, etc.)" --> LA
+    
+    %% Re-routed connection: from UI instead of PG
+    UI -- "SSE / mcp protocol" --> ToolsResources
+    LA -- "SSE / Streamable HTTP" --> ToolsResources
+```
+
+---
+
+## 🚀 Getting Started with MCP Assistant
 
 ### 🔌 Adding an MCP Server
 

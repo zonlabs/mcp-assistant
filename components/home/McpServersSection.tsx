@@ -102,7 +102,7 @@ function ServerCard({ server }: { server: McpServer }) {
   );
 }
 
-export default function RecentMcpServers() {
+export default function McpServersSection() {
   // Registry Data
   const { servers: registryServers, loading: registryLoading } = useRegistryRecentServers(12);
 
@@ -113,7 +113,8 @@ export default function RecentMcpServers() {
     };
   }>(GET_RECENT_SERVERS, {
     variables: {
-      first: 8,
+      first: 16,
+      filters: { isFeatured: { exact: true } },
       order: { createdAt: "DESC" }, // Order by creation date descending (newest first)
     },
     fetchPolicy: "cache-and-network", // Always fetch fresh data while showing cached
@@ -124,15 +125,21 @@ export default function RecentMcpServers() {
   const localServers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
 
   return (
-    <div className="w-full space-y-12">
+    <div className="w-full space-y-8">
       {/* Registry Section */}
       {(registryLoading || registryServers.length > 0) && (
-        <section>
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl md:text-2xl font-bold">Latest Registry Updates</h2>
+        <section className="relative -mx-6 px-6 py-8 overflow-hidden rounded-3xl">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
+          <div className="mb-8 text-center max-w-2xl mx-auto">
+            <div className="flex flex-col items-center justify-center mb-3">
+              <Link href="/registry" className="group">
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold group-hover:text-primary transition-colors flex items-center gap-2">
+                  Official MCP Registry
+                  <ArrowRight className="h-6 w-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </h2>
+              </Link>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               Explore the newest additions and updates from the official MCP registry.
             </p>
           </div>
@@ -159,19 +166,17 @@ export default function RecentMcpServers() {
 
       {/* Local Section */}
       {!localError && (localLoading || localServers.length > 0) && (
-        <section>
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl md:text-2xl font-bold">Recently Added to MCP Assistant</h2>
-              <Link
-                href="/mcp"
-                className="hidden md:flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors group"
-              >
-                View All <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Discover the latest MCP servers you can access and test in Playground.
+        <section className="relative -mx-6 px-6 py-8 overflow-hidden rounded-3xl">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
+          <div className="mb-8 text-center max-w-2xl mx-auto">
+            <Link href="/mcp" className="group">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 group-hover:text-primary transition-colors flex items-center justify-center gap-2">
+                Featured on MCP Assistant
+                <ArrowRight className="h-6 w-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              </h2>
+            </Link>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Discover a curated selection of MCP servers you can access and test in Playground.
             </p>
           </div>
 
@@ -190,14 +195,7 @@ export default function RecentMcpServers() {
             </div>
           )}
 
-          <div className="md:hidden mt-6 text-center">
-            <Link
-              href="/mcp"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              View All Servers <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+
         </section>
       )}
     </div>
