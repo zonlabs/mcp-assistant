@@ -36,6 +36,7 @@ export interface MCPOAuthClientOptions {
   clientId?: string;
   clientSecret?: string;
   onSaveTokens?: (tokens: OAuthTokens) => void;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -69,6 +70,7 @@ export class MCPOAuthClient {
   private clientId?: string;
   private clientSecret?: string;
   private onSaveTokens?: (tokens: OAuthTokens) => void;
+  private headers?: Record<string, string>;
 
   constructor(
     options: MCPOAuthClientOptions
@@ -84,6 +86,7 @@ export class MCPOAuthClient {
     this.clientId = options.clientId;
     this.clientSecret = options.clientSecret;
     this.onSaveTokens = options.onSaveTokens;
+    this.headers = options.headers;
 
     // console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
   }
@@ -100,7 +103,7 @@ export class MCPOAuthClient {
       redirect_uris: [this.callbackUrl],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
-      token_endpoint_auth_method: 'client_secret_post',
+      token_endpoint_auth_method: 'client_secret_basic', // or 'client_secret_post'
       client_uri: 'https://mcp-assistant.in',
       logo_uri: 'https://mcp-assistant.in/logo.png',
 
@@ -156,10 +159,12 @@ export class MCPOAuthClient {
     if (this.transportType === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
+        ...(this.headers && { headers: this.headers }),
       });
     } else {
       this.transport = new StreamableHTTPClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
+        ...(this.headers && { headers: this.headers }),
       });
     }
 
@@ -214,10 +219,12 @@ export class MCPOAuthClient {
     if (this.transportType === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
+        ...(this.headers && { headers: this.headers }),
       });
     } else {
       this.transport = new StreamableHTTPClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
+        ...(this.headers && { headers: this.headers }),
       });
     }
 
@@ -431,5 +438,67 @@ export class MCPOAuthClient {
    */
   getTransportType(): TransportType {
     return this.transportType;
+  }
+
+  /**
+   * Get additional data from the MCP server
+   * Fetches server capabilities, prompts, resources, and resource templates
+   * 
+   * @returns Combined server metadata including capabilities, prompts, resources, etc.
+   */
+  async getAdditionalData(): Promise<{
+    serverVersion?: any;
+    serverCapabilities?: any;
+    instructions?: string;
+    prompts?: any[];
+    resources?: any[];
+    resourceTemplates?: any[];
+    tools?: any[];
+  }> {
+    if (!this.client) {
+      throw new Error('Not connected to server');
+    }
+
+    const result: {
+      serverVersion?: any;
+      serverCapabilities?: any;
+      instructions?: string;
+      prompts?: any[];
+      resources?: any[];
+      resourceTemplates?: any[];
+      tools?: any[];
+    } = {};
+
+    try {
+      // Get server version
+        result.serverVersion = await this.client.getServerVersion()
+
+      // Get server capabilities
+        result.serverCapabilities = await this.client.getServerCapabilities()
+
+      // Get instructions if supported
+        result.instructions = await this.client.getInstructions()
+      
+      // List prompts if supported
+        const promptsResponse = await this.client.listPrompts();
+        result.prompts = (promptsResponse as any).prompts || [];
+      
+      // List resources if supported
+        const resourcesResponse = await this.client.listResources();
+        result.resources = (resourcesResponse as any).resources || [];
+      
+      // List resource templates if supported
+        const templatesResponse = await this.client.listResourceTemplates();
+        result.resourceTemplates = (templatesResponse as any).resourceTemplates || [];
+      
+      // List tools (already implemented but include for completeness)
+        const toolsResponse = await this.listTools();
+        result.tools = toolsResponse.tools || [];
+    
+      return result;
+    } catch (error) {
+      console.error('[getAdditionalData] Failed to retrieve additional data:', error);
+      throw error;
+    }
   }
 }
