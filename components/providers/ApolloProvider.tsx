@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import { useSession } from 'next-auth/react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   ApolloClient,
   InMemoryCache,
@@ -9,6 +8,7 @@ import {
   ApolloLink,
 } from '@apollo/client';
 import { ApolloProvider as ApolloProviderBase } from '@apollo/client/react';
+import { createClient } from '@/lib/supabase/client';
 
 // Get the GraphQL API endpoint
 const getGraphQLUri = () => {
@@ -17,7 +17,27 @@ const getGraphQLUri = () => {
 };
 
 export function ApolloProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token ?? null);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_, session) => {
+      setToken(session?.access_token ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const client = useMemo(() => {
     // HTTP Link for GraphQL requests
@@ -28,8 +48,6 @@ export function ApolloProvider({ children }: { children: React.ReactNode }) {
 
     // Auth link to add authorization header
     const authLink = new ApolloLink((operation, forward) => {
-      const token = (session as { googleIdToken?: string } | null)?.googleIdToken;
-
       operation.setContext(({ headers = {} }) => ({
         headers: {
           ...headers,
@@ -88,11 +106,7 @@ export function ApolloProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
-  }, [session]);
-
-  // Note: No need to manually clear store when session changes
-  // The client is already recreated via useMemo when session changes,
-  // and the old cache will be garbage collected
+  }, [token]);
 
   return <ApolloProviderBase client={client}>{children}</ApolloProviderBase>;
 }

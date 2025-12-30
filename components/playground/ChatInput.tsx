@@ -8,8 +8,8 @@ import {
 import { PushToTalkState } from "@/hooks/usePushToTalk";
 import { useCoAgent } from "@copilotkit/react-core";
 import { AgentState, Assistant } from "@/types/mcp";
-import { useSession } from "next-auth/react";
-import { Session } from "next-auth";
+import { createClient } from "@/lib/supabase/client";
+import { Session } from "@supabase/supabase-js";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import { toast } from "react-hot-toast";
 import AssistantDropdown from "./AssistantDropdown";
@@ -34,7 +34,14 @@ export default function ChatInput({
   onPushToTalkStateChange
 }: CustomChatInputProps) {
   // Generate sessionId for authenticated or anonymous users (browser only)
-  const { data: session } = useSession();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+  }, []);
 
   // Fetch assistants and shared state from context
   const {

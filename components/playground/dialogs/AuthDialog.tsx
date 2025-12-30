@@ -9,7 +9,7 @@ interface AuthDialogProps {
   onOpenChange: (v: boolean) => void;
 }
 
-const AuthDialog: React.FC<AuthDialogProps> = ({open, onOpenChange}) => (
+const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-[380px]">
       <DialogHeader>
@@ -31,7 +31,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({open, onOpenChange}) => (
         >
           Cancel
         </Button>
-        <Link href="/api/auth/signin" className="flex-1">
+        <Link href="/signin" className="flex-1">
           <Button className="w-full bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black cursor-pointer">
             Sign In
           </Button>

@@ -1,9 +1,10 @@
 "use client";
+
 import { createContext, useContext, type PropsWithChildren, useState, useEffect } from "react";
 import { useAssistants, type AssistantsState } from "@/hooks/useAssistants";
 import { useCoAgent } from "@copilotkit/react-core";
-import { useSession } from "next-auth/react";
-import { Session } from "next-auth";
+import { createClient } from "@/lib/supabase/client";
+import { Session } from "@supabase/supabase-js";
 import { AgentState, McpConfig } from "@/types/mcp";
 import { MCPToolSelection } from "@/components/playground/MCPToolsDropdown";
 
@@ -23,7 +24,22 @@ const PlaygroundContext = createContext<PlaygroundContextType | undefined>(
 export function PlaygroundProvider({ children }: PropsWithChildren) {
   const assistantState = useAssistants();
   const { activeAssistant } = assistantState;
-  const { data: session } = useSession();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session as unknown as Session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session as unknown as Session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Shared State
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");

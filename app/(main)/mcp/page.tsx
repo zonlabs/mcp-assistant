@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, Suspense, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
+import { Session } from "@supabase/supabase-js";
 import { toast } from "react-hot-toast";
 import McpClientLayout from "@/components/mcp-client/McpClientLayout";
 import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
@@ -12,7 +13,23 @@ import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 function McpPageContent() {
-  const { data: session } = useSession();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const [rawUserServers, setRawUserServers] = useState<McpServer[] | null>(null);
   const [userServersCount, setUserServersCount] = useState(0);
   const [userError, setUserError] = useState<string | null>(null);
