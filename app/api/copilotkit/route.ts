@@ -5,8 +5,7 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { HttpAgent } from "@ag-ui/client";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { sessionStore } from "@/lib/mcp/session-store";
 import type { McpServerConfig } from "@/types/mcp";
 
@@ -16,32 +15,33 @@ export const POST = async (req: NextRequest) => {
   /**
    * 1️⃣ get session
    */
-  const session = await getServerSession(authOptions);
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
 
   /**
    * 2️⃣ Resolve MCP config (ASYNC, SERVER SIDE)
    */
-  const userId = (session?.user as any)?.id;
+  const userId = session?.user?.id;
   const mcpConfig: McpServerConfig = {};
 
   if (userId) {
     const mcpSessions = await sessionStore.getUserMcpSessions(userId);
 
     for (const sessionId of mcpSessions) {
-    try {
-      const client = await sessionStore.getClient(sessionId);
-      // console.log("[api/copilotkit] resolved client:", client);
-      if (!client) continue;
+      try {
+        const client = await sessionStore.getClient(sessionId);
+        // console.log("[api/copilotkit] resolved client:", client);
+        if (!client) continue;
 
-      const transport = client.getTransportType();
-      const url = client.getServerUrl();
+        const transport = client.getTransportType();
+        const url = client.getServerUrl();
 
-      if (!transport || !url) continue;
+        if (!transport || !url) continue;
 
-      // 🔐 MCP OAuth token (optional)
-      let headers: Record<string, string> | undefined;
+        // 🔐 MCP OAuth token (optional)
+        let headers: Record<string, string> | undefined;
 
-    
+
         const oauthProvider = client.oauthProvider;
         // console.log("[api/copilotkit] resolved oauthProvider:", oauthProvider);
         const tokens = oauthProvider?.tokens();
@@ -52,19 +52,19 @@ export const POST = async (req: NextRequest) => {
             Authorization: `Bearer ${tokens.access_token}`,
           };
         }
-      mcpConfig[sessionId] = {
-        transport,
-        url,
-        ...(headers && { headers }),
-      };
-    }
-    catch (error) {
-     await sessionStore.removeSession(sessionId);
-      console.warn(
-        `[MCP] Failed to get OAuth token for sessionId ${sessionId}`,
-        error
-      );
-    }
+        mcpConfig[sessionId] = {
+          transport,
+          url,
+          ...(headers && { headers }),
+        };
+      }
+      catch (error) {
+        await sessionStore.removeSession(sessionId);
+        console.warn(
+          `[MCP] Failed to get OAuth token for sessionId ${sessionId}`,
+          error
+        );
+      }
     }
   }
 
@@ -78,7 +78,7 @@ export const POST = async (req: NextRequest) => {
       "http://localhost:8000/api/langgraph-agent",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.googleIdToken}`,
+      Authorization: `Bearer ${session?.access_token}`,
     },
   });
 

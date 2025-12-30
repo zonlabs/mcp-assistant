@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { SAVE_MCP_SERVER_MUTATION, REMOVE_MCP_SERVER_MUTATION } from "@/lib/graphql";
 
-const GRAPHQL_ENDPOINT = process.env.BACKEND_URL+"/api/graphql" || "http://localhost:8000/api/graphql";
+const GRAPHQL_ENDPOINT = process.env.BACKEND_URL + "/api/graphql" || "http://localhost:8000/api/graphql";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.googleIdToken) {
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.googleIdToken}`,
+        "Authorization": `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         query: SAVE_MCP_SERVER_MUTATION,
@@ -90,7 +90,7 @@ export async function DELETE(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.googleIdToken}`,
+        "Authorization": `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         query: REMOVE_MCP_SERVER_MUTATION,

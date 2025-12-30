@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 // Import session store for disconnect
 import { sessionStore } from "@/lib/mcp/session-store";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const token = session?.googleIdToken;
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
 
   const origin = (process.env.DJANGO_API_URL || process.env.BACKEND_URL)?.replace(/\/$/, "");
   if (!origin) {

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { USER_MCP_SERVERS_QUERY } from "@/lib/graphql";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const token = session?.googleIdToken;
-  
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   // This route requires authentication
   if (!token) {
     return NextResponse.json({ errors: [{ message: "Unauthorized" }] }, { status: 401 });
@@ -16,7 +16,7 @@ export async function GET() {
   if (!origin) {
     return NextResponse.json({ errors: [{ message: "Server misconfigured" }] }, { status: 500 });
   }
-  
+
   const resp = await fetch(`${origin}/api/graphql`, {
     method: "POST",
     headers: {

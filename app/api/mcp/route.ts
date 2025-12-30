@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { MCP_SERVERS_QUERY } from "@/lib/graphql";
 
 /**
@@ -18,8 +17,9 @@ import { MCP_SERVERS_QUERY } from "@/lib/graphql";
  * - /api/mcp?orderBy=-createdAt&first=10 - Get 10 newest servers
  */
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  const token = session?.googleIdToken;
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
 
   // Parse query parameters for cursor-based pagination
   const { searchParams } = new URL(request.url);

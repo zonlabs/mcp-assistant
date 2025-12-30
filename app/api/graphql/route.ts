@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { createClient } from "@/lib/supabase/server";
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const GRAPHQL_ENDPOINT = `${BACKEND_URL}/api/graphql`;
@@ -11,7 +10,8 @@ export async function POST(request: NextRequest) {
     const { query, variables } = body;
 
     // Get session for authentication
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
 
     // Prepare headers
     const headers: Record<string, string> = {
@@ -20,13 +20,13 @@ export async function POST(request: NextRequest) {
 
     // Add authorization header if session exists and query requires auth
     const requiresAuth = query.includes('getUserMcpServers') ||
-                        query.includes('myAssistants') ||
-                        query.includes('myAssistant') ||
-                        query.includes('createAssistant') ||
-                        query.includes('updateAssistant') ||
-                        query.includes('deleteAssistant');
+      query.includes('myAssistants') ||
+      query.includes('myAssistant') ||
+      query.includes('createAssistant') ||
+      query.includes('updateAssistant') ||
+      query.includes('deleteAssistant');
 
-    if (requiresAuth && !session?.googleIdToken) {
+    if (requiresAuth && !session?.access_token) {
       // Return authentication error for queries that require auth
       return NextResponse.json(
         {
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (session?.googleIdToken) {
-      headers['Authorization'] = `Bearer ${session.googleIdToken}`;
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
     }
 
     // Forward request to backend GraphQL endpoint
@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
     if (!contentType?.includes('application/json')) {
       await response.text();
       return NextResponse.json(
-        { 
-          errors: [{ 
-            message: 'Backend server returned non-JSON response. Please check your GraphQL endpoint configuration.' 
-          }] 
+        {
+          errors: [{
+            message: 'Backend server returned non-JSON response. Please check your GraphQL endpoint configuration.'
+          }]
         },
         { status: 500 }
       );
@@ -69,10 +69,10 @@ export async function POST(request: NextRequest) {
     // Handle authentication errors
     if (response.status === 401) {
       return NextResponse.json(
-        { 
-          errors: [{ 
-            message: 'Authentication failed. Please log in again.' 
-          }] 
+        {
+          errors: [{
+            message: 'Authentication failed. Please log in again.'
+          }]
         },
         { status: 401 }
       );
@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
     // Handle backend errors
     if (!response.ok) {
       return NextResponse.json(
-        { 
-          errors: [{ 
-            message: data.message || 'Backend server error' 
-          }] 
+        {
+          errors: [{
+            message: data.message || 'Backend server error'
+          }]
         },
         { status: response.status }
       );
@@ -96,20 +96,20 @@ export async function POST(request: NextRequest) {
     // Handle specific error types
     if (error instanceof SyntaxError) {
       return NextResponse.json(
-        { 
-          errors: [{ 
-            message: 'Invalid JSON response from backend server' 
-          }] 
+        {
+          errors: [{
+            message: 'Invalid JSON response from backend server'
+          }]
         },
         { status: 500 }
       );
     }
 
     return NextResponse.json(
-      { 
-        errors: [{ 
-          message: 'Internal server error' 
-        }] 
+      {
+        errors: [{
+          message: 'Internal server error'
+        }]
       },
       { status: 500 }
     );

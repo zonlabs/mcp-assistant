@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 const VALIDATE_A2A_AGENT_MUTATION = `
   mutation ValidateA2aAgent($agentUrl: String!) {
@@ -15,9 +14,10 @@ const VALIDATE_A2A_AGENT_MUTATION = `
 export async function POST(req: NextRequest) {
   try {
     // Get user session
-    const session = await getServerSession(authOptions);
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session?.googleIdToken) {
+    if (!session?.access_token) {
       return NextResponse.json(
         { error: "Unauthorized - Please sign in" },
         { status: 401 }
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.googleIdToken}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         query: VALIDATE_A2A_AGENT_MUTATION,
