@@ -4,7 +4,7 @@ import "./globals.css";
 import AuthProvider from "@/components/providers/AuthProvider";
 import { ApolloProvider } from "@/components/providers/ApolloProvider";
 import "@copilotkit/react-ui/styles.css";
-import Header from "@/components/common/Header";
+
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const geistSans = Geist({
@@ -44,14 +44,7 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <div className="min-h-screen">
-                <div className="max-w-5xl mx-auto">
-                  <Header />
-                  <main>
-                    {children}
-                  </main>
-                </div>
-              </div>
+              {children}
             </ThemeProvider>
           </ApolloProvider>
         </AuthProvider>

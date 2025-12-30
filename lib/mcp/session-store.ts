@@ -19,6 +19,7 @@ export interface SessionData {
   clientInformation?: OAuthClientInformationMixed;
   codeVerifier?: string;
   userId?: string;
+  headers?: Record<string, string>; // HTTP headers for the connection
 }
 
 const nanoid = customAlphabet(
@@ -33,7 +34,7 @@ export class SessionStore {
   private readonly USER_PREFIX = 'mcp:user:';
 
   constructor(private redis: Redis) {
-    
+
   }
 
   private getSessionKey(sessionId: string): string {
@@ -54,7 +55,8 @@ export class SessionStore {
     serverUrl?: string,
     callbackUrl?: string,
     transportType: 'sse' | 'streamable_http' = 'streamable_http',
-    userId?: string
+    userId?: string,
+    headers?: Record<string, string>
   ): Promise<void> {
     try {
       const sessionKey = this.getSessionKey(sessionId);
@@ -106,6 +108,7 @@ export class SessionStore {
         clientInformation,
         codeVerifier,
         userId,
+        headers, // Store headers in session
       };
 
       await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
@@ -193,7 +196,7 @@ export class SessionStore {
     console.log(`🔐 Restoring OAuth session: ${sessionData.sessionId}`);
 
     // Connect to initialize OAuth provider
-    try{
+    try {
 
       await client.connect();
       const oauthProvider = client.oauthProvider;
