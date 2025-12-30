@@ -1,7 +1,6 @@
 "use client";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
 
 interface OAuthCallbackHandlerProps {
   onRefreshServers: () => Promise<void>;
@@ -9,7 +8,6 @@ interface OAuthCallbackHandlerProps {
 
 export default function OAuthCallbackHandler({ onRefreshServers }: OAuthCallbackHandlerProps) {
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
 
   // Handle OAuth callback success
   useEffect(() => {
@@ -23,7 +21,7 @@ export default function OAuthCallbackHandler({ onRefreshServers }: OAuthCallback
         onRefreshServers();
       }, 1000);
     }
-  }, [searchParams, session, onRefreshServers]);
+  }, [searchParams, onRefreshServers]);
 
   return null;
 }

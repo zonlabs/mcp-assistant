@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import { Session } from "next-auth";
 import { McpServer } from "@/types/mcp";
 import { MCP_SERVERS_QUERY } from "@/lib/graphql";
 
@@ -17,7 +16,7 @@ interface McpServersData {
   handleServerDelete: (serverName: string) => Promise<void>;
 }
 
-export function useMcpServers(session: Session | null): McpServersData {
+export function useMcpServers(): McpServersData {
   const [servers, setServers] = useState<McpServer[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +63,8 @@ export function useMcpServers(session: Session | null): McpServersData {
   const updateServer = useCallback((serverId: string, updates: Partial<McpServer>) => {
     setServers(prevServers => {
       if (!prevServers) return prevServers;
-      return prevServers.map(server => 
-        server.id === serverId 
+      return prevServers.map(server =>
+        server.id === serverId
           ? { ...server, ...updates }
           : server
       );

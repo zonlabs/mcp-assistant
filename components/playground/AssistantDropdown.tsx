@@ -1,6 +1,6 @@
 import { Bot, ChevronDown, Loader2, Plus, Pencil, X } from "lucide-react";
 import React from "react";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import type { Assistant } from "@/types/mcp";
 
 export interface AssistantDropdownProps {
@@ -34,17 +34,17 @@ const AssistantDropdown: React.FC<AssistantDropdownProps> = ({
   return (
     <div className="relative mr-1 sm:mr-2">
       {loading ? "" : (
-      <button
-        onClick={() => setShowAssistantDropdown(!showAssistantDropdown)}
-        className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-zinc-700/50 rounded transition-all duration-200 cursor-pointer"
-      >
-        <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-        {isBusy && <Loader2 className="w-3 h-3.5 ml-1 animate-spin text-gray-500 dark:text-gray-300" />}
-        <span className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[80px] sm:max-w-none">
-          {(activeAssistant?.name || "Default")}
-        </span>
-        <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-500 dark:text-gray-400 transition-transform duration-200 flex-shrink-0 ${showAssistantDropdown ? 'rotate-180' : ''}`} />
-      </button>
+        <button
+          onClick={() => setShowAssistantDropdown(!showAssistantDropdown)}
+          className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-zinc-700/50 rounded transition-all duration-200 cursor-pointer"
+        >
+          <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+          {isBusy && <Loader2 className="w-3 h-3.5 ml-1 animate-spin text-gray-500 dark:text-gray-300" />}
+          <span className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[80px] sm:max-w-none">
+            {(activeAssistant?.name || "Default")}
+          </span>
+          <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-500 dark:text-gray-400 transition-transform duration-200 flex-shrink-0 ${showAssistantDropdown ? 'rotate-180' : ''}`} />
+        </button>
       )}
       {showAssistantDropdown && (
         <>

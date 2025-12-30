@@ -1,30 +1,22 @@
 "use client";
-import { signOut } from "next-auth/react";
+
 import { LogOut } from "lucide-react";
-import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function SignOutButton() {
-  const [isLoading, setIsLoading] = useState(false);
-
   const handleSignOut = async () => {
-    setIsLoading(true);
-    try {
-      await signOut({ callbackUrl: "/" });
-    } catch (error) {
-      // Error handled silently
-    } finally {
-      setIsLoading(false);
-    }
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/"; // Force refresh to update server state
   };
 
   return (
     <button
       onClick={handleSignOut}
-      disabled={isLoading}
-      className="flex items-center gap-2 text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed w-full text-left px-2 py-1.5 text-sm"
+      className="flex w-full items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-muted rounded-sm transition-colors"
     >
       <LogOut className="h-4 w-4" />
-      {isLoading ? "Signing out..." : "Sign out"}
+      <span>Sign out</span>
     </button>
   );
 }

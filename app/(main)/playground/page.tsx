@@ -1,7 +1,7 @@
 "use client";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
-import ChatInput from "../../components/playground/ChatInput";
+import ChatInput from "@/components/playground/ChatInput";
 import { usePushToTalk } from "@/hooks/usePushToTalk";
 import { Message } from "@copilotkit/shared";
 import { CopilotKitCSSProperties } from "@copilotkit/react-ui";

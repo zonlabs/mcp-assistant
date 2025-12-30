@@ -10,23 +10,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/common/SignOutButton";
 
+import { User as SupabaseUser } from "@supabase/supabase-js";
+
 interface ProfileDropdownProps {
-  user: {
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-  };
+  user: SupabaseUser;
 }
 
 export function ProfileDropdown({ user }: ProfileDropdownProps) {
+  const name = user.user_metadata?.full_name || user.email?.split('@')[0];
+  const image = user.user_metadata?.avatar_url;
+  const email = user.email;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="flex items-center gap-2 px-2">
-          {user.image ? (
+          {image ? (
             <Image
-              src={user.image}
-              alt={user.name || "Profile"}
+              src={image}
+              alt={name || "Profile"}
               width={32}
               height={32}
               className="rounded-full"
@@ -37,7 +38,7 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
             </div>
           )}
           <span className="text-sm font-medium">
-            {user.name?.split(' ')[0] || user.email?.split('@')[0]}
+            {name}
           </span>
           <ChevronDown className="h-4 w-4" />
         </Button>

@@ -34,7 +34,7 @@ import { ServerPlaceholder } from "./ServerPlaceholder";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useMcpServersFiltered } from "@/hooks/useMcpServersFiltered";
 import { CATEGORIES_QUERY } from "@/lib/graphql";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 
 interface ServerSidebarProps {
   publicServers: McpServer[] | null;
@@ -412,54 +412,54 @@ export function ServerSidebar({
 
             {/* User Servers */}
             <TabsContent value="user" className="px-4 pb-6 m-0 flex flex-col gap-1">
-                {userLoading ? (
-                  <div className="space-y-0">
-                    {[...Array(8)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="px-3 py-3 border-b border-border last:border-b-0"
-                      >
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-3 w-1/2" />
-                          <Skeleton className="h-3 w-2/3" />
-                        </div>
+              {userLoading ? (
+                <div className="space-y-0">
+                  {[...Array(8)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="px-3 py-3 border-b border-border last:border-b-0"
+                    >
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-3 w-2/3" />
                       </div>
-                    ))}
-                  </div>
-                ) : userServers && userServers.length > 0 ? (
-                  <>
-                      {userServers.map((server) => (
-                        <ServerListItem
-                          key={server.id}
-                          server={server}
-                          isSelected={selectedServer?.name === server.name}
-                          onClick={() => onServerSelect(server)}
-                          onEdit={
-                            !(
-                              server.isPublic &&
-                              server.owner !== session?.user?.email?.split("@")[0]
-                            )
-                              ? onEditServer
-                              : undefined
-                          }
-                          onDelete={
-                            !(
-                              server.isPublic &&
-                              server.owner !== session?.user?.email?.split("@")[0]
-                            )
-                              ? onDeleteServer
-                              : undefined
-                          }
-                          showActions={true}
-                        />
-                      ))}
-                    {/* Extra spacing at bottom */}
-                    <div className="h-16" />
-                  </>
-                ) : (
-                  <ServerPlaceholder type="no-servers" tab="user" />
-                )}
+                    </div>
+                  ))}
+                </div>
+              ) : userServers && userServers.length > 0 ? (
+                <>
+                  {userServers.map((server) => (
+                    <ServerListItem
+                      key={server.id}
+                      server={server}
+                      isSelected={selectedServer?.name === server.name}
+                      onClick={() => onServerSelect(server)}
+                      onEdit={
+                        !(
+                          server.isPublic &&
+                          server.owner !== session?.user?.email?.split("@")[0]
+                        )
+                          ? onEditServer
+                          : undefined
+                      }
+                      onDelete={
+                        !(
+                          server.isPublic &&
+                          server.owner !== session?.user?.email?.split("@")[0]
+                        )
+                          ? onDeleteServer
+                          : undefined
+                      }
+                      showActions={true}
+                    />
+                  ))}
+                  {/* Extra spacing at bottom */}
+                  <div className="h-16" />
+                </>
+              ) : (
+                <ServerPlaceholder type="no-servers" tab="user" />
+              )}
             </TabsContent>
           </div>
         </Tabs>

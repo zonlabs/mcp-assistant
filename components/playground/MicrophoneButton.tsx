@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Loader2 } from "lucide-react";
 import React from "react";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 
 export interface MicrophoneButtonProps {
   pushToTalkState: string;
@@ -61,8 +61,8 @@ const MicrophoneButton: React.FC<MicrophoneButtonProps> = ({
         pushToTalkState === "recording"
           ? "Stop recording"
           : pushToTalkState === "transcribing"
-          ? "Transcribing..."
-          : "Start voice recording"
+            ? "Transcribing..."
+            : "Start voice recording"
       }
     >
       {getMicrophoneIcon(pushToTalkState)}

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PanelLeftOpen } from "lucide-react";
 import { Toaster } from "react-hot-toast";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertDialog,

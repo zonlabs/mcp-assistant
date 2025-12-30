@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import McpClientLayout from "@/components/mcp-client/McpClientLayout";
 import { useMcpServers } from "@/hooks/useMcpServers";
 
@@ -19,7 +19,7 @@ export default function McpClientWrapper({ session }: McpClientWrapperProps) {
     handleServerAdd,
     handleServerUpdate,
     handleServerDelete,
-  } = useMcpServers(session);
+  } = useMcpServers();
 
   // Split servers into public and user servers
   const { publicServers, userServers } = useMemo(() => {
@@ -50,7 +50,7 @@ export default function McpClientWrapper({ session }: McpClientWrapperProps) {
       onUpdateUserServer={updateServer}
       hasNextPage={false}
       isLoadingMore={false}
-      onLoadMore={() => {}}
+      onLoadMore={() => { }}
     />
   );
 }

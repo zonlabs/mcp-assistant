@@ -21,7 +21,7 @@ import { ServerIcon } from "@/components/common/ServerIcon";
 import ServerManagement from "./ServerManagement";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 interface ServerDetailsProps {

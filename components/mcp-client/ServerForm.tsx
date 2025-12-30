@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { McpServer } from "@/types/mcp";
 import { toast } from "react-hot-toast";
-import { Session } from "next-auth";
+import { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useQuery } from "@apollo/client/react";
 import { CATEGORIES_QUERY } from "@/lib/graphql";
@@ -404,10 +404,10 @@ export default function ServerForm({
                                 />
                                 <div className="space-y-1">
                                     <Label htmlFor="requiresOauth" className="text-sm font-medium">
-                                        Requires OAuth2
+                                        OAuth2.1
                                     </Label>
                                     <p className="text-xs text-muted-foreground">
-                                        Enable if this server requires OAuth2 authentication flow.
+                                        Enable if the server requires OAuth2.1.
                                     </p>
                                 </div>
                             </div>

@@ -1,14 +1,14 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import Logo from "@/components/common/Logo";
 import { ProfileDropdown } from "@/components/common/ProfileDropdown";
 import { NavigationLinks } from "@/components/common/NavigationLinks";
 import { MobileNav } from "@/components/common/MobileNav";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function Header() {
-  const session = await getServerSession(authOptions);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   return (
     <nav className="sticky top-0 z-50 bg-background/80">
@@ -39,8 +39,8 @@ export default async function Header() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
 
-            {session?.user ? (
-              <ProfileDropdown user={session.user} />
+            {user ? (
+              <ProfileDropdown user={user} />
             ) : (
               <Link
                 href="/signin"
