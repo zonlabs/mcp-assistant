@@ -4,21 +4,61 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Logo from "@/components/common/Logo";
-import { MoveRight } from "lucide-react";
+import { MoveRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 
 export default function SignInPage() {
   const supabase = createClient();
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const handleSocialLogin = async (provider: 'github' | 'google') => {
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
-    });
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${location.origin}/auth/callback`,
+        },
+      });
+    } catch (error) {
+      console.error("Social login error:", error);
+    }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        setMessage({
+          type: 'success',
+          text: 'Check your email for the magic link to sign in!'
+        });
+        setEmail("");
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An unexpected error occurred' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -67,15 +107,43 @@ export default function SignInPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email address</Label>
-            <Input id="email" type="email" placeholder="Enter your email address" />
-          </div>
+          <form onSubmit={handleEmailLogin} className="space-y-2">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-          <Button className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
-            Continue
-            <MoveRight className="ml-2 h-4 w-4" />
-          </Button>
+            {message && (
+              <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className="mb-4">
+                <AlertDescription>{message.text}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending link...
+                </>
+              ) : (
+                <>
+                  Continue
+                  <MoveRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </form>
         </div>
 
         <div className="text-center text-sm text-muted-foreground">
