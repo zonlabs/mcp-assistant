@@ -125,7 +125,7 @@ export default function McpServersSection() {
   const localServers: McpServer[] = edges.map((edge: { node: McpServer }) => edge.node);
 
   return (
-    <div className="w-full space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8">
       {/* Registry Section */}
       {(registryLoading || registryServers.length > 0) && (
         <section className="relative -mx-6 px-6 py-8 overflow-hidden rounded-3xl">

@@ -19,8 +19,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ArrowUpRight } from "lucide-react";
-import { InteractiveGridPattern } from "@/components/ui/shadcn-io/interactive-grid-pattern";
-import { cn } from "@/lib/utils";
+import { HeroGridPattern } from "@/components/home/hero-grid-pattern";
+import { Stack } from "@/components/stack";
 
 // -------------------------------------------------------------------
 // Animation Variants
@@ -74,152 +74,145 @@ const fadeInUp: Variants = {
 // Component
 // -------------------------------------------------------------------
 export default function Home() {
-  // const session = await getServerSession(authOptions);
-
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative max-w-7xl mx-auto min-h-screen overflow-hidden">
       {/* Hero Section */}
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={container}
-        className="relative flex flex-col justify-center items-center px-6 overflow-hidden"
+      <Stack
+        dir="column"
+        justify="center"
+        items="center"
+        className="h-[93vh] overflow-hidden relative"
       >
-        {/* Interactive Grid Background - Sharp and Visible */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <InteractiveGridPattern
-            className={cn(
-              "[mask-image:radial-gradient(400px_circle_at_center,white,transparent)]",
-            )}
-            width={20}
-            height={20}
-            squares={[30, 30]}
-            squaresClassName="hover:fill-blue-500 transition-colors duration-300"
-          />
-        </div>
+        <HeroGridPattern />
 
-        {/* Main Hero Content - Centered */}
-        <div className="container mx-auto text-center max-w-5xl relative z-10 pt-20">
-          {/* Main Title
-          <motion.h1
-            variants={item}
-            className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70"
-          >
-            MCP Assistant
-          </motion.h1> */}
-
-          {/* Tagline */}
-          <motion.h2
-            variants={item}
-            className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-foreground mb-4 sm:mb-6 tracking-tight leading-[1.05]"
-          >
-            A Web Based MCP Client to access
-            <br />
-            <span className="text-muted-foreground">remote MCP&apos;s</span>
-          </motion.h2>
-
-          {/* Description */}
-          <motion.p
-            variants={item}
-            className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-4 sm:mb-5 max-w-3xl mx-auto leading-relaxed"
-          >
-            <span className="font-semibold text-foreground">
-              MCP Assistant
-            </span>{' '}
-            is a web-based <a href="https://modelcontextprotocol.io/docs/learn/client-concepts" target="_blank" rel="noopener noreferrer" className="underline decoration-primary/50 hover:decoration-primary transition-colors">Model Context Protocol (MCP)</a> client that lets you easily connect to and
-            interact with remote MCP-compatible servers directly from your browser.
-          </motion.p>
-
-
-          {/* Additional Description */}
-          <motion.p
-            variants={item}
-            className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-3xl mx-auto leading-relaxed"
-          >
-            Designed to be <strong className="text-foreground">lightweight, accessible, and developer-friendly</strong>, providing a convenient interface for testing MCP servers and experimenting with tool calls.
-          </motion.p>
-
-          {/* CTA Buttons */}
+        <Stack gap={3} className="z-50 w-full pointer-events-none">
           <motion.div
-            variants={item}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-6 sm:mb-7"
+            initial="hidden"
+            animate="visible"
+            variants={container}
+            className="relative flex flex-col items-center justify-center px-6"
           >
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Link
-                href="/mcp"
-                className="group relative inline-flex items-center justify-center gap-2.5 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-base shadow-lg hover:shadow-2xl hover:shadow-foreground/20 transition-all duration-300 overflow-hidden"
+            {/* ===== Hero Content ===== */}
+            <div className="relative z-10 container mx-auto max-w-5xl text-center">
+              <motion.h2
+                variants={item}
+                className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05] mb-6"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <Server className="h-5 w-5 relative z-10" />
-                <span className="relative z-10">Explore MCP</span>
-                <ArrowRight className="h-4 w-4 relative z-10 group-hover:translate-x-1 transition-transform duration-300" />
-              </Link>
-            </motion.div>
+                A Web Based MCP Client to access
+                <br />
+                <span className="text-muted-foreground">remote MCP&apos;s</span>
+              </motion.h2>
 
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Link
-                href="/playground"
-                className="group inline-flex items-center justify-center gap-2.5 border-2 border-border bg-background/50 backdrop-blur-sm text-foreground px-8 py-4 rounded-xl font-semibold text-base hover:bg-accent/50 hover:border-primary/50 transition-all duration-300"
+              <motion.p
+                variants={item}
+                className="mx-auto max-w-3xl text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground leading-relaxed mb-5"
               >
-                <Play className="h-5 w-5 group-hover:text-primary transition-colors" />
-                <span>Try Playground</span>
-              </Link>
-            </motion.div>
-          </motion.div>
-
-          {/* Powered By */}
-          <motion.div
-            variants={item}
-            className="pt-3 sm:pt-4 border-t border-border/30"
-          >
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 sm:mb-4">
-              Powered by
-            </p>
-
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 md:gap-8 lg:gap-12">
-              {[
-                { light: '/technologies/mcp-light.webp', dark: '/technologies/mcp.webp', label: 'MCP' },
-                { light: '/technologies/langgraph-light.webp', dark: '/technologies/langgraph.webp', label: 'LangGraph' },
-                { light: '/technologies/agui-light.webp', dark: '/technologies/agui.webp', label: 'AGUI Protocol' },
-              ].map((tech, i) => (
-                <motion.div
-                  key={i}
-                  variants={logoHover}
-                  initial="rest"
-                  whileHover="hover"
-                  className="group flex flex-col items-center gap-1 sm:gap-2 cursor-pointer"
+                <span className="font-semibold text-foreground">
+                  MCP Assistant
+                </span>{' '}
+                is a web-based{' '}
+                <Link
+                  href="https://modelcontextprotocol.io/docs/learn/client-concepts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline decoration-primary/50 hover:decoration-primary transition-colors pointer-events-auto"
                 >
-                  <div className="relative h-7 sm:h-9 w-auto p-1.5 sm:p-2 rounded-lg bg-background/50 backdrop-blur-sm border border-border/50 group-hover:border-primary/50 group-hover:bg-primary/5 transition-all duration-300">
-                    <Image
-                      src={tech.light}
-                      alt={tech.label}
-                      width={100}
-                      height={32}
-                      className="h-4 sm:h-5 w-auto opacity-80 group-hover:opacity-100 transition-opacity dark:hidden"
-                    />
-                    <Image
-                      src={tech.dark}
-                      alt={tech.label}
-                      width={100}
-                      height={32}
-                      className="h-4 sm:h-5 w-auto opacity-80 group-hover:opacity-100 transition-opacity hidden dark:block"
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors hidden sm:block">
-                    {tech.label}
-                  </span>
+                  Model Context Protocol (MCP)
+                </Link>{' '}
+                client that lets you easily connect to and interact with remote
+                MCP-compatible servers directly from your browser.
+              </motion.p>
+
+              <motion.p
+                variants={item}
+                className="mx-auto max-w-3xl text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground leading-relaxed mb-8"
+              >
+                Designed to be{' '}
+                <strong className="text-foreground">
+                  lightweight, accessible, and developer-friendly
+                </strong>
+                , providing a convenient interface for testing MCP servers and
+                experimenting with tool calls.
+              </motion.p>
+
+              {/* ===== CTA Buttons ===== */}
+              <motion.div
+                variants={item}
+                className="flex flex-col sm:flex-row gap-4 justify-center mb-7 pointer-events-auto"
+              >
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                  <Link
+                    href="/mcp"
+                    className="group relative inline-flex items-center gap-2.5 px-8 py-4 rounded-xl font-semibold text-base bg-primary text-primary-foreground shadow-lg hover:shadow-2xl hover:shadow-foreground/20 transition-all overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Server className="h-5 w-5 relative z-10" />
+                    <span className="relative z-10">Explore MCP</span>
+                    <ArrowRight className="h-4 w-4 relative z-10 transition-transform group-hover:translate-x-1" />
+                  </Link>
                 </motion.div>
-              ))}
+
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                  <Link
+                    href="/playground"
+                    className="inline-flex items-center gap-2.5 px-8 py-4 rounded-xl font-semibold text-base border-2 border-border bg-background/50 backdrop-blur-sm hover:bg-accent/50 hover:border-primary/50 transition-all"
+                  >
+                    <Play className="h-5 w-5" />
+                    <span>Try Playground</span>
+                  </Link>
+                </motion.div>
+              </motion.div>
+
+              {/* ===== Powered By ===== */}
+              <motion.div
+                variants={item}
+                className="pt-4 border-t border-border/30"
+              >
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+                  Powered by
+                </p>
+
+                <div className="flex flex-wrap justify-center gap-5">
+                  {[
+                    { light: '/technologies/mcp-light.webp', dark: '/technologies/mcp.webp', label: 'MCP' },
+                    { light: '/technologies/langgraph-light.webp', dark: '/technologies/langgraph.webp', label: 'LangGraph' },
+                    { light: '/technologies/agui-light.webp', dark: '/technologies/agui.webp', label: 'AGUI Protocol' },
+                  ].map((tech, i) => (
+                    <motion.div
+                      key={i}
+                      variants={logoHover}
+                      initial="rest"
+                      whileHover="hover"
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <div className="rounded-lg border border-border/50 bg-background/50 backdrop-blur-sm p-2 transition-all group-hover:border-primary/50">
+                        <Image
+                          src={tech.light}
+                          alt={tech.label}
+                          width={100}
+                          height={32}
+                          className="h-5 w-auto dark:hidden"
+                        />
+                        <Image
+                          src={tech.dark}
+                          alt={tech.label}
+                          width={100}
+                          height={32}
+                          className="h-5 w-auto hidden dark:block"
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {tech.label}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
             </div>
           </motion.div>
-        </div>
-      </motion.div>
+        </Stack>
+      </Stack>
+
 
       {/* Recent MCP Servers Section */}
       <div className="container mx-auto px-6 py-10">
@@ -232,7 +225,7 @@ export default function Home() {
       </div> */}
 
       {/* Architecture Visualization Section */}
-      <div className="relative py-8 overflow-hidden">
+      <div className="relative max-w-5xl mx-auto py-8 overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
         <motion.div
           initial="hidden"
@@ -257,7 +250,7 @@ export default function Home() {
       <section className="py-24 relative overflow-hidden bg-background">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--primary-rgb),0.03),transparent_70%)]" />
 
-        <div className="max-w-7xl mx-auto px-6 relative">
+        <div className="max-w-5xl mx-auto px-6 relative">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -330,9 +323,9 @@ export default function Home() {
 
 
       {/* FAQ Section */}
-      < section className="relative w-full py-16 overflow-hidden" >
+      < section className="relative max-w-5xl mx-auto py-16 overflow-hidden" >
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
-        <div className="max-w-4xl mx-auto px-6">
+        <div className="px-6">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -407,6 +400,6 @@ export default function Home() {
 
       {/* Footer */}
       < Footer />
-    </div >
+    </div>
   );
 }
