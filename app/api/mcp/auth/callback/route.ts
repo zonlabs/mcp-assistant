@@ -99,14 +99,15 @@ async function handleCallback(request: NextRequest) {
     await client.finishAuth(code);
 
     // Re-save client with updated OAuth tokens (important for serverless!)
-    await sessionStore.setClient(
+    await sessionStore.setClient({
       sessionId,
       client,
-      serverUrl || client.getServerUrl(),
-      client.getCallbackUrl(),
-      client.getTransportType(),
-      userId
-    );
+      serverUrl: serverUrl || client.getServerUrl(),
+      callbackUrl: client.getCallbackUrl(),
+      transportType: client.getTransportType(),
+      userId,
+      active: true
+    });
 
     // Redirect back to source page with success parameters
     const successUrl = new URL(sourceUrl, getAppUrl());

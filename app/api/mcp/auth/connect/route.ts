@@ -92,7 +92,15 @@ export async function POST(request: NextRequest) {
       await client.connect();
 
       // Connection successful, save client to session store with full config
-      await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType, userId);
+      await sessionStore.setClient({
+        sessionId,
+        client,
+        serverUrl,
+        callbackUrl,
+        transportType,
+        userId,
+        active: true
+      });
 
       return NextResponse.json({
         success: true,
@@ -104,7 +112,15 @@ export async function POST(request: NextRequest) {
         // OAuth authorization required
         console.log('[Connect API] OAuth required. AuthUrl:', authUrl);
         if (authUrl) {
-          await sessionStore.setClient(sessionId, client, serverUrl, callbackUrl, transportType, userId);
+          await sessionStore.setClient({
+            sessionId,
+            client,
+            serverUrl,
+            callbackUrl,
+            transportType,
+            userId,
+            active: false
+          });
           return NextResponse.json(
             {
               requiresAuth: true,

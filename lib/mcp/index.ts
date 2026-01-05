@@ -18,11 +18,12 @@
  *   }
  * });
  * await client.connect();
- * await sessionStore.setClient(sessionId, client);
+ * await sessionStore.setClient({ sessionId, client });
  * ```
  */
 
 export { SessionStore, sessionStore } from './session-store';
+export { getMcpServerConfig } from './config';
 export { InMemoryOAuthClientProvider } from './oauth-provider';
 export { MCPOAuthClient, UnauthorizedError } from './oauth-client';
 

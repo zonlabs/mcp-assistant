@@ -131,7 +131,8 @@ export class MCPOAuthClient {
       this.sessionId, // Pass sessionId as the state parameter
       this.tokens,
       this.clientInformation,
-      this.tokenExpiresAt
+      this.tokenExpiresAt,
+      this.onSaveTokens
     );
 
     this.client = new Client(
@@ -329,10 +330,12 @@ export class MCPOAuthClient {
       // Save the new tokens
       this.oauthProvider.saveTokens(newTokens);
 
+      /** saving tokens in oauthProvider (handling the case where server doesnt expose oauthprotected resource metadata which is required during initial authorization and refreshing tokens) */
+
       // Notify about token update
-      if (this.onSaveTokens) {
-        this.onSaveTokens(newTokens);
-      }
+      // if (this.onSaveTokens) {
+      //   this.onSaveTokens(newTokens);
+      // }
 
       console.log('[OAuth Client] ✅ Token refresh successful');
 
@@ -359,6 +362,7 @@ export class MCPOAuthClient {
     if (this.oauthProvider.isTokenExpired()) {
       console.log('[OAuth Client] Token expired, attempting refresh...');
       await this.refreshToken()
+      console.log('[OAuth Client] after refresh token method');
       return true;
     }
 
@@ -471,30 +475,30 @@ export class MCPOAuthClient {
 
     try {
       // Get server version
-        result.serverVersion = await this.client.getServerVersion()
+      result.serverVersion = await this.client.getServerVersion()
 
       // Get server capabilities
-        result.serverCapabilities = await this.client.getServerCapabilities()
+      result.serverCapabilities = await this.client.getServerCapabilities()
 
       // Get instructions if supported
-        result.instructions = await this.client.getInstructions()
-      
+      result.instructions = await this.client.getInstructions()
+
       // List prompts if supported
-        const promptsResponse = await this.client.listPrompts();
-        result.prompts = (promptsResponse as any).prompts || [];
-      
+      const promptsResponse = await this.client.listPrompts();
+      result.prompts = (promptsResponse as any).prompts || [];
+
       // List resources if supported
-        const resourcesResponse = await this.client.listResources();
-        result.resources = (resourcesResponse as any).resources || [];
-      
+      const resourcesResponse = await this.client.listResources();
+      result.resources = (resourcesResponse as any).resources || [];
+
       // List resource templates if supported
-        const templatesResponse = await this.client.listResourceTemplates();
-        result.resourceTemplates = (templatesResponse as any).resourceTemplates || [];
-      
+      const templatesResponse = await this.client.listResourceTemplates();
+      result.resourceTemplates = (templatesResponse as any).resourceTemplates || [];
+
       // List tools (already implemented but include for completeness)
-        const toolsResponse = await this.listTools();
-        result.tools = toolsResponse.tools || [];
-    
+      const toolsResponse = await this.listTools();
+      result.tools = toolsResponse.tools || [];
+
       return result;
     } catch (error) {
       console.error('[getAdditionalData] Failed to retrieve additional data:', error);

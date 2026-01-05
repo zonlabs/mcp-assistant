@@ -22,6 +22,7 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
   private _codeVerifier?: string;
   private _state?: string;
   private _onRedirect: (url: URL) => void;
+  private _onSaveTokens?: (tokens: OAuthTokens) => void; // callback to save tokens in redis
 
   constructor(
     private readonly _redirectUrl: string | URL,
@@ -30,7 +31,8 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     state?: string,
     tokens?: OAuthTokens,
     clientInformation?: OAuthClientInformationFull,
-    tokenExpiresAt?: number // Add clientInformation to constructor
+    tokenExpiresAt?: number, // Add clientInformation to constructor
+    onSaveTokens?: (tokens: OAuthTokens) => void
   ) {
     // console.log('[InMemoryOAuthClientProvider] Initializing with tokens:', tokens ? 'Yes' : 'No', tokens);
     // console.log('[InMemoryOAuthClientProvider] clientInformation:', clientInformation);
@@ -43,6 +45,7 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     this._tokens = tokens;
     this._clientInformation = clientInformation;
     this._tokenExpiresAt = tokenExpiresAt;
+    this._onSaveTokens = onSaveTokens;
   }
 
   /**
@@ -94,16 +97,9 @@ export class InMemoryOAuthClientProvider implements OAuthClientProvider {
     console.log('[InMemoryOAuthClientProvider] Saving new tokens:', tokens);
     this._tokens = tokens;
 
-    // Calculate token expiration time if expires_in is provided
-    // if (tokens.expires_in) {
-    //   // expires_in is in seconds, convert to milliseconds
-    //   // Subtract 5 minutes as a buffer to refresh before actual expiration
-    //   const bufferMs = 5 * 60 * 1000; // 5 minutes
-    //   this._tokenExpiresAt = Date.now() + (tokens.expires_in * 1000) - bufferMs;
-    // } else {
-    //   // If no expires_in, assume token expires in 1 hour (conservative default)
-    //   this._tokenExpiresAt = Date.now() + (60 * 60 * 1000);
-    // }
+    /** save tokens in redis storage */
+    this._onSaveTokens?.(tokens);
+
   }
 
   /**
