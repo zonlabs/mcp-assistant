@@ -6,7 +6,7 @@ import {
 } from "@copilotkit/runtime";
 import { HttpAgent } from "@ag-ui/client";
 import { createClient } from "@/lib/supabase/server";
-import { sessionStore } from "@/lib/mcp/session-store";
+import { getMcpServerConfig } from "@/lib/mcp/config";
 import type { McpServerConfig } from "@/types/mcp";
 
 const serviceAdapter = new EmptyAdapter();
@@ -22,51 +22,9 @@ export const POST = async (req: NextRequest) => {
    * 2️⃣ Resolve MCP config (ASYNC, SERVER SIDE)
    */
   const userId = session?.user?.id;
-  const mcpConfig: McpServerConfig = {};
-
-  if (userId) {
-    const mcpSessions = await sessionStore.getUserMcpSessions(userId);
-
-    for (const sessionId of mcpSessions) {
-      try {
-        const client = await sessionStore.getClient(sessionId);
-        // console.log("[api/copilotkit] resolved client:", client);
-        if (!client) continue;
-
-        const transport = client.getTransportType();
-        const url = client.getServerUrl();
-
-        if (!transport || !url) continue;
-
-        // 🔐 MCP OAuth token (optional)
-        let headers: Record<string, string> | undefined;
-
-
-        const oauthProvider = client.oauthProvider;
-        // console.log("[api/copilotkit] resolved oauthProvider:", oauthProvider);
-        const tokens = oauthProvider?.tokens();
-        // console.log("[api/copilotkit] resolved tokens:", tokens);
-
-        if (tokens?.access_token) {
-          headers = {
-            Authorization: `Bearer ${tokens.access_token}`,
-          };
-        }
-        mcpConfig[sessionId] = {
-          transport,
-          url,
-          ...(headers && { headers }),
-        };
-      }
-      catch (error) {
-        await sessionStore.removeSession(sessionId);
-        console.warn(
-          `[MCP] Failed to get OAuth token for sessionId ${sessionId}`,
-          error
-        );
-      }
-    }
-  }
+  const mcpConfig: McpServerConfig = userId
+    ? await getMcpServerConfig(userId)
+    : {};
 
   /**
    * 3️⃣ Create MCP Agent

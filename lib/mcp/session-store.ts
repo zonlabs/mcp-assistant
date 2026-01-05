@@ -22,6 +22,17 @@ export interface SessionData {
   headers?: Record<string, string>; // HTTP headers for the connection
 }
 
+export interface SetClientOptions {
+  sessionId: string;
+  client?: MCPOAuthClient;
+  serverUrl?: string;
+  callbackUrl?: string;
+  transportType?: 'sse' | 'streamable_http';
+  userId?: string;
+  headers?: Record<string, string>;
+  active?: boolean;
+}
+
 const nanoid = customAlphabet(
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
   24
@@ -49,15 +60,20 @@ export class SessionStore {
     return nanoid();
   }
 
-  async setClient(
-    sessionId: string,
-    client?: MCPOAuthClient,
-    serverUrl?: string,
-    callbackUrl?: string,
-    transportType: 'sse' | 'streamable_http' = 'streamable_http',
-    userId?: string,
-    headers?: Record<string, string>
-  ): Promise<void> {
+
+
+  async setClient(options: SetClientOptions): Promise<void> {
+    const {
+      sessionId,
+      client,
+      serverUrl,
+      callbackUrl,
+      transportType = 'streamable_http',
+      userId,
+      headers,
+      active = false
+    } = options;
+
     try {
       const sessionKey = this.getSessionKey(sessionId);
 
@@ -102,7 +118,7 @@ export class SessionStore {
         callbackUrl: resolvedCallbackUrl,
         transportType,
         createdAt: Date.now(),
-        active: true,
+        active,
         tokens,
         tokenExpiresAt,
         clientInformation,
