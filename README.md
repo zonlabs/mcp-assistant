@@ -1,117 +1,223 @@
 <div align="center">
-  <img src="public/images/logo-dark.png" alt="MCP Assistant Logo" width="80" height="80">
-  <h1>MCP Assistant</h1>
-  <p><strong>A Web Based MCP Client to access remote MCP's</strong></p>
+  <img src="public/images/logo-dark.png" alt="MCP Assistant Logo" width="120" height="120">
 
-  [![Website](https://img.shields.io/badge/Website-mcp--assistant.in-blue?style=for-the-badge)](https://www.mcp-assistant.in/)
-  [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-  [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+  # MCP Assistant
+
+  **A powerful, browser-based MCP (Model Context Protocol) client for seamless remote server access**
+
+  [![Website](https://img.shields.io/badge/🌐_Live_Demo-mcp--assistant.in-0066cc?style=for-the-badge)](https://mcp-assistant.in)
+  [![License](https://img.shields.io/badge/📜_License-MIT-green?style=for-the-badge)](LICENSE)
 </div>
-
-## 🎯 Purpose
-
-MCP Assistant addresses common pain points developers face when working with the Model Context Protocol:
-
-- **Remote MCP Access**: Enables seamless connection to remote MCP servers via SSE and Streamable HTTP transports
-- **OAuth Complexity**: Handles complex OAuth 2.0 authorization flows automatically, eliminating the need for manual token management
-- **Multi-Server Management**: Manage and interact with multiple MCP servers simultaneously without juggling between different CLI tools or configurations
-- **No Local Setup Required**: Access MCP servers from anywhere through a web interface - no need to install or configure MCP servers locally
-- **Universal Compatibility**: Works with any MCP server that supports SSE or HTTP streaming, providing a unified interface regardless of the underlying implementation
-- **Developer-Friendly**: Built-in tools explorer, real-time connection monitoring, and intuitive UI make MCP development easier
-
-Whether you're building MCP integrations, testing MCP servers, or simply exploring the MCP ecosystem, MCP Assistant streamlines the entire workflow.
-
-## 🌟 Features & Capabilities
-
-### 🔌 Model Context Protocol (MCP)
-- **Multi-Transport Support**: Seamless connections via SSE and Streamable HTTP.
-- **Dynamic Management**: Configure and manage multiple remote servers simultaneously.
-- **Enterprise Auth**: Built-in support for OAuth 2.0 (RFC8414) and OpenID Connect Discovery.
-- **Live Monitoring**: Real-time status tracking for all connected MCP instances.
-- **Direct Execution**: Native tool discovery and execution environment.
-
-### 🤖 Agent–User Interaction (AG-UI)
-- **Real-time Streaming**: Sub-second text message event streaming for fluid chats.
-- **Rich Tool Rendering**: Advanced backend-driven visualization for tool outputs.
-- **Interactive Logs**: Stream tool results and execution logs as live events.
-- **Human-in-the-Loop**: Pause, inspect, and approve workflows with persistent state.
-- **Shared Context**: Intelligent context sharing between the client and MCP tools.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🎯 What is MCP Assistant?
 
-MCP Assistant is built to be fast, secure, and easy to use, making it simple to connect and interact with all your tools in real-time.
+**MCP Assistant** is a lightweight, web-based client that revolutionizes how developers interact with the Model Context Protocol (MCP). It provides a unified interface to connect, manage, and execute tools from multiple remote MCP servers without any local setup.
+
+### Why MCP Assistant?
+
+Traditional MCP workflows require complex local configurations, CLI tools, and manual OAuth handling. MCP Assistant eliminates these pain points:
+
+| Traditional MCP | With MCP Assistant |
+|----------------|-------------------|
+| ❌ Manual server configuration | ✅ Visual server management |
+| ❌ Complex OAuth token handling | ✅ Automated OAuth flows |
+| ❌ Local installation required | ✅ Works in any browser |
+| ❌ Single server limitation | ✅ Multi-server orchestration |
+| ❌ CLI-based interaction | ✅ Intuitive chat interface |
+
+---
+
+## ✨ Key Features
+
+### 🔌 **Model Context Protocol (MCP) Integration**
+
+- **🌐 Multi-Transport Support**: Connect via SSE (Server-Sent Events) or Streamable HTTP
+- **🔐 Enterprise Authentication**: Built-in OAuth 2.0 (RFC8414) and OpenID Connect Discovery
+- **📡 Multi-Server Management**: Connect and orchestrate multiple MCP servers simultaneously
+- **⚡ Real-time Monitoring**: Live status tracking and health checks for all connections
+- **🛠️ Native Tool Execution**: Direct tool discovery and execution from connected servers
+
+### 🤖 **AG-UI Protocol (Agent-User Interaction)**
+
+- **💬 Real-time Streaming**: Sub-second message streaming for fluid conversations
+- **🎨 Rich Visualizations**: Advanced backend-driven tool output rendering
+- **📊 Interactive Logs**: Live execution logs and tool result streaming
+- **👤 Human-in-the-Loop**: Pause, inspect, and approve AI workflows with persistent state
+- **🧠 Intelligent Context**: Smart context sharing between client and MCP tools
+
+### 🎪 **Additional Capabilities**
+
+- **🎨 Modern UI**: Beautiful, responsive interface with dark mode support
+- **🔍 Tool Explorer**: Browse and test tools from all connected servers
+- **📝 LLM Provider Support**: Works with OpenAI, Anthropic, and other major providers
+- **🔒 Secure by Default**: API keys never leave your browser
+- **📱 Cross-Platform**: Works on desktop, tablet, and mobile browsers
+
+---
+
+## 🏗️ Architecture
+
+MCP Assistant follows a clean, modular architecture optimized for performance and scalability:
 
 ```mermaid
 flowchart TD
-    subgraph Browser["browser"]
-        B[User Browser]
+    subgraph Browser["🌐 Browser"]
+        B[User Interface]
     end
 
-    subgraph MCPA["MCP ASSISTANT"]
-        subgraph UI["ui"]
+    subgraph MCPA["🚀 MCP ASSISTANT"]
+        subgraph UI["Frontend"]
             direction TB
-            MAR["mcp assistant registry"]
-            MPR["modelcontextprotocol registry"]
-            PG["playground"]
+            MAR["MCP Registry"]
+            MPR["Protocol Registry"]
+            PG["Playground"]
         end
 
-        subgraph Backend["mcp assistant backend"]
-            LA["langgraph agent"]
-            DB[("database")]
+        subgraph Backend["⚙️ Backend Services"]
+            LA["LangGraph Agent"]
+            DB[("💾 Database")]
         end
     end
 
-    subgraph External["External APIs"]
+    subgraph External["🌍 External Services"]
         MCP_IO["modelcontextprotocol.io"]
     end
 
-    subgraph ToolsResources["Tools / Resources"]
-        C7["context7"]
-        DW["Deepwiki"]
+    subgraph Tools["🛠️ MCP Servers"]
+        SERVER1["Context7"]
+        SERVER2["Deepwiki"]
+        SERVER3["Custom Servers"]
     end
 
     B -- "HTTPS" --> UI
-    
-    %% Registry/Playground connections
-    MAR -- "Graphql" --> DB
+    MAR -- "GraphQL" --> DB
     PG -- "Execute" --> LA
     MPR -- "HTTPS" --> MCP_IO
-    
-    PG -- "ag-ui-protocol\n(state containing mcp info.: URL, Transport, Authorization token, etc.)" --> LA
-    
-    %% Re-routed connection: from UI instead of PG
-    UI -- "SSE / mcp protocol" --> ToolsResources
-    LA -- "SSE / Streamable HTTP" --> ToolsResources
+    PG -- "AG-UI Protocol
+    (MCP server info)" --> LA
+    UI -- "SSE / MCP Protocol" --> Tools
+    LA -- "SSE / Streamable HTTP" --> Tools
 ```
 
 ---
 
-## 🚀 Getting Started with MCP Assistant
+## 📖 How to Use
 
-### 🔌 Adding an MCP Server
+### 1️⃣ **Connect to an MCP Server**
 
-1. **Navigate** to the MCP servers page.
-2. Click the **"Add Server"** button.
-3. **Fill in** the server details:
-   - **Server Name**: A friendly name for your server.
-   - **Transport Type**: Choose between SSE or Streamable HTTP.
-   - **Server URL**: The endpoint of your MCP server.
-   - **OAuth2 Configuration** (Optional): If your server requires authentication.
-4. Click **"Save"** to establish the connection.
+<div align="center">
+  <img src="public/categories/development.png" alt="MCP Server Connection" width="400">
+</div>
 
-### 💬 Using the Chat Interface
+1. Navigate to the **MCP Servers** page
+2. Click **"Add Server"**
+3. Configure your server:
+   - **Name**: Friendly identifier (e.g., "My GitHub Tools")
+   - **Transport**: Choose SSE or Streamable HTTP
+   - **URL**: Your MCP server endpoint
+   - **OAuth2** (Optional): Configure for authenticated servers
 
-1. **Select** one or more connected MCP servers from the sidebar.
-2. **Choose** your preferred LLM provider.
-3. **Enter** your API key securely.
-4. **Start Chatting**: The assistant is now ready to use tools from your connected MCP servers!
+### 2️⃣ **Start Chatting with AI**
+
+<div align="center">
+  <img src="public/categories/ai-and-ml.png" alt="AI Chat Interface" width="400">
+</div>
+
+1. Open the **Playground**
+2. Select connected MCP servers from the sidebar
+3. Choose your LLM provider (OpenAI, Anthropic, etc.)
+4. Enter your API key
+5. Start asking questions—the AI will automatically use tools from your MCP servers!
+
+### 3️⃣ **Explore Available Tools**
+
+Browse all tools from connected servers, view their schemas, and test them directly in the interface.
+
+---
+
+## 🎓 Use Cases
+
+### For Developers
+
+- **Testing MCP Servers**: Quickly validate your MCP server implementations
+- **Tool Discovery**: Explore available tools across multiple MCP servers
+- **Integration Development**: Build and test MCP integrations without local setup
+
+### For Teams
+
+- **Centralized Access**: Share MCP server configurations across team members
+- **Multi-Server Workflows**: Orchestrate tools from different MCP providers
+- **OAuth Management**: Simplify complex authentication workflows
+
+### For AI Enthusiasts
+
+- **Experiment with Tools**: Connect AI models to real-world tools and APIs
+- **Human-in-the-Loop**: Review and approve AI actions before execution
+- **Custom Workflows**: Build sophisticated multi-step AI workflows
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create a `.env.local` file in the root directory:
+
+```env
+# Add your configuration here
+NEXT_PUBLIC_API_URL=your_api_url
+```
+
+### MCP Server Configuration
+
+Servers can be configured via the UI or programmatically. See the [MCP Configuration Guide](lib/mcp/README.md) for detailed instructions.
+
+---
+
+## 🛣️ Roadmap
+
+- [ ] **v0.3.0**: Enhanced tool visualization and debugging
+- [ ] **v0.4.0**: Workflow automation and scheduling
+- [ ] **v0.5.0**: Team collaboration features
+- [ ] **v1.0.0**: Enterprise-ready deployment options
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions from the community! Here's how you can help:
 
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Commit your changes**: `git commit -m 'Add amazing feature'`
+4. **Push to the branch**: `git push origin feature/amazing-feature`
+5. **Open a Pull Request**
+
+### Development Guidelines
+
+- Follow the existing code style
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [Model Context Protocol](https://modelcontextprotocol.io) for the amazing protocol
+- [Anthropic](https://anthropic.com) for pioneering the MCP ecosystem
+- All contributors and early adopters who helped shape this project
+
+---
+
+<div align="center">
+  <p>Made with ❤️ by the MCP Assistant team</p>
+</div>
