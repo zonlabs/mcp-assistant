@@ -6,6 +6,14 @@ import { User } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ReactNode, useEffect, useState } from "react";
+import {
+  CopilotChat,
+  CopilotChatAssistantMessage,
+  CopilotChatAssistantMessageProps,
+  useAgent,
+  useCopilotKit,
+  Message,
+} from "@copilotkit/react-core/v2";
 
 type MessageLike = {
   content?: string;
@@ -45,7 +53,7 @@ function AssistantAvatar() {
   );
 }
 
-export function UserMessage({ message }: UserMessageProps) {
+export function UserMessage({ key, message }: any) {
   const getMessageContent = () => {
     if (typeof message === "string") return message;
     if (isMessageLike(message)) {
@@ -61,7 +69,7 @@ export function UserMessage({ message }: UserMessageProps) {
   };
 
   return (
-    <div className="flex justify-end px-4 py-2">
+    <div key={key} className="flex justify-end px-4 py-2">
       <div
         className="
           max-w-[72ch]
@@ -82,72 +90,61 @@ export function UserMessage({ message }: UserMessageProps) {
 }
 
 
-export function AssistantMessage({ message, isLoading }: AssistantMessageProps) {
-  // Extract message content safely - handle both string and object cases
-  const getMessageContent = () => {
-    if (typeof message === 'string') {
-      return message;
-    }
+export function AssistantMessage({
+  key,
+  message,
+}: any) {
+  const { agent } = useAgent({ agentId: "mcpAssistant" });
+  console.log(`assistant message: ${JSON.stringify(message)}`);
+  // console.log(`assistant agent.messages: ${JSON.stringify(agent.messages)}`);
 
-    if (isMessageLike(message)) {
-      // Try multiple possible properties
-      return message.content || message.text || message.body || message.message || '';
-    }
+  const messageContent =
+    typeof message === "string"
+      ? message
+      : isMessageLike(message)
+      ? message.content || message.text || message.body || message.message || ""
+      : "";
 
-    return '';
-  };
+  const subComponent =
+    isMessageLike(message) && typeof message.generativeUI === "function"
+      ? message.generativeUI()
+      : null;
 
-  const messageContent = getMessageContent();
+  // const isLastAssistant =
+  //   agent.messages
+  //     .filter((m) => m.role === "assistant")
+  //     .at(-1)?.id === message.id;
+  // console.log(`isLastAssistant: ${isLastAssistant}`);
 
-  // Extract the generativeUI component (this is where tool renderings appear)
-  const subComponent = isMessageLike(message) && typeof message.generativeUI === 'function'
-    ? message.generativeUI()
-    : null;
-
-  // Don't render anything if there's no content, no subComponent, and not loading
-  if (!messageContent && !subComponent && !isLoading) {
-    return null;
-  }
-
-  // Only show avatar when there's message content (not just tool calls)
-  // Don't show avatar during tool-only execution (even when loading)
-  const showAvatar = messageContent || (isLoading && !subComponent);
+  // const showLoading =
+  //   agent.isRunning &&
+  //   isLastAssistant;
+  //   // !messageContent &&
+  //   // !subComponent;
+  // console.log(`showLoading: ${showLoading}`);
+  // if (!messageContent && !subComponent && !showLoading) {
+  //   return null;
+  // }
 
   return (
-    <div className="flex items-start gap-3 px-4 py-2">
-  {/* Avatar */}
-  {/* {showAvatar && (
-    <div className="shrink-0 w-8 h-8 mt-0.5">
-      <AssistantAvatar />
+    <div key={key} className="flex items-start gap-3 px-4 py-2">
+      <div className="flex flex-col gap-2 max-w-[72ch] w-full">
+        {messageContent && (
+          <div className="prose prose-sm dark:prose-invert">
+            <Markdown content={messageContent} />
+          </div>
+        )}
+
+        {subComponent && <div>{subComponent}</div>}
+
+        {/* {showLoading && (
+          <div className="flex items-center gap-1 h-5">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" />
+          </div>
+        )} */}
+      </div>
     </div>
-  )} */}
-
-  {/* Content */}
-  <div className={`flex flex-col gap-2 ${showAvatar ? "max-w-[72ch]" : "w-full"}`}>
-    {/* Message content */}
-    {messageContent && !isLoading && (
-      <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-        <Markdown content={messageContent} />
-      </div>
-    )}
-
-    {/* Tool calls / MCP UI */}
-    {subComponent && (
-      <div className="w-full">
-        {subComponent}
-      </div>
-    )}
-
-    {/* Loading indicator */}
-    {isLoading && !messageContent && (
-      <div className="flex items-center gap-1 h-5">
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" />
-      </div>
-    )}
-  </div>
-</div>
-
   );
 }
