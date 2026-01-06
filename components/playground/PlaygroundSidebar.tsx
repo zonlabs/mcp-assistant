@@ -44,7 +44,7 @@ const SidebarNavLink = ({
 };
 
 export const PlaygroundSidebar = () => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"agents">("agents");
 
   return (

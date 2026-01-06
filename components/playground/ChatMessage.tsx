@@ -46,36 +46,41 @@ function AssistantAvatar() {
 }
 
 export function UserMessage({ message }: UserMessageProps) {
-  // Extract message content safely - handle both string and object cases
   const getMessageContent = () => {
-    if (typeof message === 'string') {
-      return message;
-    }
-
+    if (typeof message === "string") return message;
     if (isMessageLike(message)) {
-      // Try multiple possible properties
-      return message.content || message.text || message.body || message.message || '';
+      return (
+        message.content ||
+        message.text ||
+        message.body ||
+        message.message ||
+        ""
+      );
     }
-
-    return '';
+    return "";
   };
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 flex-row-reverse">
-      {/* Avatar */}
-      <div className="shrink-0 w-8 h-8">
-        <div className="w-full h-full flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-          <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+    <div className="flex justify-end px-4 py-2">
+      <div
+        className="
+          max-w-[72ch]
+          rounded-xl
+          px-3 py-1.5
+          text-md leading-relaxed
+          bg-zinc-100 dark:bg-zinc-800
+          border border-zinc-200 dark:border-zinc-700
+          text-foreground
+        "
+      >
+        <div className="whitespace-pre-wrap">
+          {getMessageContent()}
         </div>
-      </div>
-
-      {/* Message */}
-      <div className="relative py-2 px-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm leading-relaxed bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-        <div className="whitespace-pre-wrap text-foreground">{getMessageContent()}</div>
       </div>
     </div>
   );
 }
+
 
 export function AssistantMessage({ message, isLoading }: AssistantMessageProps) {
   // Extract message content safely - handle both string and object cases
@@ -109,39 +114,40 @@ export function AssistantMessage({ message, isLoading }: AssistantMessageProps) 
   const showAvatar = messageContent || (isLoading && !subComponent);
 
   return (
-    <div className="flex items-start gap-1 p-1">
-      {/* Avatar - only shown when there's actual message content */}
-      {showAvatar && (
-        <div className="shrink-0 w-8 h-8">
-          <AssistantAvatar />
-        </div>
-      )}
-
-      {/* Message */}
-      <div className={`flex-1 space-y-2 ${showAvatar ? 'max-w-[80%]' : 'w-full'}`}>
-        {/* Message content */}
-        {messageContent && !isLoading && (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <Markdown content={messageContent} />
-          </div>
-        )}
-
-        {/* Render tool calls and actions (always visible, even during loading) */}
-        {subComponent && (
-          <div className="w-full">
-            {subComponent}
-          </div>
-        )}
-
-        {/* Loading indicator - shown when loading and no content yet (even if tools are present) */}
-        {isLoading && !messageContent && (
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg">
-            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce"></div>
-          </div>
-        )}
-      </div>
+    <div className="flex items-start gap-3 px-4 py-2">
+  {/* Avatar */}
+  {/* {showAvatar && (
+    <div className="shrink-0 w-8 h-8 mt-0.5">
+      <AssistantAvatar />
     </div>
+  )} */}
+
+  {/* Content */}
+  <div className={`flex flex-col gap-2 ${showAvatar ? "max-w-[72ch]" : "w-full"}`}>
+    {/* Message content */}
+    {messageContent && !isLoading && (
+      <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+        <Markdown content={messageContent} />
+      </div>
+    )}
+
+    {/* Tool calls / MCP UI */}
+    {subComponent && (
+      <div className="w-full">
+        {subComponent}
+      </div>
+    )}
+
+    {/* Loading indicator */}
+    {isLoading && !messageContent && (
+      <div className="flex items-center gap-1 h-5">
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" />
+      </div>
+    )}
+  </div>
+</div>
+
   );
 }

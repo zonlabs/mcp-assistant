@@ -8,7 +8,7 @@ import { CopilotKitCSSProperties } from "@copilotkit/react-ui";
 import HumanInTheLoop from "@/components/playground/HumanInTheLoop";
 import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
-import { AssistantMessage } from "@/components/playground/ChatMessage";
+import { AssistantMessage, UserMessage } from "@/components/playground/ChatMessage";
 import { A2AMessageRenderer } from "@/components/playground/a2a/A2AMessageRenderer";
 import { PlaygroundSidebar } from "@/components/playground/PlaygroundSidebar";
 
@@ -68,6 +68,7 @@ const PlaygroundPage = () => {
           className="flex-1 min-h-0 rounded-md"
           Input={ChatInputWrapper}
           AssistantMessage={AssistantMessage}
+          UserMessage={UserMessage}
         />
       </div>
     </div>

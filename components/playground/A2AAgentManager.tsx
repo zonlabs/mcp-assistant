@@ -263,18 +263,28 @@ export function A2AAgentManager() {
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">A2A Agents</h3>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!activeAssistant}
-          onClick={() => setIsAddDialogOpen(true)}
-          className="cursor-pointer"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Agent
-        </Button>
-      </div>
+  <h3 className="text-lg font-semibold">A2A Agents</h3>
+
+  <button
+    type="button"
+    disabled={!activeAssistant}
+    onClick={() => setIsAddDialogOpen(true)}
+    aria-label="Add agent"
+    title="Add agent"
+    className="
+      inline-flex items-center justify-center
+      w-8 h-8
+      rounded-md
+      text-muted-foreground
+      hover:text-foreground
+      cursor-pointer
+      transition
+    "
+  >
+    <Plus className="w-4 h-4" />
+  </button>
+</div>
+
 
       <A2ADialog
         open={isAddDialogOpen}
