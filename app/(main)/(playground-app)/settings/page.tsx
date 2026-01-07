@@ -1,20 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { User as SupabaseUser } from "@supabase/supabase-js";
-import { User, Settings } from "lucide-react";
-import Image from "next/image";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { SignOutButton } from "@/components/common/SignOutButton";
-import { ThemeSelector } from "@/components/playground/ThemeSelector";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { User as SupabaseUser } from "@supabase/supabase-js";
+import Image from "next/image";
+import { ThemeSelector } from "@/components/playground/ThemeSelector";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
     });
@@ -28,18 +27,30 @@ export default function SettingsPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
+  const userName =
+    user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Guest";
   const userImage = user?.user_metadata?.avatar_url;
-  const userEmail = user?.email;
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+  };
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar flex items-center justify-center">
-      <div className="max-w-2xl w-full px-8 py-12 space-y-12">
-        <h1 className="text-3xl font-semibold">Settings</h1>
+    <div className="pl-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold mb-1">Account</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your account settings and preferences
+        </p>
+      </div>
 
-        {/* User Profile Section */}
-        <section className="space-y-6">
-          <h2 className="text-xl font-semibold">Profile</h2>
+      <div className="space-y-8 max-w-2xl">
+        {/* Profile Section */}
+        <section className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Profile</h3>
+
           <div className="flex items-center gap-4">
             {userImage ? (
               <Image
@@ -50,44 +61,44 @@ export default function SettingsPage() {
                 className="rounded-full"
               />
             ) : (
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <User className="h-8 w-8 text-primary" />
+              <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-xl">
+                {userName.charAt(0).toUpperCase()}
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold truncate">{userName}</h3>
-              {userEmail && (
-                <p className="text-sm text-muted-foreground truncate">{userEmail}</p>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-base font-medium">{userName}</p>
+              {user?.email && (
+                <p className="text-sm text-muted-foreground">{user.email}</p>
               )}
             </div>
           </div>
         </section>
 
-        <Separator />
+        <div className="border-t border-border"></div>
 
         {/* Preferences Section */}
-        <section className="space-y-6">
-          <div className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Preferences</h2>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="theme-selector">Theme</Label>
+        <section className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Preferences</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Theme</label>
               <ThemeSelector />
             </div>
           </div>
         </section>
 
-        <Separator />
+        <div className="border-t border-border"></div>
 
-        {/* Sign Out Section */}
-        {user && (
-          <div>
-            <SignOutButton />
-          </div>
-        )}
+        {/* Sign Out Button */}
+        <section>
+          <button
+            onClick={handleSignOut}
+            className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors cursor-pointer text-sm"
+          >
+            Sign Out
+          </button>
+        </section>
       </div>
     </div>
   );

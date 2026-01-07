@@ -4,13 +4,10 @@ import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Network,
-  LucideIcon,
-  User,
   Settings,
   LogOut,
+  SquarePen,
 } from "lucide-react";
-import { A2AAgentManager } from "./A2AAgentManager";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -25,42 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface SidebarNavLinkProps {
-  icon: LucideIcon;
-  label: string;
-  isActive?: boolean;
-  isCollapsed: boolean;
-  onClick: () => void;
-}
-
-const SidebarNavLink = ({
-  icon: Icon,
-  label,
-  isActive,
-  isCollapsed,
-  onClick,
-}: SidebarNavLinkProps) => {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
-        isCollapsed ? "justify-center px-0" : "gap-3 px-3",
-        isActive
-          ? "bg-accent text-accent-foreground"
-          : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
-      )}
-      title={isCollapsed ? label : undefined}
-    >
-      <Icon className="w-4 h-4 flex-shrink-0" />
-      {!isCollapsed && <span className="truncate">{label}</span>}
-    </button>
-  );
-};
-
 export const PlaygroundSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<"agents">("agents");
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -113,12 +76,12 @@ export const PlaygroundSidebar = () => {
           isOpen ? "justify-start" : "justify-center"
         )}>
           <button
-            onClick={() => router.push('/playground')}
+            onClick={() => router.push('/')}
             className={cn(
               "flex items-center rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
               isOpen ? "p-2" : "p-1"
             )}
-            title="Playground"
+            title="Home"
           >
             {mounted && (
               <Image
@@ -133,42 +96,30 @@ export const PlaygroundSidebar = () => {
           </button>
         </div>
 
-      {/* Navigation Links */}
-      <div
-        className={cn(
+        {/* New Chat Button */}
+        <div className={cn(
           "pb-3 space-y-1 flex-shrink-0",
           isOpen ? "px-2" : "px-1"
-        )}
-      >
-        <SidebarNavLink
-          icon={Network}
-          label="A2A (Experimental)"
-          isActive={activeSection === "agents"}
-          isCollapsed={!isOpen}
-          onClick={() => setActiveSection("agents")}
-        />
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
-        <div
-          className={cn(
-            "h-full transition-opacity duration-300",
-            isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-          )}
-        >
-          {isOpen && (
-            <div className="h-full pr-4 pl-4 pt-4 overflow-y-auto space-y-4">
-              {/* Experimental Note */}
-              <div className="rounded-md border border-dashed bg-accent/20 p-3 text-xs text-muted-foreground">
-                <strong>Experimental:</strong> A2A protocol support is still in progress.
-                Feel free to test interactions with open remote agents that implement the A2A standard.
-              </div>
-              <A2AAgentManager />
-            </div>
-          )}
+        )}>
+          <button
+            onClick={() => router.push('/playground')}
+            className={cn(
+              "w-full flex items-center py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+              isOpen ? "gap-3 px-3" : "justify-center px-0",
+              pathname === "/playground"
+                ? "bg-accent text-accent-foreground"
+                : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+            )}
+            title={isOpen ? undefined : "New Chat"}
+          >
+            <SquarePen className="w-4 h-4 flex-shrink-0" />
+            {isOpen && <span className="truncate">New Chat</span>}
+          </button>
         </div>
-      </div>
+
+        {/* Spacer to push profile to bottom */}
+        <div className="flex-1"></div>
+
 
         {/* Profile Dropdown at Bottom */}
         <div className={cn("p-3 flex-shrink-0")}>

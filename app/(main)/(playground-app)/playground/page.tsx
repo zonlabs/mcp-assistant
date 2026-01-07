@@ -91,7 +91,7 @@ const PlaygroundPage = () => {
   return (
     <>
       {/* Header with Date, Time, and Language */}
-      <div className="flex items-center justify-center px-6 py-3 border-b border-border bg-background/50 backdrop-blur-sm">
+      <div className="flex items-center justify-center px-6 py-3 bg-background/50 backdrop-blur-sm">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="font-medium">{formattedDate}</span>

@@ -246,6 +246,59 @@ export class SessionStore {
     }
   }
 
+  // TODO: needs to be optmized
+  async getUserSessionsData(userId: string): Promise<SessionData[]> {
+  const userKey = this.getUserKey(userId);
+
+  try {
+    const sessionIds = await this.redis.smembers(userKey);
+    if (sessionIds.length === 0) return [];
+
+    const validSessions: SessionData[] = [];
+    const orphanedSessionIds: string[] = [];
+
+    /**
+     * Fetch sessions in parallel
+     */
+    const results = await Promise.all(
+      sessionIds.map(async (sessionId) => {
+        const sessionKey = this.getSessionKey(sessionId);
+        const data = await this.redis.get(sessionKey);
+
+        // ❌ Orphaned session ID (no corresponding data)
+        if (!data) {
+          orphanedSessionIds.push(sessionId);
+          return null;
+        }
+
+        return JSON.parse(data) as SessionData;
+      })
+    );
+
+    for (const session of results) {
+      if (session) validSessions.push(session);
+    }
+
+    /**
+     * 🧹 Remove orphaned session IDs from user's set
+     */
+    if (orphanedSessionIds.length > 0) {
+      await this.redis.srem(userKey, ...orphanedSessionIds);
+      console.warn(
+        `🧹 Removed ${orphanedSessionIds.length} orphaned MCP session IDs for user ${userId}`
+      );
+    }
+
+    return validSessions;
+  } catch (error) {
+    console.error(
+      `❌ Failed to get user sessions from Redis for user ${userId}:`,
+      error
+    );
+    return [];
+  }
+}
+
   /**
    * Update tokens for an existing session
    * Used after token refresh to persist new tokens
