@@ -37,18 +37,20 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If unauthorized and trying to access protected routes
-  // For now, we only protect routes that are explicitly not /signin or public
-  // Adjust this matching logic to your specific needs
-  if (!user && !request.nextUrl.pathname.startsWith("/signin")) {
-    // If you have specific protected routes, add check here.
-    // For example, if you want to protect everything except signin:
-    if (request.nextUrl.pathname === "/" || request.nextUrl.pathname.startsWith("/protected")) {
-      // return NextResponse.redirect(new URL("/signin", request.url));
-    }
+  // Protected routes that require authentication
+  const protectedRoutes = ["/playground", "/settings"];
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route)
+  );
+
+  // If unauthorized and trying to access protected routes, redirect to signin
+  if (!user && isProtectedRoute) {
+    const redirectUrl = new URL("/signin", request.url);
+    redirectUrl.searchParams.set("redirect", request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // If authorized and trying to access /signin
+  // If authorized and trying to access /signin, redirect to home
   if (user && request.nextUrl.pathname.startsWith("/signin")) {
     return NextResponse.redirect(new URL("/", request.url));
   }

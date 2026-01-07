@@ -7,13 +7,23 @@ import {
   Network,
   LucideIcon,
   User,
+  Settings,
+  LogOut,
 } from "lucide-react";
 import { A2AAgentManager } from "./A2AAgentManager";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import Image from "next/image";
-import { UserProfileSheet } from "./UserProfileSheet";
+import { useRouter, usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SidebarNavLinkProps {
   icon: LucideIcon;
@@ -52,7 +62,14 @@ export const PlaygroundSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"agents">("agents");
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -72,32 +89,54 @@ export const PlaygroundSidebar = () => {
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
   const userImage = user?.user_metadata?.avatar_url;
 
+  // Determine which logo to show based on theme
+  const currentTheme = mounted ? (resolvedTheme || theme) : 'dark';
+  const logoSrc = currentTheme === 'dark' ? '/images/logo-dark.png' : '/images/logo-light.png';
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
   return (
-    <div
-      className={cn(
-        "transition-all duration-300 ease-in-out border-r relative flex flex-col bg-background",
-        isOpen ? "w-80" : "w-12"
-      )}
-    >
-      {/* Toggle Button */}
-      <div className="flex items-center justify-end pt-3 pr-2 pb-2 flex-shrink-0">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
-          aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {isOpen ? (
-            <ChevronLeft className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-        </button>
-      </div>
+    <div className="relative flex">
+      <div
+        className={cn(
+          "transition-all duration-300 ease-in-out border-r flex flex-col bg-background",
+          isOpen ? "w-64" : "w-16"
+        )}
+      >
+        {/* Logo Section */}
+        <div className={cn(
+          "flex items-center pt-3 px-3 pb-3 flex-shrink-0",
+          isOpen ? "justify-start" : "justify-center"
+        )}>
+          <button
+            onClick={() => router.push('/playground')}
+            className={cn(
+              "flex items-center rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
+              isOpen ? "p-2" : "p-1"
+            )}
+            title="Playground"
+          >
+            {mounted && (
+              <Image
+                src={logoSrc}
+                alt="MCP Assistant"
+                width={32}
+                height={32}
+                className="object-contain"
+                priority
+              />
+            )}
+          </button>
+        </div>
 
       {/* Navigation Links */}
       <div
         className={cn(
-          "pb-3 space-y-1 border-b flex-shrink-0",
+          "pb-3 space-y-1 flex-shrink-0",
           isOpen ? "px-2" : "px-1"
         )}
       >
@@ -131,48 +170,93 @@ export const PlaygroundSidebar = () => {
         </div>
       </div>
 
-      {/* Profile Button at Bottom */}
-      <div className={cn("border-t p-2 flex-shrink-0", isOpen ? "" : "")}>
-        <button
-          onClick={() => setIsProfileOpen(true)}
-          className={cn(
-            "w-full flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors cursor-pointer",
-            isOpen ? "justify-start" : "justify-center"
-          )}
-          title={isOpen ? undefined : "Profile"}
-        >
-          {userImage ? (
-            <Image
-              src={userImage}
-              alt={userName}
-              width={32}
-              height={32}
-              className="rounded-full flex-shrink-0"
-            />
+        {/* Profile Dropdown at Bottom */}
+        <div className={cn("p-3 flex-shrink-0")}>
+          {isOpen ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="w-full flex items-center gap-3 p-2 rounded-md transition-colors cursor-pointer hover:bg-accent"
+                  title="Profile"
+                >
+                  {userImage ? (
+                    <Image
+                      src={userImage}
+                      alt={userName}
+                      width={40}
+                      height={40}
+                      className="rounded-full flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-semibold">
+                      {userName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex flex-col items-start overflow-hidden flex-1">
+                    <span className="text-sm font-medium truncate w-full">{userName}</span>
+                    {user?.email && (
+                      <span className="text-xs text-muted-foreground truncate w-full">
+                        {user.email}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56 mb-2">
+                <DropdownMenuItem onClick={() => router.push('/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log Out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="h-4 w-4 text-primary" />
-            </div>
-          )}
-          {isOpen && (
-            <div className="flex flex-col items-start overflow-hidden">
-              <span className="text-sm font-medium truncate w-full">{userName}</span>
-              {user?.email && (
-                <span className="text-xs text-muted-foreground truncate w-full">
-                  {user.email}
-                </span>
+            <button
+              onClick={() => setIsOpen(true)}
+              className="w-full flex items-center justify-center p-2 rounded-md transition-colors cursor-pointer hover:bg-accent"
+              title="Profile"
+            >
+              {userImage ? (
+                <Image
+                  src={userImage}
+                  alt={userName}
+                  width={32}
+                  height={32}
+                  className="rounded-full flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-semibold text-sm">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
               )}
-            </div>
+            </button>
           )}
-        </button>
+        </div>
       </div>
 
-      {/* Profile Sheet */}
-      <UserProfileSheet
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        user={user}
-      />
+      {/* Toggle Button - Outside Sidebar */}
+      {isOpen ? (
+        <button
+          onClick={() => setIsOpen(false)}
+          className="absolute -right-3 top-4 z-10 p-1 rounded-full bg-background border border-border shadow-sm hover:bg-accent transition-colors cursor-pointer"
+          aria-label="Collapse sidebar"
+        >
+          <ChevronLeft className="w-3 h-3" />
+        </button>
+      ) : (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="absolute -right-3 top-4 z-10 p-1 rounded-full bg-background border border-border shadow-sm hover:bg-accent transition-colors cursor-pointer"
+          aria-label="Expand sidebar"
+        >
+          <ChevronRight className="w-3 h-3" />
+        </button>
+      )}
     </div>
   );
 };

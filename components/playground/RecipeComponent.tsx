@@ -58,22 +58,22 @@ export const RecipeComponent: React.FC<RecipeComponentProps> = ({ onAction }) =>
         <button
           key={recipe.id}
           onClick={() => onAction(recipe.prompt)}
-          className="group flex flex-col items-start p-5 text-left transition-all duration-200 
-                     bg-[#1c1c1c] border border-white/5 rounded-xl 
-                     hover:bg-[#252525] hover:border-white/10 hover:shadow-2xl active:scale-[0.98]"
+          className="group flex flex-col items-start p-5 text-left transition-all duration-200
+                     bg-zinc-100 dark:bg-[#1c1c1c] border border-zinc-300 dark:border-white/5 rounded-xl
+                     hover:bg-zinc-200 dark:hover:bg-[#252525] hover:border-zinc-400 dark:hover:border-white/10 hover:shadow-lg dark:hover:shadow-2xl active:scale-[0.98]"
         >
           {/* Header Area */}
           <div className="flex w-full items-start justify-between gap-4 mb-2">
-            <h3 className="text-[15px] font-medium text-zinc-100 group-hover:text-white">
+            <h3 className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white">
               {recipe.title}
             </h3>
-            
+
             {/* Icon Stack */}
             <div className="flex -space-x-1.5">
               {recipe.icons.map((icon, idx) => (
-                <div 
-                  key={idx} 
-                  className="w-6 h-6 p-1 bg-[#2a2a2a] border border-white/10 rounded shadow-sm flex items-center justify-center overflow-hidden"
+                <div
+                  key={idx}
+                  className="w-6 h-6 p-1 bg-zinc-200 dark:bg-[#2a2a2a] border border-zinc-300 dark:border-white/10 rounded shadow-sm flex items-center justify-center overflow-hidden"
                 >
                   {icon.startsWith('http') ? (
                     <img src={icon} alt="app" className="w-full h-full object-contain" />
@@ -86,7 +86,7 @@ export const RecipeComponent: React.FC<RecipeComponentProps> = ({ onAction }) =>
           </div>
 
           {/* Description Area */}
-          <p className="text-[13px] leading-relaxed text-zinc-400 group-hover:text-zinc-300 line-clamp-2">
+          <p className="text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 line-clamp-2">
             {recipe.description}
           </p>
         </button>
