@@ -69,19 +69,19 @@ export function UserMessage({ key, message }: any) {
   };
 
   return (
-    <div key={key} className="flex justify-end px-4 py-2">
+    <div key={key} className="flex justify-end px-2 sm:px-4 py-2">
       <div
         className="
-          max-w-[72ch]
+          max-w-[90%] sm:max-w-[72ch]
           rounded-xl
-          px-3 py-1.5
-          text-md leading-relaxed
+          px-2.5 sm:px-3 py-1.5
+          text-sm sm:text-md leading-relaxed
           bg-zinc-100 dark:bg-zinc-800
           border border-zinc-200 dark:border-zinc-700
           text-foreground
         "
       >
-        <div className="whitespace-pre-wrap">
+        <div className="whitespace-pre-wrap break-words">
           {getMessageContent()}
         </div>
       </div>
@@ -93,10 +93,10 @@ export function UserMessage({ key, message }: any) {
 export function AssistantMessage({
   key,
   message,
+  showReasoning = false,
 }: any) {
   const { agent } = useAgent({ agentId: "mcpAssistant" });
   console.log(`assistant message: ${JSON.stringify(message)}`);
-  // console.log(`assistant agent.messages: ${JSON.stringify(agent.messages)}`);
 
   const messageContent =
     typeof message === "string"
@@ -110,40 +110,26 @@ export function AssistantMessage({
       ? message.generativeUI()
       : null;
 
-  // const isLastAssistant =
-  //   agent.messages
-  //     .filter((m) => m.role === "assistant")
-  //     .at(-1)?.id === message.id;
-  // console.log(`isLastAssistant: ${isLastAssistant}`);
-
-  // const showLoading =
-  //   agent.isRunning &&
-  //   isLastAssistant;
-  //   // !messageContent &&
-  //   // !subComponent;
-  // console.log(`showLoading: ${showLoading}`);
-  // if (!messageContent && !subComponent && !showLoading) {
-  //   return null;
-  // }
+  const reasoningContent = agent?.state?.reasoning_content;
 
   return (
-    <div key={key} className="flex items-start gap-3 px-4 py-2">
-      <div className="flex flex-col gap-2 max-w-[72ch] w-full">
+    <div key={key} className="flex items-start gap-2 sm:gap-3 px-2 sm:px-4 py-2">
+      <div className="flex flex-col gap-2 max-w-full sm:max-w-[90%] md:max-w-[72ch] w-full">
+        {/* Reasoning block - show before message content if available and showReasoning is true */}
+        {showReasoning && reasoningContent && (
+          <div className="p-2.5 sm:p-3 md:p-4 bg-yellow-50 dark:bg-yellow-950/20 border-l-4 border-yellow-400 dark:border-yellow-600 rounded-r">
+            <h3 className="font-medium mb-1.5 sm:mb-2 text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm">Reasoning:</h3>
+            <p className="text-yellow-700 dark:text-yellow-300 text-xs sm:text-sm whitespace-pre-wrap break-words">{reasoningContent}</p>
+          </div>
+        )}
+
         {messageContent && (
-          <div className="prose prose-sm dark:prose-invert">
+          <div className="prose prose-sm dark:prose-invert max-w-none text-sm sm:text-base break-words overflow-x-auto">
             <Markdown content={messageContent} />
           </div>
         )}
 
-        {subComponent && <div>{subComponent}</div>}
-
-        {/* {showLoading && (
-          <div className="flex items-center gap-1 h-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" />
-          </div>
-        )} */}
+        {subComponent && <div className="overflow-x-auto">{subComponent}</div>}
       </div>
     </div>
   );

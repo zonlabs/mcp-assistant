@@ -26,7 +26,7 @@ export default function SettingsLayout({
   const router = useRouter();
 
   return (
-    <div className="flex h-full p-6">
+    <div className="flex h-full p-6 mt-8">
       {/* Left Navigation */}
       <div className="w-64 pr-6">
         <div className="border-r border-border h-full pr-6">

@@ -7,6 +7,11 @@ import {
   Settings,
   LogOut,
   SquarePen,
+  PanelLeftOpen,
+  PanelLeftClose,
+  FolderOpen,
+  History,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +26,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 export const PlaygroundSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -66,7 +76,7 @@ export const PlaygroundSidebar = () => {
     <div className="relative flex">
       <div
         className={cn(
-          "transition-all duration-300 ease-in-out border-r flex flex-col bg-background",
+          "transition-all duration-300 ease-in-out flex flex-col bg-background",
           isOpen ? "w-64" : "w-16"
         )}
       >
@@ -75,46 +85,107 @@ export const PlaygroundSidebar = () => {
           "flex items-center pt-3 px-3 pb-3 flex-shrink-0",
           isOpen ? "justify-start" : "justify-center"
         )}>
-          <button
-            onClick={() => router.push('/')}
-            className={cn(
-              "flex items-center rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
-              isOpen ? "p-2" : "p-1"
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={cn(
+                  "flex items-center rounded-md hover:bg-accent/50 transition-colors cursor-pointer group",
+                  isOpen ? "p-2" : "p-2"
+                )}
+              >
+                {isOpen ? (
+                  <PanelLeftClose className="w-6 h-6 text-primary group-hover:text-primary/80 transition-colors" />
+                ) : (
+                  <PanelLeftOpen className="w-6 h-6 text-primary group-hover:text-primary/80 transition-colors" />
+                )}
+              </button>
+            </TooltipTrigger>
+            {!isOpen && (
+              <TooltipContent side="right" sideOffset={8}>
+                Toggle Sidebar
+              </TooltipContent>
             )}
-            title="Home"
-          >
-            {mounted && (
-              <Image
-                src={logoSrc}
-                alt="MCP Assistant"
-                width={32}
-                height={32}
-                className="object-contain"
-                priority
-              />
-            )}
-          </button>
+          </Tooltip>
         </div>
 
-        {/* New Chat Button */}
+        {/* Navigation Buttons */}
         <div className={cn(
-          "pb-3 space-y-1 flex-shrink-0",
+          "pb-3 space-y-2 flex-shrink-0",
           isOpen ? "px-2" : "px-1"
         )}>
-          <button
-            onClick={() => router.push('/playground')}
-            className={cn(
-              "w-full flex items-center py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
-              isOpen ? "gap-3 px-3" : "justify-center px-0",
-              pathname === "/playground"
-                ? "bg-accent text-accent-foreground"
-                : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+
+          {/* Apps Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => router.push('/mcp')}
+                className={cn(
+                  "w-full flex items-center py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isOpen ? "gap-3 px-3" : "justify-center px-0",
+                  pathname === "/mcp"
+                    ? "text-primary hover:text-primary/80"
+                    : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LayoutGrid className="w-5 h-5 flex-shrink-0" />
+                {isOpen && <span className="truncate">Apps</span>}
+              </button>
+            </TooltipTrigger>
+            {!isOpen && (
+              <TooltipContent side="right" sideOffset={8}>
+                Apps
+              </TooltipContent>
             )}
-            title={isOpen ? undefined : "New Chat"}
-          >
-            <SquarePen className="w-4 h-4 flex-shrink-0" />
-            {isOpen && <span className="truncate">New Chat</span>}
-          </button>
+          </Tooltip>
+
+          {/* New Chat Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => router.push('/playground')}
+                className={cn(
+                  "w-full flex items-center py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isOpen ? "gap-3 px-3" : "justify-center px-0",
+                  pathname === "/playground"
+                    ? "text-primary hover:text-primary/80"
+                    : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <SquarePen className="w-5 h-5 flex-shrink-0" />
+                {isOpen && <span className="truncate">New Chat</span>}
+              </button>
+            </TooltipTrigger>
+            {!isOpen && (
+              <TooltipContent side="right" sideOffset={8}>
+                New Chat
+              </TooltipContent>
+            )}
+          </Tooltip>
+
+          {/* Settings Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => router.push('/settings')}
+                className={cn(
+                  "w-full flex items-center py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isOpen ? "gap-3 px-3" : "justify-center px-0",
+                  pathname.startsWith("/settings")
+                    ? "text-primary hover:text-primary/80"
+                    : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Settings className="w-5 h-5 flex-shrink-0" />
+                {isOpen && <span className="truncate">Settings</span>}
+              </button>
+            </TooltipTrigger>
+            {!isOpen && (
+              <TooltipContent side="right" sideOffset={8}>
+                Settings
+              </TooltipContent>
+            )}
+          </Tooltip>
         </div>
 
         {/* Spacer to push profile to bottom */}
@@ -123,12 +194,46 @@ export const PlaygroundSidebar = () => {
 
         {/* Profile Dropdown at Bottom */}
         <div className={cn("p-3 flex-shrink-0")}>
-          {isOpen ? (
+          {!isOpen ? (
+            <Tooltip>
+              <DropdownMenu>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="w-full flex items-center justify-center p-2 rounded-md transition-colors cursor-pointer hover:bg-accent"
+                    >
+                      {userImage ? (
+                        <Image
+                          src={userImage}
+                          alt={userName}
+                          width={32}
+                          height={32}
+                          className="rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 text-primary-foreground font-semibold text-sm">
+                          {userName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>
+                  Profile
+                </TooltipContent>
+                <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56 mb-2">
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </Tooltip>
+          ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className="w-full flex items-center gap-3 p-2 rounded-md transition-colors cursor-pointer hover:bg-accent"
-                  title="Profile"
                 >
                   {userImage ? (
                     <Image
@@ -139,7 +244,7 @@ export const PlaygroundSidebar = () => {
                       className="rounded-full flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-semibold">
+                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0 text-primary-foreground font-semibold">
                       {userName.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -155,59 +260,16 @@ export const PlaygroundSidebar = () => {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56 mb-2">
-                <DropdownMenuItem onClick={() => router.push('/settings')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log Out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <button
-              onClick={() => setIsOpen(true)}
-              className="w-full flex items-center justify-center p-2 rounded-md transition-colors cursor-pointer hover:bg-accent"
-              title="Profile"
-            >
-              {userImage ? (
-                <Image
-                  src={userImage}
-                  alt={userName}
-                  width={32}
-                  height={32}
-                  className="rounded-full flex-shrink-0"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 text-white font-semibold text-sm">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </button>
           )}
         </div>
       </div>
 
-      {/* Toggle Button - Outside Sidebar */}
-      {isOpen ? (
-        <button
-          onClick={() => setIsOpen(false)}
-          className="absolute -right-3 top-4 z-10 p-1 rounded-full bg-background border border-border shadow-sm hover:bg-accent transition-colors cursor-pointer"
-          aria-label="Collapse sidebar"
-        >
-          <ChevronLeft className="w-3 h-3" />
-        </button>
-      ) : (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="absolute -right-3 top-4 z-10 p-1 rounded-full bg-background border border-border shadow-sm hover:bg-accent transition-colors cursor-pointer"
-          aria-label="Expand sidebar"
-        >
-          <ChevronRight className="w-3 h-3" />
-        </button>
-      )}
     </div>
   );
 };

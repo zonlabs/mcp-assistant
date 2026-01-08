@@ -19,6 +19,7 @@ import React from "react";
 const PROVIDERS = [
   { id: "openai", name: "OpenAI" },
   { id: "deepseek", name: "DeepSeek" },
+  { id: "anthropic", name: "Anthropic" },
 ];
 
 export type AssistantFormData = {

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowUp,
+  Square,
+  StopCircle,
 } from "lucide-react";
 import { PushToTalkState } from "@/hooks/usePushToTalk";
 import { useCoAgent } from "@copilotkit/react-core";
@@ -26,12 +28,16 @@ interface CustomChatInputProps {
   isLoading?: boolean;
   pushToTalkState?: PushToTalkState;
   onPushToTalkStateChange?: (state: PushToTalkState) => void;
+  onStop?: () => void;
+  isGenerating?: boolean;
 }
 
 export default function ChatInput({
   onSendMessage,
   pushToTalkState = "idle",
-  onPushToTalkStateChange
+  onPushToTalkStateChange,
+  onStop,
+  isGenerating = false
 }: CustomChatInputProps) {
   // Generate sessionId for authenticated or anonymous users (browser only)
   const [session, setSession] = useState<Session | null>(null);
@@ -379,22 +385,22 @@ export default function ChatInput({
         onCancel={() => { setDialogState(null); setDeletingAssistant(null); }}
       />
 
-      <div className="w-full px-2 sm:px-4">
-        <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl border-2 border-gray-400 dark:border-zinc-700/50 shadow-xl hover:border-gray-500 dark:hover:border-zinc-600 transition-colors">
+      <div className="w-full px-1 sm:px-2 md:px-4">
+        <div className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl border-2 border-gray-400 dark:border-zinc-700/50 shadow-xl hover:border-gray-500 dark:hover:border-zinc-600 transition-colors">
           {/* Parent container with two children */}
           <div className="flex flex-col">
             {/* First child: Textarea for prompt */}
-            <div className="flex-1 px-2 sm:px-2 pt-2 sm:pt-2">
+            <div className="flex-1 px-2 sm:px-3 pt-2 sm:pt-2">
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Type your prompt..."
-                className="w-full resize-none bg-transparent border-0 outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm sm:text-[15px] leading-relaxed scrollbar-minimal"
+                className="w-full resize-none bg-transparent border-0 outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-[14px] sm:text-[15px] leading-relaxed scrollbar-minimal"
                 rows={1}
                 style={{
-                  minHeight: '50px',
-                  maxHeight: '100px',
+                  minHeight: '60px',
+                  maxHeight: '120px',
                   overflowY: 'auto'
                 }}
                 onInput={(e) => {
@@ -407,9 +413,9 @@ export default function ChatInput({
             </div>
 
             {/* Second child: MCP button, assistant, model, send button, etc. */}
-            <div className="flex items-center justify-between gap-2 px-2 sm:px-2 pb-2 sm:pb-2">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 px-2 sm:px-3 pb-2 sm:pb-2">
               {/* Left side: MCP button */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                 <MCPToolsDropdown
                   selection={toolSelection}
                   onSelectionChange={handleToolSelectionChange}
@@ -419,7 +425,7 @@ export default function ChatInput({
               </div>
 
               {/* Right side: Assistant, Model, Microphone, Send */}
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-shrink">
                 {/* Assistant Selection Dropdown */}
                 {session && (
                   <AssistantDropdown
@@ -457,16 +463,28 @@ export default function ChatInput({
                   />
                 )}
 
-                {/* Send Button */}
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!message.trim()}
-                  className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black disabled:bg-gray-300 dark:disabled:bg-zinc-700 disabled:opacity-50
-                           text-white rounded-lg p-1.5 sm:p-2 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center
-                           transition-all duration-200 shadow-lg cursor-pointer disabled:cursor-not-allowed"
-                >
-                  <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </Button>
+                {/* Send/Stop Button */}
+                {isGenerating ? (
+                  <Button
+                    onClick={onStop}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-white
+                             rounded-lg p-1.5 sm:p-2 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center
+                             transition-all duration-200 shadow-lg cursor-pointer"
+                    title="Stop generation"
+                  >
+                    <Square className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white fill-white" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!message.trim()}
+                    className="bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 dark:text-black disabled:bg-gray-300 dark:disabled:bg-zinc-700 disabled:opacity-50
+                             text-white rounded-lg p-1.5 sm:p-2 h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center
+                             transition-all duration-200 shadow-lg cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
