@@ -2,6 +2,7 @@ import { PlaygroundProvider } from "@/components/providers/PlaygroundProvider";
 import { CopilotKit } from "@copilotkit/react-core";
 import { PlaygroundSidebar } from "@/components/playground/PlaygroundSidebar";
 import type { PropsWithChildren } from "react";
+import { ToolRenderer } from "@/components/playground/ToolRenderer";
 
 export default function PlaygroundAppLayout({ children }: PropsWithChildren) {
   return (
@@ -14,6 +15,8 @@ export default function PlaygroundAppLayout({ children }: PropsWithChildren) {
         showDevConsole={false}
         transcribeAudioUrl="/api/transcribe"
         textToSpeechUrl="/api/tts"
+        renderToolCalls={[ToolRenderer]}
+
       >
         <PlaygroundProvider>
           <div className="flex h-screen bg-background text-foreground">

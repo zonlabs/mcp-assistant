@@ -4,11 +4,11 @@ import React from "react";
 // 1. Data Definition: Easy to add/remove recipes here
 const RECIPE_DATA = [
   {
-    id: "linear-issue",
-    title: "Create Issue",
-    description: "Create a new issue in Linear with title 'Check out Smithery' and description...",
-    prompt: "Create a new issue in Linear titled 'Check out Smithery'",
-    icons: ["https://api.iconify.design/logos:linear.svg"],
+    id: "create-a-bookmark",
+    title: "Create a Bookmark",
+    description: "Create a new bookmark in Bookmark Manager with title 'Study Tips' and description...",
+    prompt: "Create a new bookmark in Bookmark Manager titled 'Study Tips'",
+    icons: ["https://api.iconify.design/logos:vercel.svg"],
   },
   {
     id: "gmail-draft",

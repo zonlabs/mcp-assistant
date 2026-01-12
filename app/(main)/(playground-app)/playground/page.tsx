@@ -10,17 +10,14 @@ import ChatInput from "@/components/playground/ChatInput";
 import { usePushToTalk } from "@/hooks/usePushToTalk";
 import { usePlayground } from "@/components/providers/PlaygroundProvider";
 import HumanInTheLoop from "@/components/playground/HumanInTheLoop";
-import { ToolRenderer } from "@/components/playground/ToolRenderer";
 import { AssistantMessage, UserMessage } from "@/components/playground/ChatMessage";
 import { A2AMessageRenderer } from "@/components/playground/a2a/A2AMessageRenderer";
 
 // Assuming you are importing your recipe component here
 import { RecipeComponent } from "@/components/playground/RecipeComponent";
-import { useAgent } from "@copilotkit/react-core/v2";
+import { useAgent, useRenderToolCall } from "@copilotkit/react-core/v2";
 import { TimeDisplay } from "@/components/playground/TimeDisplay";
 import { LoadingSpinner } from "@/components/playground/LoadingSpinner";
-import { ServerIcon } from "@/components/common/ServerIcon";
-import { Button } from "@/components/ui/button";
 
 /* ---------- INPUT WRAPPER ---------- */
 
@@ -59,15 +56,19 @@ const ChatInputWrapper = ({
 
 const PlaygroundPage = () => {
   const { activeAssistant } = usePlayground();
+  const renderToolCall = useRenderToolCall();
+
   const { agent } = useAgent({agentId: 'mcpAssistant'});
   const askMode = activeAssistant?.config?.ask_mode;
   
   const { messages, sendMessage, isLoading, interrupt, stopGeneration } = useCopilotChatHeadless_c();
   const interruptUI = useLangGraphInterruptRender(agent);
 
-  console.log("PlaygroundPage - interrupt:", interrupt);
+
+  console.log("PlaygroundPage - messages:", messages);
+  console.log("PlaygroundPage - agent.messages:", agent?.messages);
   // Calculate isChatEmpty early
-  const isChatEmpty = messages.length === 0;
+  const isChatEmpty = !agent?.messages || agent.messages.length === 0;
 
   // Refs for auto-scrolling
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -78,7 +79,7 @@ const PlaygroundPage = () => {
     if (messagesEndRef.current && !isChatEmpty) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, agent?.isRunning, isChatEmpty]);
+  }, [agent?.messages, agent?.isRunning, isChatEmpty]);
 
   // Helper to trigger prompts from the grid
   const handleAction = (promptText: string) => {
@@ -140,14 +141,13 @@ const PlaygroundPage = () => {
                   {/* {interrupt ? <HumanInTheLoop /> : askMode ? <HumanInTheLoop /> : <ToolRenderer />} */}
                   {/* { askMode ? <HumanInTheLoop /> : <ToolRenderer />} */}
                   <HumanInTheLoop />
-                  <ToolRenderer/>
                   <A2AMessageRenderer />
               </div>
 
               {/* Filter out tool messages and render history */}
               <div className="space-y-4 sm:space-y-6">
 
-                {messages.filter((m) => m.role !== "tool").map((message, index, filteredMessages) => {
+                {agent?.messages.filter((m) => m.role !== "tool").map((message, index, filteredMessages) => {
                   // Check if this is the last assistant message
                   const isLastAssistantMessage =
                     message.role === "assistant" &&
@@ -158,7 +158,25 @@ const PlaygroundPage = () => {
                       {message.role === "user" ? (
                         <UserMessage message={message} />
                       ) : (
-                        <AssistantMessage message={message} showReasoning={isLastAssistantMessage} />
+                        <>
+                          <AssistantMessage message={message} showReasoning={isLastAssistantMessage} />
+
+                          {/* Render tool calls if present */}
+                          {message.role === "assistant" && message.toolCalls?.map((toolCall) => {
+                            // Find the corresponding tool message and ensure it's the right type
+                            const foundMessage = agent.messages.find(
+                              (m) => m.role === "tool" && m.toolCallId === toolCall.id
+                            );
+                            // Type guard to ensure we have a proper tool message
+                            const toolMessage = foundMessage?.role === "tool" ? foundMessage : undefined;
+
+                            return (
+                              <div key={toolCall.id} className="mt-2">
+                                {renderToolCall({ toolCall, toolMessage })}
+                              </div>
+                            );
+                          })}
+                        </>
                       )}
                     </div>
                   );
