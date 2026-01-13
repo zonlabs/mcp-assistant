@@ -1,35 +1,19 @@
-// components/playground/RecipeComponent.tsx
 import React from "react";
 
-// 1. Data Definition: Easy to add/remove recipes here
 const RECIPE_DATA = [
-  {
-    id: "linear-issue",
-    title: "Create Issue",
-    description: "Create a new issue in Linear with title 'Check out Smithery' and description...",
-    prompt: "Create a new issue in Linear titled 'Check out Smithery'",
-    icons: ["https://api.iconify.design/logos:linear.svg"],
-  },
   {
     id: "gmail-draft",
     title: "Create Email Draft",
-    description: "Create an email draft to my email address with subject 'Hi from Smithery'...",
+    description: "Create an email draft to my email address with subject \"Hi from...",
     prompt: "Draft an email to me with the subject 'Hi from Smithery'",
     icons: ["https://api.iconify.design/logos:google-gmail.svg"],
   },
   {
     id: "pricing-research",
     title: "Competitor Pricing Research",
-    description: "Research and document our competitor's pricing into Notion and Linear...",
+    description: "Research and document our",
     prompt: "Research competitor pricing and create a summary in Notion.",
-    icons: ["https://api.iconify.design/logos:notion-icon.svg", "https://api.iconify.design/logos:linear.svg"],
-  },
-  {
-    id: "db-optimize",
-    title: "Optimize Queries",
-    description: "Explore opportunities to add indexes and make my queries more efficient...",
-    prompt: "Analyze my database performance and suggest query optimizations.",
-    icons: ["⚡"], // Using an emoji as a fallback
+    icons: ["https://api.iconify.design/logos:linear.svg", "https://api.iconify.design/logos:notion-icon.svg"],
   },
   {
     id: "calendar-check",
@@ -39,9 +23,23 @@ const RECIPE_DATA = [
     icons: ["https://api.iconify.design/logos:google-calendar.svg"],
   },
   {
+    id: "create-bookmark",
+    title: "Create Bookmark",
+    description: "Helps user create a bookmark in Bookmark Manager...",
+    prompt: "Create a bookmark called StudyTips in my Bookmark Manager for easy access to study resources.",
+    icons: ["https://api.iconify.design/logos:vercel.svg"],
+  },
+  {
+    id: "db-optimize",
+    title: "Optimize Queries",
+    description: "Explore opportunities to add indexes and make my queries...",
+    prompt: "Analyze my database performance and suggest query optimizations.",
+    icons: ["https://api.iconify.design/logos:supabase.svg"], 
+  },
+  {
     id: "prep-meeting",
     title: "Meeting Preparation",
-    description: "Prepare for my upcoming meeting by getting relevant issues from Linear...",
+    description: "Prepare for my upcoming meeting by getting relevant issues from...",
     prompt: "Help me prepare for my next meeting by summarizing recent Linear issues.",
     icons: ["https://api.iconify.design/logos:linear.svg", "https://api.iconify.design/logos:notion-icon.svg"],
   },
@@ -53,40 +51,40 @@ interface RecipeComponentProps {
 
 export const RecipeComponent: React.FC<RecipeComponentProps> = ({ onAction }) => {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5 md:gap-3 w-full max-w-4xl mx-auto px-2 sm:px-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-4xl mx-auto">
       {RECIPE_DATA.map((recipe) => (
         <button
           key={recipe.id}
           onClick={() => onAction(recipe.prompt)}
-          className="group flex flex-col items-start p-2.5 sm:p-3.5 md:p-4 lg:p-5 text-left transition-all duration-200
-                     bg-zinc-100 dark:bg-[#1c1c1c] border border-zinc-300 dark:border-white/5 rounded-lg sm:rounded-xl
-                     hover:bg-zinc-200 dark:hover:bg-[#252525] hover:border-zinc-400 dark:hover:border-white/10 hover:shadow-lg dark:hover:shadow-2xl active:scale-[0.98]"
+          className="group flex flex-col items-start p-5 text-left transition-all duration-200
+                     bg-[#181818] border border-white/10 rounded-xl
+                     hover:bg-[#202020] hover:border-white/20 active:scale-[0.98]"
         >
-          {/* Header Area */}
-          <div className="flex w-full items-start justify-between gap-2 sm:gap-3 md:gap-4 mb-1 sm:mb-1.5 md:mb-2">
-            <h3 className="text-sm sm:text-[15px] font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white leading-snug">
+          {/* Header: Title and Icons */}
+          <div className="flex w-full items-start justify-between mb-3">
+            <h3 className="text-lg font-semibold text-zinc-200 leading-tight font-serif tracking-tight">
               {recipe.title}
             </h3>
 
             {/* Icon Stack */}
-            <div className="flex -space-x-1.5 flex-shrink-0">
+            <div className="flex -space-x-1 flex-shrink-0">
               {recipe.icons.map((icon, idx) => (
                 <div
                   key={idx}
-                  className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 p-0.5 sm:p-1 bg-zinc-200 dark:bg-[#2a2a2a] border border-zinc-300 dark:border-white/10 rounded shadow-sm flex items-center justify-center overflow-hidden"
+                  className="w-5 h-5 flex items-center justify-center overflow-hidden"
                 >
                   {icon.startsWith('http') ? (
-                    <img src={icon} alt="app" className="w-full h-full object-contain" />
+                    <img src={icon} alt="app" className="w-full h-full object-contain filter grayscale group-hover:grayscale-0 transition-all" />
                   ) : (
-                    <span className="text-xs">{icon}</span>
+                    <span className="text-sm">{icon}</span>
                   )}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Description Area */}
-          <p className="text-[11px] sm:text-xs md:text-[13px] leading-snug sm:leading-relaxed text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 line-clamp-2">
+          {/* Description */}
+          <p className="text-[14px] leading-snug text-zinc-500 group-hover:text-zinc-400 line-clamp-2">
             {recipe.description}
           </p>
         </button>
