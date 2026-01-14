@@ -12,7 +12,9 @@ export const initiateMcpConnection = tool({
     transportType: z.enum(['sse', 'streamable_http']).describe('Transport type for MCP connection'),
   }),
   needsApproval: true, // Require user approval
-  execute: async ({ serverName, serverUrl, serverId, transportType }) => {
+  async *execute({ serverName, serverUrl, serverId, transportType }) {
+    yield { state: 'loading' as const };
+
     try {
       console.log('[initiateMcpConnection] Tool approved, verifying connection');
 
@@ -36,14 +38,16 @@ export const initiateMcpConnection = tool({
 
         if (connection && connection.active) {
           console.log('[initiateMcpConnection] Connection verified');
-          return {
+          yield {
+            state: 'ready' as const,
             success: true,
             sessionId: connection.sessionId,
             message: `Successfully connected to ${serverName}`,
           };
         } else {
           console.warn('[initiateMcpConnection] Connection not found or inactive');
-          return {
+          yield {
+            state: 'ready' as const,
             success: false,
             error: 'Connection not found',
             message: `Connection to ${serverName} was not established. Please try again.`,
@@ -51,7 +55,8 @@ export const initiateMcpConnection = tool({
         }
       } else {
         console.error('[initiateMcpConnection] Failed to verify connections:', data);
-        return {
+        yield {
+          state: 'ready' as const,
           success: false,
           error: data.error || 'Failed to verify connection',
           message: `Failed to verify connection to ${serverName}`,
@@ -63,7 +68,8 @@ export const initiateMcpConnection = tool({
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
       });
-      return {
+      yield {
+        state: 'ready' as const,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         message: `Error connecting to ${serverName}: ${error instanceof Error ? error.message : 'Unknown error'}`,

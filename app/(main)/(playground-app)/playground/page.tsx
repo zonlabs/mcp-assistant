@@ -1,9 +1,9 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
 import { DefaultChatTransport, getToolName, type ToolUIPart, type DynamicToolUIPart, isToolUIPart } from 'ai';
 import { useRef, useEffect } from 'react';
-import { Separator } from '@/components/ui/separator';
 import MCPToolCall from '@/components/playground/MCPToolCall';
 import { MCPConnectionApproval } from '@/components/playground/MCPConnectionApproval';
 import { ChatInput } from '@/components/playground/ChatInput';
@@ -19,6 +19,7 @@ export default function PlaygroundPage() {
 
   const { error, status, sendMessage, messages, addToolApprovalResponse } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat' }),
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 
   useEffect(() => {
@@ -71,122 +72,140 @@ export default function PlaygroundPage() {
             <div className="max-w-2xl mx-auto px-2 py-8 space-y-8">
               {/* Messages */}
               {messages.map((m) => {
-            return (
-              <div key={m.id} className={cn("group flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
-                {m.role === 'user' ? (
-                  <UserMessage
-                    message={{ text: m.parts.filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ') }}
-                    parts={m.parts.filter((p: any) => p.type === 'file')}
-                  />
-                ) : (
-                  <>
-                    {/* Render parts in sequence */}
-                    {m.parts.map((part: any, index: number) => {
-                      // Handle text parts
-                      if (part.type === 'text' && part.text) {
-                        return (
-                          <AssistantMessage
-                            key={index}
-                            text={part.text}
-                            parts={[]}
-                          />
-                        );
-                      }
-
-                      // Handle file parts
-                      if (part.type === 'file') {
-                        return (
-                          <AssistantMessage
-                            key={index}
-                            text=""
-                            parts={[part]}
-                          />
-                        );
-                      }
-
-                      // Handle tool calls
-                      if (isToolUIPart(part)) {
-                        const toolPart = part as ToolUIPart<any> | DynamicToolUIPart;
-                        const toolName = getToolName(toolPart);
-
-                        // Handle MCP connection approval
-                        if (toolName === 'initiateMcpConnection' && toolPart.state === 'approval-requested') {
-                          const input = toolPart.input as any;
-                          return (
-                            <div key={index} className="w-full">
-                              <MCPConnectionApproval
-                                serverName={input.serverName || ''}
-                                serverUrl={input.serverUrl || ''}
-                                serverId={input.serverId || ''}
-                                transportType={input.transportType || 'sse'}
-                                approvalId={(toolPart as any).approval?.id || ''}
-                                onApprove={(data) => {
-                                  if (addToolApprovalResponse) {
-                                    addToolApprovalResponse({
-                                      id: (toolPart as any).approval?.id,
-                                      approved: true,
-                                    });
-                                  }
-                                }}
-                                onDeny={() => {
-                                  if (addToolApprovalResponse) {
-                                    addToolApprovalResponse({
-                                      id: (toolPart as any).approval?.id,
-                                      approved: false,
-                                    });
-                                  }
-                                }}
+                return (
+                  <div key={m.id} className={cn("group flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
+                    {m.role === 'user' ? (
+                      <UserMessage
+                        message={{ text: m.parts.filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ') }}
+                        parts={m.parts.filter((p: any) => p.type === 'file')}
+                      />
+                    ) : (
+                      <>
+                        {/* Render parts in sequence */}
+                        {m.parts.map((part: any, index: number) => {
+                          // Handle text parts
+                          if (part.type === 'text' && part.text) {
+                            return (
+                              <AssistantMessage
+                                key={index}
+                                text={part.text}
+                                parts={[]}
                               />
-                            </div>
-                          );
-                        }
+                            );
+                          }
 
-                        // Regular tool call display
-                        return (
-                          <div key={index} className="w-full">
-                            <MCPToolCall
-                              name={toolPart.title || toolName}
-                              state={toolPart.state}
-                              input={toolPart.input}
-                              output={toolPart.state === 'output-available' ? toolPart.output : undefined}
-                              errorText={toolPart.state === 'output-error' ? toolPart.errorText : undefined}
-                            />
-                          </div>
-                        );
-                      }
+                          // Handle file parts
+                          if (part.type === 'file') {
+                            return (
+                              <AssistantMessage
+                                key={index}
+                                text=""
+                                parts={[part]}
+                              />
+                            );
+                          }
 
-                      return null;
-                    })}
-                  </>
-                )}
-              </div>
-            );
-          })}
+                          // Handle tool calls
+                          if (isToolUIPart(part)) {
+                            const toolPart = part as ToolUIPart<any> | DynamicToolUIPart;
+                            const toolName = getToolName(toolPart);
+                            const approvalId = 'approval' in toolPart ? toolPart.approval?.id : undefined;
+                            console.log(`toolPart ---> : ${JSON.stringify(toolPart)}`)
 
-          {/* Thinking State */}
-          {(status === 'streaming' || status === 'submitted') && (
-            <div className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="p-1"><LoadingSpinner /></div>
-              <div className="prose prose-sm dark:prose-invert italic text-muted-foreground flex items-center h-8">
-                Thinking...
-              </div>
-            </div>
-          )}
+                            // Handle MCP connection tool - all states
+                            if (toolName === 'MCP_ASSISTANT_INITIATE_CONNECTION') {
+                              const input = toolPart.input as any;
 
-          {error && (
-            <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
-              <span>{error.message || 'An error occurred'}</span>
-              <Button variant="ghost" size="sm" onClick={() => sendMessage({ text: '' })}>
-                <RefreshCw className="w-3 h-3 mr-2" /> Retry
-              </Button>
-            </div>
-          )}
+                              // Only show approval UI for approval-requested state
+                              if (toolPart.state === 'approval-requested') {
+                                return (
+                                  <div key={index} className="w-full">
+                                    <MCPConnectionApproval
+                                      serverName={input.serverName || ''}
+                                      serverUrl={input.serverUrl || ''}
+                                      serverId={input.serverId || ''}
+                                      transportType={input.transportType || 'sse'}
+                                      approvalId={approvalId || ''}
+                                      onApprove={() => {
+                                        if (approvalId && addToolApprovalResponse) {
+                                          addToolApprovalResponse({
+                                            id: approvalId,
+                                            approved: true,
+                                          });
+                                        }
+                                      }}
+                                      onDeny={() => {
+                                        approvalId &&
+                                          addToolApprovalResponse?.({
+                                            id: approvalId,
+                                            approved: false,
+                                          });
+                                      }}
+                                    />
+                                  </div>
+                                );
+                              }
+
+                              // For other states, show regular tool call display
+                              return (
+                                <div key={index} className="w-full">
+                                  <MCPToolCall
+                                    name={toolPart.title || toolName}
+                                    state={toolPart.state}
+                                    input={toolPart.input}
+                                    output={toolPart.state === 'output-available' ? toolPart.output : undefined}
+                                    errorText={toolPart.state === 'output-error' ? toolPart.errorText : undefined}
+                                  />
+                                </div>
+                              );
+                            }
+
+                            // Regular tool call display for other tools
+                            return (
+                              <div key={index} className="w-full">
+                                <MCPToolCall
+                                  name={toolPart.title || toolName}
+                                  state={toolPart.state}
+                                  input={toolPart.input}
+                                  output={toolPart.state === 'output-available' ? toolPart.output : undefined}
+                                  errorText={toolPart.state === 'output-error' ? toolPart.errorText : undefined}
+                                />
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Thinking State */}
+              {(status === 'streaming' || status === 'submitted') && (
+                <div className="flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="p-1"><LoadingSpinner /></div>
+                  <div className="prose prose-sm dark:prose-invert italic text-muted-foreground flex items-center h-8">
+                    Thinking...
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
+                  <span>{error.message || 'An error occurred'}</span>
+                  <Button variant="ghost" size="sm" onClick={() => sendMessage({ text: '' })}>
+                    <RefreshCw className="w-3 h-3 mr-2" /> Retry
+                  </Button>
+                </div>
+              )}
               <div ref={messagesEndRef} className="h-4" />
             </div>
           </div>
 
           {/* Sticky Input Area */}
-          <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-10 pb-8">
+          <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-2 pb-8">
             <div className="w-full max-w-3xl mx-auto px-6">
               <ChatInput
                 onSend={(data) => {

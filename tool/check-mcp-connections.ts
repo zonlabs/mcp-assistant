@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { GET } from '@/app/api/mcp/connections/route';
 import { NextRequest } from 'next/server';
 
-export const checkMcpConnectionsTool = tool({
+export const checkMcpConnections = tool({
   description: 'Check all active MCP server connections',
   inputSchema: z.object({}),
   async *execute() {
@@ -61,5 +61,5 @@ export const checkMcpConnectionsTool = tool({
 });
 
 export type CheckMcpConnectionsToolInvocation = UIToolInvocation<
-  typeof checkMcpConnectionsTool
+  typeof checkMcpConnections
 >;

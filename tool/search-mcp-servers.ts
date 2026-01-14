@@ -5,7 +5,7 @@ import { SEARCH_MCP_SERVERS_QUERY } from '@/lib/graphql';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const GRAPHQL_ENDPOINT = `${BACKEND_URL}/api/graphql`;
 
-export const searchMcpServersTool = tool({
+export const searchMcpServers = tool({
   description: 'Search for MCP servers in the registry using filters',
   inputSchema: z.object({
     searchQuery: z.string().optional().describe('Search query to filter servers by name'),
@@ -82,5 +82,5 @@ export const searchMcpServersTool = tool({
 });
 
 export type SearchMcpServersToolInvocation = UIToolInvocation<
-  typeof searchMcpServersTool
+  typeof searchMcpServers
 >;

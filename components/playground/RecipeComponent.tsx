@@ -52,7 +52,7 @@ interface Props {
 
 export const RecipeComponent: React.FC<Props> = ({ onAction }) => {
   return (
-    <div className="grid lg:grid-cols-3 gap-2 max-w-4xl mx-auto">
+    <div className="grid sm:grid-cols-3 gap-2 max-w-4xl mx-auto">
       {RECIPE_DATA.map((item) => (
         <button
           key={item.id}

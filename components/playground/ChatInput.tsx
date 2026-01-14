@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import Image from 'next/image';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +11,6 @@ import {
   Loader2,
   X,
   FileIcon,
-  ImageIcon,
 } from 'lucide-react';
 
 async function convertFilesToDataURLs(files: FileList) {
@@ -83,6 +83,73 @@ export function ChatInput({ onSend, disabled, status }: ChatInputProps) {
         "
       >
         <div className="flex flex-col">
+          {/* FILE PREVIEW (INSIDE INPUT) */}
+          {fileArray.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-2 pt-2">
+              {fileArray.map((file, idx) => {
+                const isImage = file.type.startsWith('image/');
+                const previewUrl = isImage
+                  ? URL.createObjectURL(file)
+                  : null;
+
+                return (
+                  <div
+                    key={idx}
+                    className="
+                      relative group
+                      rounded-lg border border-zinc-300 dark:border-zinc-700
+                      bg-zinc-50 dark:bg-zinc-900
+                      overflow-hidden
+                    "
+                  >
+                    {isImage && previewUrl ? (
+                      <div className="relative h-10 w-10">
+                        <Image
+                          src={previewUrl}
+                          alt={file.name}
+                          fill
+                          sizes="20px"
+                          className="object-cover"
+                          onLoad={() => URL.revokeObjectURL(previewUrl)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 px-2 py-1.5 max-w-[160px]">
+                        <FileIcon className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs truncate">
+                          {file.name}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* REMOVE FILE */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dt = new DataTransfer();
+                        fileArray.forEach((f, i) => {
+                          if (i !== idx) dt.items.add(f);
+                        });
+                        setFiles(dt.files.length ? dt.files : undefined);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.files = dt.files;
+                        }
+                      }}
+                      className="
+                        absolute top-1 right-1
+                        rounded-full bg-black/60 text-white
+                        p-0.5 opacity-0 group-hover:opacity-100
+                        transition
+                      "
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* TEXTAREA */}
           <div className="px-2 pt-2">
             <Textarea
@@ -116,15 +183,13 @@ export function ChatInput({ onSend, disabled, status }: ChatInputProps) {
                 minHeight: '50px',
                 maxHeight: '120px',
                 overflowY: 'auto',
-                outline: 'none',
-                boxShadow: 'none',
               }}
             />
           </div>
 
           {/* ACTION ROW */}
           <div className="flex items-center justify-between px-2 pb-2">
-            {/* LEFT ACTIONS */}
+            {/* LEFT */}
             <div className="flex items-center gap-1.5">
               <input
                 ref={fileInputRef}
@@ -148,7 +213,7 @@ export function ChatInput({ onSend, disabled, status }: ChatInputProps) {
               </Button>
             </div>
 
-            {/* RIGHT ACTIONS */}
+            {/* RIGHT */}
             <div className="flex items-center gap-1.5">
               <Button
                 variant="ghost"
@@ -159,10 +224,13 @@ export function ChatInput({ onSend, disabled, status }: ChatInputProps) {
                 <Mic className="w-4 h-4 text-muted-foreground" />
               </Button>
 
-              {/* SEND */}
               <Button
                 onClick={handleSend}
-                disabled={disabled || isPending || (!input.trim() && !fileArray.length)}
+                disabled={
+                  disabled ||
+                  isPending ||
+                  (!input.trim() && !fileArray.length)
+                }
                 className="
                   bg-gray-900 hover:bg-gray-800
                   dark:bg-white dark:hover:bg-gray-100

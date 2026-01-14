@@ -1,6 +1,6 @@
-import { checkMcpConnectionsTool } from '@/tool/check-mcp-connections';
+import { checkMcpConnections } from '@/tool/check-mcp-connections';
 import { initiateMcpConnection } from '@/tool/initiate-mcp-connection';
-import { searchMcpServersTool } from '@/tool/search-mcp-servers';
+import { searchMcpServers } from '@/tool/search-mcp-servers';
 import { openai } from '@ai-sdk/openai';
 import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from 'ai';
 
@@ -20,9 +20,9 @@ export const mcpAgent = new ToolLoopAgent({
   model: openai('gpt-4o-mini'),
   instructions: INSTRUCTIONS,
   tools: {
-    checkMcpConnectionsTool,
-    searchMcpServersTool,
-    initiateMcpConnection,
+    MCP_ASSISTANT_CHECK_CONNECTIONS: checkMcpConnections,
+    MCP_ASSISTANT_SEARCH_SERVERS: searchMcpServers,
+    MCP_ASSISTANT_INITIATE_CONNECTION: initiateMcpConnection,
   },
    stopWhen: stepCountIs(5),
 
