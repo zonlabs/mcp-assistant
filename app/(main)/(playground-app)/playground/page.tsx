@@ -71,7 +71,7 @@ export default function PlaygroundPage() {
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-2xl mx-auto px-2 py-8 space-y-8">
               {/* Messages */}
-              {messages.map((m) => {
+              {messages.map((m, messageIndex) => {
                 return (
                   <div key={m.id} className={cn("group flex flex-col gap-3", m.role === 'user' ? "items-end" : "items-start")}>
                     {m.role === 'user' ? (

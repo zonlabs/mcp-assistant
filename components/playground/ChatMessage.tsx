@@ -1,6 +1,6 @@
 'use client';
 
-import { User } from "lucide-react";
+import { User, Copy, Check } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ReactNode, useEffect, useState } from "react";
@@ -8,6 +8,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { toast } from "react-hot-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type MessageLike = {
   role?: string;
@@ -43,6 +50,8 @@ function AssistantAvatar() {
 }
 
 export function UserMessage({ message, parts }: any) {
+  const [copied, setCopied] = useState(false);
+
   const getMessageContent = () => {
     if (typeof message === "string") return message;
     if (message?.content) {
@@ -60,12 +69,47 @@ export function UserMessage({ message, parts }: any) {
 
   const textContent = getMessageContent();
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(textContent);
+      setCopied(true);
+      toast.success("Copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      toast.error("Failed to copy");
+    }
+  };
+
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-end gap-2 group">
       {/* Text Content */}
       {textContent && (
-        <div className="max-w-[80%] bg-secondary px-4 py-2.5 rounded-[20px] text-sm">
-          {textContent}
+        <div className="flex flex-col items-end gap-1 max-w-[80%]">
+          <div className="bg-secondary px-4 py-2.5 rounded-[20px] text-sm">
+            {textContent}
+          </div>
+          {/* Action Buttons */}
+          <TooltipProvider>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleCopy}
+                    className="p-1.5 rounded-md hover:bg-accent transition-colors"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Copy</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
       )}
 
@@ -109,42 +153,78 @@ export function AssistantMessage({
 }: any) {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success("Copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      toast.error("Failed to copy");
+    }
+  };
+
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="flex flex-col items-start gap-3 group w-full">
       {/* Text Content with Markdown */}
       {text && (
-        <div className="prose prose-sm dark:prose-invert max-w-full leading-7">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ node, inline, className, children, ...props }: any) {
-                const match = /language-(\w+)/.exec(className || '');
-                const codeStyle = mounted && resolvedTheme === 'dark' ? oneDark : oneLight;
+        <div className="flex flex-col gap-1 w-full">
+          <div className="prose prose-sm dark:prose-invert max-w-full leading-7">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ node, inline, className, children, ...props }: any) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  const codeStyle = mounted && resolvedTheme === 'dark' ? oneDark : oneLight;
 
-                return !inline && match ? (
-                  <SyntaxHighlighter
-                    style={codeStyle}
-                    language={match[1]}
-                    PreTag="div"
-                    {...props}
+                  return !inline && match ? (
+                    <SyntaxHighlighter
+                      style={codeStyle}
+                      language={match[1]}
+                      PreTag="div"
+                      {...props}
+                    >
+                      {String(children).replace(/\n$/, '')}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            >
+              {text}
+            </ReactMarkdown>
+          </div>
+          {/* Action Buttons */}
+          <TooltipProvider>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleCopy}
+                    className="p-1.5 rounded-md hover:bg-accent transition-colors"
                   >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-            }}
-          >
-            {text}
-          </ReactMarkdown>
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Copy</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
       )}
 
