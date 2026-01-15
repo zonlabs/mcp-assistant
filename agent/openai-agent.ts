@@ -56,15 +56,13 @@ export async function createMcpAgent(userId?: string) {
     MCPASSISTANT_INITIATE_CONNECTION: initiateMcpConnection,
   };
 
-  // Add user's MCP servers if authenticated
   if (userId) {
     const mcpConfig = await getMcpServerConfig(userId);
-
     for (const [sessionId, config] of Object.entries(mcpConfig)) {
       tools[`mcp_${sessionId}`] = openai.tools.mcp({
         serverLabel: sessionId,
         serverUrl: config.url,
-        serverDescription: `MCP server at ${config.url}`,
+        // serverDescription: `MCP server at ${config.url}`,
         requireApproval: 'never',
         ...(config.headers && { headers: config.headers }),
       });

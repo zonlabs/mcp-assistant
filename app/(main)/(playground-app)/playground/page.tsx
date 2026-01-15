@@ -110,7 +110,7 @@ export default function PlaygroundPage() {
                             const toolPart = part as ToolUIPart<any> | DynamicToolUIPart;
                             const toolName = getToolName(toolPart);
                             const approvalId = 'approval' in toolPart ? toolPart.approval?.id : undefined;
-                            console.log(`toolPart ---> : ${JSON.stringify(toolPart)}`)
+                            // console.log(`toolPart ---> : ${JSON.stringify(toolPart)}`)
 
                             // Handle MCP connection tool - all states
                             if (toolName === 'MCPASSISTANT_INITIATE_CONNECTION') {

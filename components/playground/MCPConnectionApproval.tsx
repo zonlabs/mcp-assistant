@@ -151,18 +151,18 @@ export function MCPConnectionApproval({
 
   return (
     <div className="flex items-center justify-between p-4 bg-background border border-border rounded-lg shadow-sm animate-in fade-in slide-in-from-bottom-2 max-w-2xl">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <ServerIcon
           serverName={serverName}
           serverUrl={serverUrl}
           size={40}
-          className="rounded-lg"
+          className="rounded-lg flex-shrink-0"
         />
-        <div className="flex flex-col">
-          <span className="text-base font-semibold text-foreground">
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-base font-semibold text-foreground truncate">
             {serverName}
           </span>
-          <span className="text-xs text-muted-foreground">{serverUrl}</span>
+          <span className="text-xs text-muted-foreground truncate">{serverUrl}</span>
         </div>
       </div>
       <div className="flex gap-2">
