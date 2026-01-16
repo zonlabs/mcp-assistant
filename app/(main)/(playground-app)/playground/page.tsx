@@ -37,7 +37,7 @@ export default function PlaygroundPage() {
             {/* Welcome Message */}
             <div className="text-center animate-in fade-in zoom-in-95 duration-1000">
               <h1 className="text-5xl md:text-6xl font-serif tracking-tight text-foreground mb-12">
-                I'm here — let's talk it through
+                Let&apos;s figure it out together
               </h1>
             </div>
 
