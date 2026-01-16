@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Trigger embeddings (Optional: await if it's critical, otherwise let it run)
     if (savedServer?.id) {
-      await handleEmbeddings(savedServer, session.user.id);
+      // await handleEmbeddings(savedServer, session.user.id); // TODO
     }
 
     return NextResponse.json({ data: savedServer });
