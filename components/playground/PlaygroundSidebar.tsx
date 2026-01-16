@@ -139,7 +139,7 @@ export const PlaygroundSidebar = () => {
             )}
           </Tooltip>
 
-          {/* New Chat Button */}
+          {/* Anonymous Chat Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -153,12 +153,12 @@ export const PlaygroundSidebar = () => {
                 )}
               >
                 <SquarePen className="w-5 h-5 flex-shrink-0" />
-                {isOpen && <span className="truncate">New Chat</span>}
+                {isOpen && <span className="truncate">Anonymous Chat</span>}
               </button>
             </TooltipTrigger>
             {!isOpen && (
               <TooltipContent side="right" sideOffset={8}>
-                New Chat
+                Anonymous Chat
               </TooltipContent>
             )}
           </Tooltip>
