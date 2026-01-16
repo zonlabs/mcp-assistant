@@ -37,7 +37,7 @@
     "framer-motion": "^12.23.12",
     "graphql": "^16.11.0",
     "ioredis": "^5.8.2",
-    "lucide-react": "^0.542.0",
+    "lucide-react": "^0.562.0",
     "motion": "^12.23.12",
     "nanoid": "^5.1.6",
     "next": "^15.5.9",
