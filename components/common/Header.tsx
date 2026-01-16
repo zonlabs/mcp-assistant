@@ -1,14 +1,16 @@
+"use client";
+
 import Link from "next/link";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import Logo from "@/components/common/Logo";
 import { ProfileDropdown } from "@/components/common/ProfileDropdown";
 import { NavigationLinks } from "@/components/common/NavigationLinks";
 import { MobileNav } from "@/components/common/MobileNav";
-import { createClient } from "@/lib/supabase/server";
+import { useAuth } from "@/components/providers/AuthProvider";
 
-export default async function Header() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function Header() {
+  const { userSession } = useAuth();
+  const user = userSession?.user;
 
   return (
     <nav className="sticky top-0 z-50 bg-background/80">

@@ -1,32 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { User as SupabaseUser } from "@supabase/supabase-js";
 import Image from "next/image";
 import { ThemeSelector } from "@/components/playground/ThemeSelector";
 import { useRouter } from "next/navigation";
 import { Github, Mail } from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function SettingsPage() {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const { userSession } = useAuth();
+  const user = userSession?.user;
   const router = useRouter();
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const userName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Guest";

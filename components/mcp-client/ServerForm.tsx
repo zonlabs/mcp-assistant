@@ -42,6 +42,7 @@ import { gql } from "@apollo/client";
 const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
 
 const serverSchema = z.object({
+    id: z.string().optional(),
     name: z.string().min(1, "Server name is required"),
     description: z.string().optional(),
     transport: z.enum(["sse", "streamable_http"]),
@@ -127,6 +128,7 @@ export default function ServerForm({
             const categoryIds = server.categories ? server.categories.map(cat => cat.id) : [];
             setSelectedCategoryIds(categoryIds);
             reset({
+                id: server.id,
                 name: server.name,
                 description: server.description || "",
                 transport: server.transport as "sse" | "streamable_http",

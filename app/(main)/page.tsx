@@ -93,7 +93,7 @@ export default function Home() {
             className="relative flex flex-col items-center justify-center px-6"
           >
             {/* ===== Hero Content ===== */}
-            <div className="relative z-10 container mx-auto max-w-5xl text-center">
+            <div className="relative z-10 max-w-5xl text-center px-6">
               <motion.h2
                 variants={item}
                 className="text-3xl sm:text-4xl md:text-6xl  tracking-tight leading-[1.05] mb-6"

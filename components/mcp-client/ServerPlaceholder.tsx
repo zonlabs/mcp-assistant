@@ -29,7 +29,7 @@ export function ServerPlaceholder({ type, tab }: ServerPlaceholderProps) {
 
   if (type === "no-selection") {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 min-h-[calc(100vh-120px)] bg-gray-50/30 dark:bg-zinc-900/10">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 min-h-[calc(100vh-120px)] bg-gray-50/30 dark:bg-transparent">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -39,7 +39,6 @@ export function ServerPlaceholder({ type, tab }: ServerPlaceholderProps) {
           {/* Hero Section */}
           <motion.div variants={itemVariants} className="text-center mb-6 sm:mb-8">
             <div className="relative h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4">
-              <div className="absolute inset-0 bg-blue-500/20 dark:bg-blue-400/10 rounded-full blur-2xl animate-pulse" />
               <Image
                 src="/technologies/mcp-light.webp"
                 alt="MCP"

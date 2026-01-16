@@ -27,6 +27,7 @@ import ToolExecutionPanel from "./ToolExecutionPanel";
 import { connectionStore } from "@/lib/mcp/connection-store";
 import { useConnectionContext } from "@/components/providers/ConnectionProvider";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
+import { UserSession } from "@/components/providers/AuthProvider";
 
 interface McpClientLayoutProps {
   publicServers: McpServer[] | null;
@@ -38,6 +39,7 @@ interface McpClientLayoutProps {
   publicError: string | null;
   userError: string | null;
   session: Session | null;
+  userSession?: UserSession | null;
   onRefreshPublic: () => void;
   onRefreshUser: () => void;
   onServerAction: (server: McpServer, action: 'activate' | 'deactivate') => Promise<unknown>;
@@ -61,6 +63,7 @@ export default function McpClientLayout({
   publicError,
   userError,
   session,
+  userSession,
   onRefreshPublic,
   onRefreshUser,
   onServerAction,
@@ -258,6 +261,7 @@ export default function McpClientLayout({
               selectedCategory={selectedCategory}
               onCategoryChange={handleCategorySelect}
               session={session}
+              userSession={userSession}
             />
           )}
         </AnimatePresence>
@@ -333,6 +337,7 @@ export default function McpClientLayout({
                     <ServerDetails
                       server={selectedServer}
                       session={session}
+                      userSession={userSession}
                       onAction={onServerAction}
                       onEdit={handleEditServer}
                       onDelete={handleDeleteServer}

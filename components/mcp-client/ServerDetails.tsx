@@ -23,10 +23,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Session } from "@supabase/supabase-js";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
+import { UserSession } from "@/components/providers/AuthProvider";
 
 interface ServerDetailsProps {
   server: McpServer;
   session: Session | null;
+  userSession?: UserSession | null;
   onAction: (
     server: McpServer,
     action: "activate" | "deactivate"
@@ -38,6 +40,7 @@ interface ServerDetailsProps {
 export function ServerDetails({
   server,
   session,
+  userSession,
   onAction,
   onEdit,
   onDelete,
@@ -54,6 +57,16 @@ export function ServerDetails({
       setTimeout(() => setUrlCopied(false), 2000);
     }
   };
+
+  const isStaff = userSession?.role === 'staff';
+  const canEdit = isStaff || !(
+    server.isPublic &&
+    server.owner !== session?.user?.email?.split("@")[0]
+  );
+  const canDelete = isStaff || !(
+    server.isPublic &&
+    server.owner !== session?.user?.email?.split("@")[0]
+  );
 
   return (
     <div className="p-4 sm:p-6 border-b border-border">
@@ -74,22 +87,8 @@ export function ServerDetails({
             <ServerManagement
               server={server}
               onAction={onAction}
-              onEdit={
-                !(
-                  server.isPublic &&
-                  server.owner !== session?.user?.email?.split("@")[0]
-                )
-                  ? onEdit
-                  : undefined
-              }
-              onDelete={
-                !(
-                  server.isPublic &&
-                  server.owner !== session?.user?.email?.split("@")[0]
-                )
-                  ? onDelete
-                  : undefined
-              }
+              onEdit={canEdit ? onEdit : undefined}
+              onDelete={canDelete ? onDelete : undefined}
             />
           </div>
         </div>

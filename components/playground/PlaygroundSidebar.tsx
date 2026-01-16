@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { User as SupabaseUser } from "@supabase/supabase-js";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -31,10 +30,12 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 export const PlaygroundSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const { userSession } = useAuth();
+  const user = userSession?.user;
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
@@ -42,21 +43,6 @@ export const PlaygroundSidebar = () => {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';

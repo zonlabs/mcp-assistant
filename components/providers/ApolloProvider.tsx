@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   ApolloClient,
   InMemoryCache,
@@ -8,7 +8,7 @@ import {
   ApolloLink,
 } from '@apollo/client';
 import { ApolloProvider as ApolloProviderBase } from '@apollo/client/react';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 // Get the GraphQL API endpoint
 const getGraphQLUri = () => {
@@ -17,27 +17,8 @@ const getGraphQLUri = () => {
 };
 
 export function ApolloProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setToken(session?.access_token ?? null);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setToken(session?.access_token ?? null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { userSession } = useAuth();
+  const token = userSession?.access_token ?? null;
 
   const client = useMemo(() => {
     // HTTP Link for GraphQL requests

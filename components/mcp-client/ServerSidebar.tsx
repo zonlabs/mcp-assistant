@@ -35,6 +35,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useMcpServersFiltered } from "@/hooks/useMcpServersFiltered";
 import { CATEGORIES_QUERY } from "@/lib/graphql";
 import { Session } from "@supabase/supabase-js";
+import { UserSession } from "@/components/providers/AuthProvider";
 
 interface ServerSidebarProps {
   publicServers: McpServer[] | null;
@@ -60,6 +61,7 @@ interface ServerSidebarProps {
   selectedCategory: string | null;
   onCategoryChange: (category: string) => void;
   session: Session | null;
+  userSession?: UserSession | null;
 }
 
 const GET_CATEGORIES = gql`${CATEGORIES_QUERY}`;
@@ -88,6 +90,7 @@ export function ServerSidebar({
   selectedCategory,
   onCategoryChange,
   session,
+  userSession,
 }: ServerSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -429,31 +432,29 @@ export function ServerSidebar({
                 </div>
               ) : userServers && userServers.length > 0 ? (
                 <>
-                  {userServers.map((server) => (
-                    <ServerListItem
-                      key={server.id}
-                      server={server}
-                      isSelected={selectedServer?.name === server.name}
-                      onClick={() => onServerSelect(server)}
-                      onEdit={
-                        !(
-                          server.isPublic &&
-                          server.owner !== session?.user?.email?.split("@")[0]
-                        )
-                          ? onEditServer
-                          : undefined
-                      }
-                      onDelete={
-                        !(
-                          server.isPublic &&
-                          server.owner !== session?.user?.email?.split("@")[0]
-                        )
-                          ? onDeleteServer
-                          : undefined
-                      }
-                      showActions={true}
-                    />
-                  ))}
+                  {userServers.map((server) => {
+                    const isStaff = userSession?.role === 'staff';
+                    const canEdit = isStaff || !(
+                      server.isPublic &&
+                      server.owner !== session?.user?.email?.split("@")[0]
+                    );
+                    const canDelete = isStaff || !(
+                      server.isPublic &&
+                      server.owner !== session?.user?.email?.split("@")[0]
+                    );
+
+                    return (
+                      <ServerListItem
+                        key={server.id}
+                        server={server}
+                        isSelected={selectedServer?.name === server.name}
+                        onClick={() => onServerSelect(server)}
+                        onEdit={canEdit ? onEditServer : undefined}
+                        onDelete={canDelete ? onDeleteServer : undefined}
+                        showActions={true}
+                      />
+                    );
+                  })}
                   {/* Extra spacing at bottom */}
                   <div className="h-16" />
                 </>

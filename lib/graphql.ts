@@ -144,6 +144,7 @@ export const DISCONNECT_MCP_SERVER_MUTATION = `
 
 export const SAVE_MCP_SERVER_MUTATION = `
   mutation SaveMcpServer(
+    $id: String
     $name: String!
     $transport: String!
     $url: String
@@ -157,6 +158,7 @@ export const SAVE_MCP_SERVER_MUTATION = `
     $categoryIds: [String!]
   ) {
     saveMcpServer(
+      id: $id
       name: $name
       transport: $transport
       url: $url
