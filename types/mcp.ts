@@ -92,8 +92,10 @@ export type McpServerConfig = {
   [serverName: string]: {
     transport: string;
     url: string;
-    serverId?: string; // Database server ID for labeling
-    headers?: Record<string, string>; // Credentials only on server
+    serverId?: string;
+    serverName?: string;
+    serverLabel?: string;
+    headers?: Record<string, string>;
   };
 };
 

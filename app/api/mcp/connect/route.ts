@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
       await sessionStore.setClient({
         sessionId,
         serverId,
+        serverName,
         client,
         serverUrl,
         callbackUrl,
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest) {
           await sessionStore.setClient({
             sessionId,
             serverId,
+            serverName,
             client,
             serverUrl,
             callbackUrl,
