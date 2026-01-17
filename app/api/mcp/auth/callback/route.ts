@@ -108,6 +108,7 @@ async function handleCallback(request: NextRequest) {
     await sessionStore.setClient({
       sessionId,
       serverId,
+      serverName,
       client,
       serverUrl: serverUrl || client.getServerUrl(),
       callbackUrl: client.getCallbackUrl(),

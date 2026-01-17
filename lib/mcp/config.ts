@@ -38,6 +38,7 @@ export async function getMcpServerConfig(userId: string): Promise<McpServerConfi
             mcpConfig[sessionId] = {
                 transport,
                 url,
+                ...(sessionData.serverName && { serverName: sessionData.serverName }),
                 ...(headers && { headers }),
             };
         } catch (error) {

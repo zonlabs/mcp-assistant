@@ -10,6 +10,7 @@ import { redis } from './redis';
 export interface SessionData {
   sessionId: string;
   serverId?: string; // Database server ID for mapping
+  serverName?: string;
   serverUrl: string;
   callbackUrl: string;
   transportType: 'sse' | 'streamable_http';
@@ -26,6 +27,7 @@ export interface SessionData {
 export interface SetClientOptions {
   sessionId: string;
   serverId?: string; // Database server ID
+  serverName?: string; // Human-readable server name
   client?: MCPOAuthClient;
   serverUrl?: string;
   callbackUrl?: string;
@@ -74,6 +76,7 @@ export class SessionStore {
     const {
       sessionId,
       serverId,
+      serverName,
       client,
       serverUrl,
       callbackUrl,
@@ -124,6 +127,7 @@ export class SessionStore {
       const sessionData: SessionData = {
         sessionId,
         serverId,
+        serverName,
         serverUrl: resolvedServerUrl,
         callbackUrl: resolvedCallbackUrl,
         transportType,

@@ -11,7 +11,7 @@ You are MCP Assistant, an AI agent that helps users complete tasks using Model C
 ### Your Workflow (Strict Order)
 
 1. **Inspect Your Available Tools**
-   - Look at the list of tools you currently have access to.
+   - Look at the list of tools you currently have access to or use "MCPASSISTANT_CHECK_ACTIVE_CONNECTIONS".
    - If you already have a tool (or set of tools) that can fulfill the user's request, use it immediately — go directly to step 4.
 
 2. **Search for New MCP Servers** (Only if needed)
@@ -29,7 +29,7 @@ You are MCP Assistant, an AI agent that helps users complete tasks using Model C
    - Briefly tell the user: "Connecting to a [purpose] MCP server to handle your request."
 
 4. **Complete the Task**
-   - Use the appropriate mcp.* tool(s) to fulfill the user's request.
+   - Use the appropriate mcp_* tool(s) to fulfill the user's request.
    - Be transparent: explain what you're doing and show progress.
 
 ### Critical Rules
@@ -48,31 +48,36 @@ You are MCP Assistant, an AI agent that helps users complete tasks using Model C
 `;
 
 export async function createMcpAgent(userId?: string) {
-  const tools: Record<string, any> = {
-    MCPASSISTANT_CHECK_ACTIVE_CONNECTIONS: checkMcpConnections,
-    MCPASSISTANT_SEARCH_SERVERS: searchMcpServers,
-    MCPASSISTANT_INITIATE_CONNECTION: initiateMcpConnection,
-  };
+  const mcpServers: any[] = [];
 
   if (userId) {
     const mcpConfig = await getMcpServerConfig(userId);
     for (const [sessionId, config] of Object.entries(mcpConfig)) {
-      tools[`mcp_${sessionId}`] = openai.tools.mcp({
-        serverLabel: sessionId,
+      mcpServers.push({
+        serverLabel: config.serverName || sessionId,
         serverUrl: config.url,
-        // serverDescription: `MCP server at ${config.url}`,
         requireApproval: 'never',
         ...(config.headers && { headers: config.headers }),
       });
     }
   }
 
+  const tools: any = {
+    MCPASSISTANT_CHECK_ACTIVE_CONNECTIONS: checkMcpConnections,
+    MCPASSISTANT_SEARCH_SERVERS: searchMcpServers,
+    MCPASSISTANT_INITIATE_CONNECTION: initiateMcpConnection,
+  };
+
+  mcpServers.forEach((serverConfig) => {
+    const toolKey = mcpServers.length === 1 ? 'mcp' : `mcp_${serverConfig.serverLabel}`;
+    tools[toolKey] = openai.tools.mcp(serverConfig);
+  });
+
   return new ToolLoopAgent({
     model: openai('gpt-4o-mini'),
     instructions: INSTRUCTIONS,
-    tools,
+    tools: tools,
     stopWhen: stepCountIs(20),
   });
 }
-
 export type McpAgentUIMessage = InferAgentUIMessage<Awaited<ReturnType<typeof createMcpAgent>>>;
