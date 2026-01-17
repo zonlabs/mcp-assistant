@@ -84,7 +84,7 @@ export async function createMcpAgent(userId?: string) {
     model: openai('gpt-4.1-mini'),
     instructions: INSTRUCTIONS,
     tools: tools,
-    stopWhen: stepCountIs(20),
+    stopWhen: stepCountIs(5),
   });
 }
 export type McpAgentUIMessage = InferAgentUIMessage<Awaited<ReturnType<typeof createMcpAgent>>>;
