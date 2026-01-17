@@ -51,7 +51,7 @@ export function ServerDetails({
   const { connection } = useMcpConnection({ serverId: server.id });
 
   // Use connection status from hook (current data) if available, otherwise fall back to server prop
-  const connectionStatus = connection?.connectionStatus ?? "DISCONNECTED";
+  const connectionStatus = connection?.connectionStatus ?? server.connectionStatus ?? "DISCONNECTED";
 
   const handleCopyUrl = () => {
     if (server.url) {
