@@ -6,7 +6,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const GRAPHQL_ENDPOINT = `${BACKEND_URL}/api/graphql`;
 
 export const searchMcpServers = tool({
-  description: 'Search for MCP servers in the registry using filters',
+  description: 'Search for MCP servers in the registry using name',
   inputSchema: z.object({
     searchQuery: z.string().optional().describe('Search query to filter servers by name'),
     first: z.number().optional().default(10).describe('Number of results to return (default: 10)'),
