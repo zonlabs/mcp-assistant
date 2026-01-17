@@ -18,7 +18,7 @@ const RECIPE_DATA = [
   {
     id: "draft-follow-up-email",
     title: "Draft Follow-Up Email",
-    description: "Draft a clear and professional follow-up email using the available context. You should infer the appropriate subject and message content from relevant information such as recent discussions, meetings, tasks, or updates. The email should be concise, polite, and ready for review.",
+    description: "Draft a clear and professional follow-up email using Rube. You should infer the appropriate subject and message content from the available context. The email should be concise, polite, and ready for review.",
     icons: ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRIB8EFu3xpWgE33JuAX-U-1geBFJnk8PAJSA&s"],
   },
   {
