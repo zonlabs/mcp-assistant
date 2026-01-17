@@ -99,8 +99,8 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
 
   return (
     <div className="flex items-center gap-3">
-      {/* Status Badge */}
-      <div className="flex items-center gap-2">
+      {/* Status Badge - Commented out as it's redundant with Connection Details section */}
+      {/* <div className="flex items-center gap-2">
         <div
           className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-125 ${server.connectionStatus?.toUpperCase() === "CONNECTED"
             ? "bg-green-500 hover:bg-green-600 animate-pulse"
@@ -123,8 +123,7 @@ export default function ServerManagement({ server, onAction, onEdit, onDelete }:
             {server.connectionStatus || "Unknown"}
           </span>
         </Badge>
-      </div>
-
+      </div> */}
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2">

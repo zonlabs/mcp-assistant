@@ -4,7 +4,7 @@ const RECIPE_DATA = [
   {
     id: "stock-research",
     title: "Market Analysis",
-    description: "Use Alpha Vantage to research our top 3 competitors’ current stock performance and pricing trends.",
+    description: "Use Alpha Vantage to fetch the last 30 days of daily prices for {TICKER}. Summarize whether the price trend is up, down, or flat.",
     icons: [
       "https://media.licdn.com/dms/image/v2/C4E0BAQExXHCGjZYOeg/company-logo_200_200/company-logo_200_200/0/1635279005628/alpha_vantage_inc_logo?e=2147483647&v=beta&t=1eCKMzXdgp4XiMrzN4edDUCqMdUSHQ9nx5nXjD8RQ3Q",
     ],

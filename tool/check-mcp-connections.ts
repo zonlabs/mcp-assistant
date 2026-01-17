@@ -4,7 +4,7 @@ import { GET } from '@/app/api/mcp/connections/route';
 import { NextRequest } from 'next/server';
 
 export const checkMcpConnections = tool({
-  description: 'Check all active MCP server connections',
+  description: 'Check which MCP servers are currently connected and available to use. Returns list of active connections with their available tools.',
   inputSchema: z.object({}),
   async *execute() {
     yield { state: 'loading' as const };

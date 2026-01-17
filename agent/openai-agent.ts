@@ -82,7 +82,7 @@ export async function createMcpAgent(userId?: string) {
   }
 
   return new ToolLoopAgent({
-    model: openai('gpt-4o-mini'),
+    model: openai('gpt-4.1-mini'),
     instructions: INSTRUCTIONS,
     tools,
     stopWhen: stepCountIs(5),

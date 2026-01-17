@@ -44,7 +44,7 @@ export const generateEmbedding = async (value: string): Promise<number[]> => {
 
 /**
  * Find relevant content by semantic similarity using embeddings
- * Uses cosine similarity to find the most relevant chunks
+ * Returns server metadata directly from embeddings table
  */
 export const findRelevantContent = async (
   userQuery: string,
@@ -55,30 +55,75 @@ export const findRelevantContent = async (
   const supabase = await createClient();
   const userQueryEmbedded = await generateEmbedding(userQuery);
 
-  // Use Supabase's pgvector extension for similarity search
-  const { data, error } = await supabase.rpc('match_embeddings', {
+  // Direct SQL query for similarity search using pgvector
+  const { data, error } = await supabase.rpc('match_server_embeddings', {
     query_embedding: userQueryEmbedded,
     match_threshold: similarityThreshold,
-    match_count: limit,
-    table_name: tableName
+    match_count: limit
   });
 
   if (error) {
     console.error('Error finding relevant content:', error);
-    return [];
+
+    // Fallback: try direct query if RPC doesn't exist
+    try {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from(tableName)
+        .select('server_id, content, embedding, server_name, server_url, remote_url, transport, description')
+        .limit(limit);
+
+      if (fallbackError) throw fallbackError;
+
+      // Calculate similarity client-side as fallback
+      const results = fallbackData?.map((item: any) => {
+        const similarity = cosineSimilarity(userQueryEmbedded, item.embedding);
+        return {
+          server_id: item.server_id,
+          content: item.content,
+          similarity,
+          server_name: item.server_name,
+          server_url: item.server_url,
+          remote_url: item.remote_url,
+          transport: item.transport,
+          description: item.description,
+        };
+      })
+      .filter((item: any) => item.similarity >= similarityThreshold)
+      .sort((a: any, b: any) => b.similarity - a.similarity)
+      .slice(0, limit) || [];
+
+      return results;
+    } catch (fallbackErr) {
+      console.error('Fallback query also failed:', fallbackErr);
+      return [];
+    }
   }
 
-  return data;
+  return data || [];
 };
+
+// Helper function for cosine similarity calculation
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+}
 
 /**
  * Store embeddings for MCP server data in Supabase
- * Deletes existing embeddings for the server before inserting new ones
+ * Includes server metadata for efficient retrieval
  */
 export const storeServerEmbeddings = async (
   serverId: string,
   content: string,
-  userId: string
+  serverMetadata?: {
+    name?: string;
+    url?: string;
+    remoteUrl?: string;
+    transport?: string;
+    description?: string;
+  }
 ) => {
   const supabase = await createClient();
 
@@ -86,18 +131,21 @@ export const storeServerEmbeddings = async (
   await supabase
     .from('mcp_server_embeddings')
     .delete()
-    .eq('server_id', serverId)
-    .eq('user_id', userId);
+    .eq('server_id', serverId);
 
   // Generate new embeddings
   const embeddings = await generateEmbeddings(content);
 
-  // Store each embedding chunk
+  // Store each embedding chunk with server metadata
   const embeddingRecords = embeddings.map(({ content: chunk, embedding }) => ({
     server_id: serverId,
     content: chunk,
     embedding: embedding,
-    user_id: userId,
+    server_name: serverMetadata?.name || null,
+    server_url: serverMetadata?.url || null,
+    remote_url: serverMetadata?.remoteUrl || null,
+    transport: serverMetadata?.transport || null,
+    description: serverMetadata?.description || null,
   }));
 
   const { data, error } = await supabase

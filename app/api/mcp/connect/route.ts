@@ -51,7 +51,16 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+
+    // Require authentication
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in to connect to MCP servers' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
     const body: ConnectRequestBody = await request.json();
     const { serverUrl, callbackUrl, serverId, serverName, transportType, sourceUrl, clientId, clientSecret } = body;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/mcp/session-store';
+import { createClient } from "@/lib/supabase/server";
 
 interface DisconnectRequestBody {
   sessionId: string;
@@ -23,6 +24,17 @@ interface DisconnectRequestBody {
  */
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // Require authentication
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in to disconnect from MCP servers' },
+        { status: 401 }
+      );
+    }
+
     const body: DisconnectRequestBody = await request.json();
     const { sessionId } = body;
 

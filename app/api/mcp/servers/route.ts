@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SAVE_MCP_SERVER_MUTATION, REMOVE_MCP_SERVER_MUTATION } from "@/lib/graphql";
 import { storeServerEmbeddings } from "@/lib/ai/embedding";
 
-const GRAPHQL_ENDPOINT = process.env.BACKEND_URL + "/api/graphql" || "http://localhost:8000/api/graphql";
+const GRAPHQL_ENDPOINT = (process.env.BACKEND_URL || "http://127.0.0.1:8000") + "/api/graphql";
 
 // --- Helpers ---
 
@@ -45,7 +45,13 @@ async function handleEmbeddings(savedServer: any, userId: string) {
       savedServer.transport,
     ].filter(Boolean).join('. ');
 
-    await storeServerEmbeddings(savedServer.id, embeddingContent, userId);
+    await storeServerEmbeddings(savedServer.id, embeddingContent, {
+      name: savedServer.name,
+      url: savedServer.url,
+      remoteUrl: savedServer.url, // or different if you have a remoteUrl field
+      transport: savedServer.transport,
+      description: savedServer.description,
+    });
   } catch (err) {
     console.error('Background Embedding Error:', err);
   }
@@ -59,11 +65,10 @@ export async function POST(request: NextRequest) {
     if (!session?.access_token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    
+
     // Normalize data
     const variables = {
       ...body,
-      args: typeof body.args === 'string' ? JSON.parse(body.args) : body.args || null,
       headers: Object.keys(body.headers || {}).length > 0 ? body.headers : null,
       queryParams: Object.keys(body.queryParams || {}).length > 0 ? body.queryParams : null,
       requiresOauth2: body.requiresOauth, // Map key name if backend differs
@@ -80,6 +85,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: savedServer });
   } catch (error: any) {
+    console.error('Error saving MCP server:', error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
