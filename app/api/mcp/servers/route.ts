@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SAVE_MCP_SERVER_MUTATION, REMOVE_MCP_SERVER_MUTATION } from "@/lib/graphql";
-import { storeServerEmbeddings } from "@/lib/ai/embedding";
+import { storeServerEmbeddings, deleteServerEmbeddings } from "@/lib/ai/embedding";
 
 const GRAPHQL_ENDPOINT = (process.env.BACKEND_URL || "http://127.0.0.1:8000") + "/api/graphql";
 
@@ -57,42 +57,6 @@ async function handleEmbeddings(savedServer: any, userId: string) {
     console.error('Background Embedding Error:', err);
   }
 }
-
-type DeleteEmbeddingsArgs = {
-  userId?: string;
-  serverName?: string;
-};
-
-export const deleteServerEmbeddings = async (
-  args: DeleteEmbeddingsArgs
-) => {
-  const supabase = await createClient();
-
-  let query = supabase
-    .from("mcp_server_embeddings")
-    .delete({ count: "exact" });
-
-  if (args.userId) {
-    query = query.eq("user_id", args.userId);
-  }
-
-  if (args.serverName) {
-    query = query.eq("server_name", args.serverName);
-  }
-
-  const { error, count } = await query;
-
-  if (error) {
-    console.error("Embedding deletion failed", { args, error });
-    throw error;
-  }
-
-  // console.info("Embedding deletion success", {
-  //   args,
-  //   deletedRows: count ?? 0,
-  // });
-};
-
 
 // --- Route Handlers ---
 

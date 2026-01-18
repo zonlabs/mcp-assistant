@@ -173,3 +173,38 @@ export const storeServerEmbeddings = async (
 
   return data;
 };
+
+type DeleteEmbeddingsArgs = {
+  userId?: string;
+  serverName?: string;
+};
+
+export const deleteServerEmbeddings = async (
+  args: DeleteEmbeddingsArgs
+) => {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("mcp_server_embeddings")
+    .delete({ count: "exact" });
+
+  if (args.userId) {
+    query = query.eq("user_id", args.userId);
+  }
+
+  if (args.serverName) {
+    query = query.eq("server_name", args.serverName);
+  }
+
+  const { error, count } = await query;
+
+  if (error) {
+    console.error("Embedding deletion failed", { args, error });
+    throw error;
+  }
+
+  // console.info("Embedding deletion success", {
+  //   args,
+  //   deletedRows: count ?? 0,
+  // });
+};
