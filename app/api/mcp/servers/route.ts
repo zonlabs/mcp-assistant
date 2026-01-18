@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SAVE_MCP_SERVER_MUTATION, REMOVE_MCP_SERVER_MUTATION } from "@/lib/graphql";
-import { storeServerEmbeddings } from "@/lib/ai/embedding";
+import { storeServerEmbeddings, deleteServerEmbeddings } from "@/lib/ai/embedding";
 
 const GRAPHQL_ENDPOINT = (process.env.BACKEND_URL || "http://127.0.0.1:8000") + "/api/graphql";
 
@@ -41,8 +41,8 @@ async function handleEmbeddings(savedServer: any, userId: string) {
     const embeddingContent = [
       savedServer.name,
       savedServer.description,
-      savedServer.url,
-      savedServer.transport,
+      // savedServer.url,
+      // savedServer.transport,
     ].filter(Boolean).join('. ');
 
     await storeServerEmbeddings(savedServer.id, embeddingContent, {
@@ -51,7 +51,8 @@ async function handleEmbeddings(savedServer: any, userId: string) {
       remoteUrl: savedServer.url, // or different if you have a remoteUrl field
       transport: savedServer.transport,
       description: savedServer.description,
-    });
+    }
+    , userId);
   } catch (err) {
     console.error('Background Embedding Error:', err);
   }
@@ -99,7 +100,9 @@ export async function DELETE(request: NextRequest) {
     if (!serverName) return NextResponse.json({ error: "Server name is required" }, { status: 400 });
 
     const data = await callGraphQL(session.access_token, REMOVE_MCP_SERVER_MUTATION, { serverName });
-    
+    if (data.removeMcpServer) {
+      await deleteServerEmbeddings({ serverName });
+    }
     return NextResponse.json({ data: data.removeMcpServer });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });

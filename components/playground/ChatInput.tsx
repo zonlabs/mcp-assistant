@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import {
   ArrowUp,
   Plus,
-  Mic,
   Loader2,
   X,
   FileIcon,
@@ -205,7 +204,7 @@ export function ChatInput({ onSend, disabled, status }: ChatInputProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 sm:h-8 sm:w-8 rounded-full"
+                className="h-7 w-7 sm:h-8 sm:w-8 rounded-full cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isPending}
               >
@@ -215,14 +214,14 @@ export function ChatInput({ onSend, disabled, status }: ChatInputProps) {
 
             {/* RIGHT */}
             <div className="flex items-center gap-1.5">
-              <Button
+              {/* <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 sm:h-8 sm:w-8 rounded-full"
                 disabled={isPending}
               >
                 <Mic className="w-4 h-4 text-muted-foreground" />
-              </Button>
+              </Button> */}
 
               <Button
                 onClick={handleSend}

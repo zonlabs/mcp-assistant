@@ -319,10 +319,12 @@ export const DELETE_ASSISTANT_MUTATION = `
  * Reusable query for searching MCP servers with filters.
  * Supports filtering by name (case-insensitive), categories, and other criteria.
  * Uses cursor-based pagination for efficient large result sets.
+ * The search parameter searches across name OR description fields with OR logic.
  */
 export const SEARCH_MCP_SERVERS_QUERY = `
-query SearchMcpServers($first: Int = 10, $after: String, $filters: MCPServerFilter) {
-  mcpServers(first: $first, after: $after, filters: $filters) {
+query SearchMcpServers($first: Int = 10, $after: String, $filters: MCPServerFilter, $search: String) {
+  mcpServers(first: $first, after: $after, filters: $filters, search: $search) {
+    totalCount
     edges {
       node {
         ...McpServerFields

@@ -8,11 +8,22 @@ const embeddingModel = openai.embeddingModel('text-embedding-3-small');
  * Generate chunks from input text by splitting on sentences
  * Can be customized based on your use case
  */
-const generateChunks = (input: string): string[] => {
-  return input
-    .trim()
-    .split('.')
-    .filter(i => i !== '');
+const generateChunks = (input: string, maxLength = 800): string[] => {
+  const sentences = input.match(/[^.!?]+[.!?]+/g) || [];
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const s of sentences) {
+    if ((current + s).length > maxLength) {
+      chunks.push(current.trim());
+      current = s;
+    } else {
+      current += ' ' + s;
+    }
+  }
+
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
 };
 
 /**
@@ -123,7 +134,8 @@ export const storeServerEmbeddings = async (
     remoteUrl?: string;
     transport?: string;
     description?: string;
-  }
+  },
+  userId?: string
 ) => {
   const supabase = await createClient();
 
@@ -146,6 +158,7 @@ export const storeServerEmbeddings = async (
     remote_url: serverMetadata?.remoteUrl || null,
     transport: serverMetadata?.transport || null,
     description: serverMetadata?.description || null,
+    user_id: userId || null,
   }));
 
   const { data, error } = await supabase
@@ -159,4 +172,39 @@ export const storeServerEmbeddings = async (
   }
 
   return data;
+};
+
+type DeleteEmbeddingsArgs = {
+  userId?: string;
+  serverName?: string;
+};
+
+export const deleteServerEmbeddings = async (
+  args: DeleteEmbeddingsArgs
+) => {
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("mcp_server_embeddings")
+    .delete({ count: "exact" });
+
+  if (args.userId) {
+    query = query.eq("user_id", args.userId);
+  }
+
+  if (args.serverName) {
+    query = query.eq("server_name", args.serverName);
+  }
+
+  const { error, count } = await query;
+
+  if (error) {
+    console.error("Embedding deletion failed", { args, error });
+    throw error;
+  }
+
+  // console.info("Embedding deletion success", {
+  //   args,
+  //   deletedRows: count ?? 0,
+  // });
 };

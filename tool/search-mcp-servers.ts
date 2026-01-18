@@ -7,17 +7,24 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const GRAPHQL_ENDPOINT = `${BACKEND_URL}/api/graphql`;
 
 export const searchMcpServers = tool({
-  description: `Search for MCP servers in the registry by name or description. Use this to find specific MCP servers like "Exa", "Brave Search", "GitHub", "Google Drive", etc.
+  description: `Search for MCP servers in the registry by analyzing user intent and finding relevant capabilities.
 
-IMPORTANT: This searches for SERVER NAMES, not the content you want to search for.
-- To search the web for "LLM optimization", first find the "Exa" or "Brave Search" server, connect to it, then use its tools.
-- To search GitHub repos, first find the "GitHub" server, connect to it, then use its tools.
+**CRITICAL - Intent Analysis Required:**
+detect an specific MCP server name that the user want to use or connect to, you can use that directly.
+When the user asks for a task, you MUST extract the core capability/action needed, NOT the full user request.
 
-Examples:
-- searchQuery: "Brave" - finds the Brave Search server
-- searchQuery: "GitHub" - finds the GitHub server`,
+Examples of CORRECT intent analysis:
+
+User Request → Extract Capability
+- "search for papers on LLM optimization" → "research papers" OR "arxiv"
+- "search the web for latest AI news" → "web search"
+- "use XYZ MCP for xyz task" → "XYZ MCP"
+- "interact with GitHub repos" → "github"
+- "send email to xyz@example.com" → "email gmail outlook"
+- "use Supabase to manage my database" → "supabase"
+`,
   inputSchema: z.object({
-    searchQuery: z.string().optional().describe('Name of the MCP server to find (e.g., "Exa", "GitHub", "Brave Search")'),
+    searchQuery: z.string().optional().describe('Name of the MCP server to find e.g. Exa, Github, Deepwiki etc. or core capability or action keyword(s) extracted from user intent.'),
     first: z.number().optional().default(10).describe('Number of results to return (default: 10)'),
     after: z.string().optional().describe('Cursor for pagination'),
   }),
@@ -26,7 +33,7 @@ Examples:
 
     try {
       let embeddingResults: any[] = [];
-      let textSearchResults: any[] = [];
+      let allTextResults: any[] = [];
 
       // 1. Semantic search using embeddings (if query provided)
       if (searchQuery) {
@@ -34,11 +41,10 @@ Examples:
           const embeddings = await findRelevantContent(
             searchQuery,
             'mcp_server_embeddings',
-            0.5, // similarity threshold
+            0.35, // similarity threshold
             first || 10
           );
 
-          // Embeddings now contain full server metadata
           embeddingResults = embeddings.map((emb: any) => ({
             id: emb.server_id,
             name: emb.server_name,
@@ -50,18 +56,11 @@ Examples:
           }));
         } catch (embError) {
           console.error('[Search] Embedding search failed:', embError);
-          // Continue with text search even if embedding search fails
         }
       }
 
-      console.log('[Search] Embedding Results:', embeddingResults);
-
-      // 2. Text-based GraphQL search
-      const filters: any = {};
-      if (searchQuery) {
-        filters.name = { iContains: searchQuery };
-      }
-
+      // 2. Text-based GraphQL search across name OR description
+      // Uses custom 'search' parameter that searches both fields with OR logic
       const response = await fetch(GRAPHQL_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -72,24 +71,26 @@ Examples:
           variables: {
             first: first || 10,
             after: after || null,
-            filters: Object.keys(filters).length > 0 ? filters : null,
+            filters: null,
+            search: searchQuery || null,
           },
         }),
       });
 
       const data = await response.json();
 
+      if (data.data?.mcpServers) {
+        allTextResults = data.data.mcpServers.edges.map((edge: any) => edge.node);
+      }
+
       if (response.ok && data.data?.mcpServers) {
-        textSearchResults = data.data.mcpServers.edges.map((edge: any) => edge.node);
         const pageInfo = data.data.mcpServers.pageInfo;
 
-        // 3. Semantic results already have full server metadata from embeddings
-        // Group by unique server ID and keep highest similarity
+        // 3. Semantic results have full server metadata from embeddings
         const uniqueSemanticServers = embeddingResults.reduce((acc: any[], curr: any) => {
           const existing = acc.find(s => s.id === curr.id);
           if (!existing || curr.similarity > existing.similarity) {
             if (existing) {
-              // Replace with higher similarity result
               const index = acc.indexOf(existing);
               acc[index] = curr;
             } else {
@@ -99,24 +100,22 @@ Examples:
           return acc;
         }, []).sort((a: any, b: any) => b.similarity - a.similarity);
 
-        // 4. Mark text search results
-        const textServers = textSearchResults.map((server: any) => ({
-          ...server,
-          matchType: 'text'
-        }));
-
-        console.log('[Search] Semantic servers:', uniqueSemanticServers);
+        const textOnlyServers = allTextResults
+          .map((server: any) => ({
+            ...server,
+            matchType: 'text'
+          }));
 
         yield {
           state: 'ready' as const,
           success: true,
-          servers: textServers, // Text search results
-          semanticResults: uniqueSemanticServers, // Semantic search results with metadata
-          count: textServers.length,
+          servers: textOnlyServers, 
+          semanticResults: uniqueSemanticServers,
+          count: textOnlyServers.length + uniqueSemanticServers.length,
           semanticCount: uniqueSemanticServers.length,
           hasNextPage: pageInfo.hasNextPage,
           endCursor: pageInfo.endCursor,
-          message: `Found ${textServers.length} text matches and ${uniqueSemanticServers.length} semantic matches${searchQuery ? ` for "${searchQuery}"` : ''}`,
+          message: `Found ${textOnlyServers.length} server${textOnlyServers.length !== 1 ? 's' : ''}${searchQuery ? ` matching "${searchQuery}"` : ''} (${uniqueSemanticServers.length} semantic, ${textOnlyServers.length} text)`,
         };
       } else if (data.errors) {
         yield {
