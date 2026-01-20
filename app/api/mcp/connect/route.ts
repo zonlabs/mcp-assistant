@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/mcp/session-store';
-import { MCPOAuthClient, UnauthorizedError } from '@/lib/mcp/oauth-client';
+import { MCPClient, UnauthorizedError } from '@/lib/mcp/oauth-client';
 import { createClient } from "@/lib/supabase/server";
+import { nanoid } from 'nanoid';
 
 interface ConnectRequestBody {
   serverUrl: string;
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const body: ConnectRequestBody = await request.json();
-    const { serverUrl, callbackUrl, serverId, serverName, transportType, sourceUrl, clientId, clientSecret } = body;
+    const { serverUrl, callbackUrl, serverId, serverName, transportType, clientId, clientSecret } = body; // Removed sourceUrl from destructuring
 
     if (!serverUrl || !callbackUrl) {
       return NextResponse.json(
@@ -71,22 +72,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sessionId = sessionStore.generateSessionId();
+    // Generate a new session ID for this connection attempt
+    // We use the serverUrl (or a hash of it) + uuid as the serverId for now
+    // In a real app, you'd probably look up the serverId from a database
+    const effectiveServerId = serverId || serverUrl.replace(/[^a-zA-Z0-9]/g, '_');
+    const sessionId = `${nanoid()}.${effectiveServerId}`; // Use nanoid for sessionId
+
     let authUrl: string | null = null;
 
-    // Create state object with sessionId, serverId, serverName, serverUrl, and sourceUrl
-    const stateData = JSON.stringify({ sessionId, serverId, serverName, serverUrl, sourceUrl });
-
     // Create MCP client with redirect handler and state data
-    const client = new MCPOAuthClient({
+    const client = new MCPClient({ // Changed MCPOAuthClient to MCPClient
       serverUrl,
       callbackUrl,
       onRedirect: (redirectUrl: string) => {
         authUrl = redirectUrl;
       },
       userId,
-      serverId: serverId || sessionId, // Use serverId if provided, otherwise use sessionId
-      sessionId: stateData,
+      serverId: effectiveServerId,
+      sessionId,
       transportType,
       clientId,
       clientSecret
@@ -97,17 +100,7 @@ export async function POST(request: NextRequest) {
       console.log('[Connect API] Attempting to connect to:', serverUrl);
       await client.connect();
 
-      // Connection successful, save session metadata 
-      await sessionStore.setClient({
-        sessionId,
-        serverId,
-        serverName,
-        serverUrl,
-        callbackUrl,
-        transportType,
-        userId,
-        active: true
-      });
+      // Connection successful, session metadata is saved internally by client.connect()
 
       return NextResponse.json({
         success: true,
@@ -119,16 +112,7 @@ export async function POST(request: NextRequest) {
         // OAuth authorization required
         console.log('[Connect API] OAuth required. AuthUrl:', authUrl);
         if (authUrl) {
-          await sessionStore.setClient({
-            sessionId,
-            serverId,
-            serverName,
-            serverUrl,
-            callbackUrl,
-            transportType,
-            userId,
-            active: false
-          });
+          // Session metadata is saved internally by client.connect() before throwing UnauthorizedError
           return NextResponse.json(
             {
               requiresAuth: true,

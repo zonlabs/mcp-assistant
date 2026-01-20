@@ -47,21 +47,6 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
     ) {
         this._onRedirect = onRedirect;
         this._sessionId = sessionId;
-
-        // Load existing OAuth data asynchronously
-        this.loadExistingData();
-    }
-
-    // Load existing OAuth data to restore state
-    private async loadExistingData(): Promise<void> {
-        try {
-            const data = await this.loadOAuthData();
-            if (data.clientId) {
-                this._clientId_ = data.clientId;
-            }
-        } catch (error) {
-            // Ignore errors during initialization
-        }
     }
 
     get clientMetadata(): OAuthClientMetadata {
@@ -71,7 +56,8 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
             grant_types: ["authorization_code", "refresh_token"],
             redirect_uris: [this.redirectUrl],
             response_types: ["code"],
-            token_endpoint_auth_method: "none"
+            token_endpoint_auth_method: "none",
+            ...(this._clientId_ ? { client_id: this._clientId_ } : {})
         };
     }
 
@@ -84,13 +70,10 @@ export class RedisOAuthClientProvider implements AgentsOAuthProvider {
     }
 
     get clientId() {
-        if (!this._clientId_) {
-            throw new Error("Trying to access clientId before it was set");
-        }
         return this._clientId_;
     }
 
-    set clientId(clientId_: string) {
+    set clientId(clientId_: string | undefined) {
         this._clientId_ = clientId_;
     }
 

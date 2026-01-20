@@ -1,24 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { MCPClient } from '@/lib/mcp/oauth-client';
 import { sessionStore } from '@/lib/mcp/session-store';
+import { createClient } from "@/lib/supabase/server";
 import { getAppUrl } from '@/lib/url';
-
-/**
- * GET/POST /api/mcp/auth/callback
- *
- * OAuth callback endpoint that receives the authorization code
- * and completes the OAuth flow.
- *
- * Query parameters:
- * - code: Authorization code from OAuth provider
- * - state: Optional state parameter for CSRF protection
- * - sessionId: Session ID to identify the client
- *
- * Response (success):
- * {
- *   "success": true,
- *   "message": "Authorization completed"
- * }
- */
 export async function GET(request: NextRequest) {
   return handleCallback(request);
 }
@@ -85,7 +69,6 @@ async function handleCallback(request: NextRequest) {
 
   try {
     // Get authenticated user
-    const { createClient } = await import('@/lib/supabase/server');
     const supabase = await createClient();
     const { data: { session: userSession } } = await supabase.auth.getSession();
 
@@ -117,17 +100,19 @@ async function handleCallback(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
-    // Create MCPOAuthClient with RedisOAuthClientProvider
-    const { MCPOAuthClient } = await import('@/lib/mcp/oauth-client');
-    const client = new MCPOAuthClient({
+    // Create MCP client and restore from session
+    const client = new MCPClient({
       serverUrl: sessionData.serverUrl,
       callbackUrl: sessionData.callbackUrl,
-      onRedirect: () => { },
+      onRedirect: (url) => {
+        console.log('[Callback] Redirect requested:', url);
+      },
       userId,
-      serverId: serverId,
+      serverId,
       sessionId,
       transportType: sessionData.transportType,
     });
+
 
     // Complete OAuth authorization with the code
     console.log('[Callback] Finishing OAuth with code...');
@@ -135,17 +120,7 @@ async function handleCallback(request: NextRequest) {
     console.log('[Callback] OAuth finished successfully');
 
     // Update session to mark as active
-    console.log('[Callback] Updating session to active=true');
-    await sessionStore.setClient({
-      sessionId,
-      serverId,
-      serverName,
-      serverUrl: sessionData.serverUrl,
-      callbackUrl: sessionData.callbackUrl,
-      transportType: sessionData.transportType,
-      userId,
-      active: true
-    });
+    // Session is updated to active=true internally by client.finishAuth()
     console.log('[Callback] Session updated successfully');
 
     // Redirect back to source page with success parameters

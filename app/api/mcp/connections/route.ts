@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sessionStore } from "@/lib/mcp/session-store";
-
+import { MCPClient } from '@/lib/mcp/oauth-client';
 // --- Helpers ---
 
 async function getAuthenticatedUser() {
@@ -10,21 +10,33 @@ async function getAuthenticatedUser() {
   return user;
 }
 
-async function fetchConnectionTools(sessionId: string) {
+async function fetchConnectionTools(session: any) {
   try {
-    const client = await sessionStore.getClient(sessionId);
-    if (!client) return [];
+    const { userId, serverId, serverUrl, callbackUrl, transportType, sessionId } = session;
 
+    if (!userId || !serverId || !serverUrl) return [];
+
+    const client = new MCPClient({
+      serverUrl,
+      callbackUrl,
+      onRedirect: () => { },
+      userId,
+      serverId,
+      sessionId,
+      transportType,
+    });
+
+    await client.connect();
     const result = await client.listTools();
     return result.tools; // Contains name, description, and inputSchema
   } catch (error) {
-    console.error(`[Connections] Failed to fetch tools for session ${sessionId}:`, error);
+    console.error(`[Connections] Failed to fetch tools for session ${session.sessionId}:`, error);
     return [];
   }
 }
 
-async function normalizeConnectionData(session: any) {
-  const tools = session.active ? await fetchConnectionTools(session.sessionId) : [];
+async function normalizeConnectionData(session: any, userId: string) {
+  const tools = session.active ? await fetchConnectionTools(session) : [];
 
   return {
     sessionId: session.sessionId,
@@ -47,7 +59,7 @@ export async function GET(_request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const sessions = await sessionStore.getUserSessionsData(user.id);
-    const connections = await Promise.all(sessions.map(normalizeConnectionData));
+    const connections = await Promise.all(sessions.map(session => normalizeConnectionData(session, user.id)));
 
     return NextResponse.json({
       connections,

@@ -1,4 +1,4 @@
-import { MCPOAuthClient } from './oauth-client';
+import type { MCPClient } from './oauth-client';
 import { Redis } from 'ioredis';
 import type {
   OAuthTokens,
@@ -29,7 +29,7 @@ export interface SetClientOptions {
   sessionId: string;
   serverId?: string; // Database server ID
   serverName?: string; // Human-readable server name
-  client?: MCPOAuthClient;
+  client?: MCPClient;
   serverUrl?: string;
   callbackUrl?: string;
   transportType?: 'sse' | 'streamable_http';

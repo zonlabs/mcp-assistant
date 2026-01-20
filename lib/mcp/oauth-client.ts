@@ -19,6 +19,7 @@ import {
 import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { InMemoryOAuthClientProvider } from './oauth-provider';
 import { RedisOAuthClientProvider, AgentsOAuthProvider } from './redis-oauth-client-provider';
+import { sessionStore } from './session-store';
 
 /**
  * Supported MCP transport types
@@ -27,6 +28,7 @@ export type TransportType = 'sse' | 'streamable_http';
 
 export interface MCPOAuthClientOptions {
   serverUrl: string;
+  serverName?: string;
   callbackUrl: string;
   onRedirect: (url: string) => void;
   userId: string;
@@ -53,18 +55,19 @@ export class UnauthorizedError extends Error {
 }
 
 /**
- * MCP OAuth Client
+ * MCP Client
  *
  * Manages connection to MCP servers with OAuth 2.0 authentication,
  * tool discovery, and tool execution.
  */
-export class MCPOAuthClient {
+export class MCPClient {
   private client: Client | null = null;
   public oauthProvider: AgentsOAuthProvider | null = null; // Make public for session restoration
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private userId: string;
   private serverId: string;
   private sessionId?: string;
+  private serverName?: string;
   private transportType: TransportType;
   private serverUrl: string;
   private callbackUrl: string;
@@ -81,6 +84,7 @@ export class MCPOAuthClient {
     options: MCPOAuthClientOptions
   ) {
     this.serverUrl = options.serverUrl;
+    this.serverName = options.serverName;
     this.callbackUrl = options.callbackUrl;
     this.onRedirect = options.onRedirect;
     this.userId = options.userId;
@@ -135,6 +139,10 @@ export class MCPOAuthClient {
         },
         this.sessionId
       );
+
+      if (this.clientId) {
+        this.oauthProvider.clientId = this.clientId;
+      }
     }
 
     if (!this.client) {
@@ -164,7 +172,27 @@ export class MCPOAuthClient {
   }
 
   /**
+   * Save the current session state to Redis
+   */
+  private async saveSession(active: boolean = true): Promise<void> {
+    if (!this.sessionId || !this.serverId) return;
+
+    console.log(`[MCPOAuthClient] Saving session (active=${active})`);
+    await sessionStore.setClient({
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      serverName: this.serverName,
+      serverUrl: this.serverUrl,
+      callbackUrl: this.callbackUrl,
+      transportType: this.transportType,
+      userId: this.userId,
+      active,
+    });
+  }
+
+  /**
    * Connect to the MCP server
+
    *
    * @throws {UnauthorizedError} If OAuth authorization is required
    * @throws {Error} For other connection errors
@@ -188,10 +216,16 @@ export class MCPOAuthClient {
       // Load existing tokens from Redis before attempting connection
       await this.getValidTokens();
       await this.client.connect(this.transport);
+
+      // Connection successful, ensure session is saved as active
+      await this.saveSession(true);
     } catch (error) {
       // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
       if (error instanceof SDKUnauthorizedError ||
         (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
+
+        // Save session as inactive (requiring auth) to persist params
+        await this.saveSession(false);
         throw new UnauthorizedError('OAuth authorization required');
       } else {
         throw error;
@@ -251,6 +285,9 @@ export class MCPOAuthClient {
     console.log('[OAuth Client] Connecting with authenticated transport...');
     await this.client.connect(this.transport);
     console.log('[OAuth Client] MCP session established, client ready');
+
+    // Save active session
+    await this.saveSession(true);
   }
 
   /**

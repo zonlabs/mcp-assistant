@@ -1,39 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { sessionStore } from "@/lib/mcp/session-store";
+import { NextRequest, NextResponse } from 'next/server';
+import { MCPClient } from '@/lib/mcp/oauth-client';
+import { sessionStore } from '@/lib/mcp/session-store';
+import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Call a tool on a connected MCP server
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { serverName, toolName, toolInput, sessionId } = body;
+    const { sessionId, toolName, toolInput, serverName } = body;
 
-    if (!serverName || !toolName || !toolInput) {
+    if (!sessionId || !toolName) {
       return NextResponse.json(
-        { errors: [{ message: "Missing required fields: serverName, toolName, toolInput" }] },
+        { error: 'sessionId and toolName are required' },
         { status: 400 }
       );
     }
 
-    if (!sessionId) {
-      return NextResponse.json(
-        {
-          data: {
-            callMcpServerTool: {
-              success: false,
-              message: "Session ID required. Please reconnect to the server.",
-              toolName,
-              serverName,
-              result: null,
-              error: "Session ID required. Please reconnect to the server."
-            }
-          }
-        },
-        { status: 200 }
-      );
+    // Get authenticated user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Retrieve client from session store
-    const client = await sessionStore.getClient(sessionId);
-    if (!client) {
+    const userId = user.id;
+
+    // Extract serverId from sessionId
+    const parts = sessionId.split('.');
+    const serverId = parts.length > 1 ? parts.slice(1).join('.') : sessionId;
+
+    // Retrieve session data from session store
+    const sessionData = await sessionStore.getSession(userId, serverId);
+    if (!sessionData || !sessionData.userId || !sessionData.serverId) {
       return NextResponse.json(
         {
           data: {
@@ -51,64 +52,75 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create MCP client
+    const client = new MCPClient({
+      serverUrl: sessionData.serverUrl,
+      callbackUrl: sessionData.callbackUrl,
+      onRedirect: () => { },
+      userId: sessionData.userId,
+      serverId: sessionData.serverId,
+      sessionId,
+      transportType: sessionData.transportType,
+    });
+
+    // Connect to the server
     try {
-      // Call the tool on the MCP server
-      const result = await client.callTool(toolName, toolInput || {});
-
-      // Extract clean content from MCP format
-      let cleanResult: unknown = result.content;
-
-      // Handle MCP format: [{ type: "text", text: "..." }]
-      if (Array.isArray(result.content)) {
-        const textContents = result.content
-          .filter((item: { type?: string; text?: string }) => item.type === 'text' && item.text)
-          .map((item: { type?: string; text?: string }) => item.text)
-          .join('\n\n');
-
-        if (textContents) {
-          // Try to parse as JSON
-          try {
-            cleanResult = JSON.parse(textContents);
-          } catch {
-            // Not JSON, use plain text
-            cleanResult = textContents;
-          }
-        }
-      }
-
-      return NextResponse.json({
-        data: {
-          callMcpServerTool: {
-            success: true,
-            message: `Tool ${toolName} executed successfully`,
-            toolName,
-            serverName,
-            result: cleanResult,
-            error: null
-          }
-        }
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await client.connect();
+    } catch (error) {
       return NextResponse.json(
         {
           data: {
             callMcpServerTool: {
               success: false,
-              message: `Error calling tool ${toolName}`,
+              message: "Failed to connect to server. Please reconnect.",
               toolName,
               serverName,
               result: null,
-              error: errorMessage
+              error: error instanceof Error ? error.message : "Connection failed"
             }
           }
         },
         { status: 200 }
       );
     }
-  } catch (error) {
+
+    try {
+      // Call the tool on the MCP server
+      const result = await client.callTool(toolName, toolInput || {});
+      return NextResponse.json({
+        data: {
+          callMcpServerTool: {
+            success: true,
+            message: 'Tool called successfully',
+            toolName,
+            serverName,
+            result,
+            error: null
+          }
+        }
+      });
+    } catch (error: unknown) {
+      console.error(`[Tool Call] Error calling ${toolName}:`, error);
+      return NextResponse.json({
+        data: {
+          callMcpServerTool: {
+            success: false,
+            message: `Failed to call tool ${toolName}`,
+            toolName,
+            serverName,
+            result: null,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        }
+      });
+    }
+  } catch (error: unknown) {
+    console.error('[Tool Call] Request error:', error);
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json(
-      { errors: [{ message: error instanceof Error ? error.message : "Internal server error" }] },
+      { error: 'Failed to process request' },
       { status: 500 }
     );
   }

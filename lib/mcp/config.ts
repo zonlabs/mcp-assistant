@@ -23,51 +23,69 @@ function sanitizeServerLabel(name: string): string {
 
 export async function getMcpServerConfig(userId: string): Promise<McpServerConfig> {
     const mcpConfig: McpServerConfig = {};
-    const mcpSessions = await sessionStore.getUserMcpSessions(userId);
+    const mcpServerIds = await sessionStore.getUserMcpSessions(userId);
 
-    for (const sessionId of mcpSessions) {
+    for (const serverId of mcpServerIds) {
         try {
-            const sessionData = await sessionStore.getSession(sessionId);
+            const sessionData = await sessionStore.getSession(userId, serverId);
 
             // Filter only active sessions, remove others
             if (!sessionData || !sessionData.active) {
-                await sessionStore.removeSession(sessionId);
+                await sessionStore.removeSession(userId, serverId);
                 continue;
             }
 
-            const client = await sessionStore.getClient(sessionId);
-            if (!client) continue;
+            if (!sessionData.userId || !sessionData.serverId) {
+                await sessionStore.removeSession(userId, serverId);
+                continue;
+            }
 
-            const transport = client.getTransportType();
-            const url = client.getServerUrl();
+            const transport = sessionData.transportType;
+            const url = sessionData.serverUrl;
 
             if (!transport || !url) continue;
 
             // 🔐 MCP OAuth token (optional)
             let headers: Record<string, string> | undefined;
 
-            const oauthProvider = client.oauthProvider;
-            const tokens = oauthProvider?.tokens();
+            try {
+                const { RedisOAuthClientProvider } = await import('./redis-oauth-client-provider');
+                const provider = new RedisOAuthClientProvider(
+                    sessionData.userId,
+                    sessionData.serverId,
+                    'MCP Assistant',
+                    sessionData.callbackUrl,
+                    undefined,
+                    sessionData.sessionId
+                );
 
-            if (tokens?.access_token) {
-                headers = {
-                    Authorization: `Bearer ${tokens.access_token}`,
-                };
+                const tokens = await provider.tokens();
+                if (tokens?.access_token) {
+                    headers = {
+                        Authorization: `Bearer ${tokens.access_token}`,
+                    };
+                }
+            } catch (error) {
+                console.warn(
+                    `[MCP] Failed to get OAuth token for serverId ${serverId}`,
+                    error
+                );
             }
 
-            mcpConfig[sessionId] = {
+            const label = sanitizeServerLabel(sessionData.serverName || serverId);
+            mcpConfig[label] = {
                 transport,
                 url,
                 ...(sessionData.serverName && {
                     serverName: sessionData.serverName,
-                    serverLabel: sanitizeServerLabel(sessionData.serverName)
+                    serverLabel: label
                 }),
                 ...(headers && { headers }),
             };
         } catch (error) {
-            await sessionStore.removeSession(sessionId);
+            await sessionStore.removeSession(userId, serverId);
             console.warn(
-                `[MCP] Failed to get OAuth token for sessionId ${sessionId}`,
+                `[MCP] Failed to process serverId ${serverId}`,
                 error
             );
         }

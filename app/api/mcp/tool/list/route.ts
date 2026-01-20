@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/mcp/session-store';
+import { MCPClient } from '@/lib/mcp/oauth-client';
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/mcp/tool/list?sessionId=<sessionId>
@@ -26,10 +28,12 @@ import { sessionStore } from '@/lib/mcp/session-store';
  */
 export async function GET(request: NextRequest) {
   let sessionId: string | null = null;
+  let userId: string | null = null;
+  let serverId: string | null = null;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     sessionId = searchParams.get('sessionId');
-    // await sessionStore.clearAll();
 
     console.log('[List Tools] Request received for sessionId:', sessionId);
 
@@ -40,13 +44,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Retrieve client from session store
-    const client = await sessionStore.getClient(sessionId);
-    if (!client) {
-      console.log('[List Tools] Client not found for sessionId:', sessionId);
+    // Get authenticated user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    userId = user.id;
+
+    // Extract serverId from sessionId
+    const parts = sessionId.split('.');
+    serverId = parts.length > 1 ? parts.slice(1).join('.') : sessionId;
+
+    // Retrieve session data from session store
+    const sessionData = await sessionStore.getSession(userId, serverId);
+    if (!sessionData || !sessionData.userId || !sessionData.serverId) {
+      console.log('[List Tools] Session not found or incomplete for sessionId:', sessionId);
       return NextResponse.json(
-        { error: 'Invalid session ID or session expired' },
+        { error: 'Invalid session or session expired' },
         { status: 404 }
+      );
+    }
+
+
+    // Create MCP client
+    const client = new MCPClient({
+      serverUrl: sessionData.serverUrl,
+      callbackUrl: sessionData.callbackUrl,
+      onRedirect: () => { },
+      userId: sessionData.userId,
+      serverId: sessionData.serverId,
+      sessionId,
+      transportType: sessionData.transportType,
+    });
+
+    // Connect to the server
+    try {
+      await client.connect();
+    } catch (error) {
+      console.log('[List Tools] Failed to connect:', error);
+      return NextResponse.json(
+        { error: 'Failed to connect to server. Please reconnect.' },
+        { status: 500 }
       );
     }
 
@@ -60,25 +101,10 @@ export async function GET(request: NextRequest) {
       const result = await client.listTools();
       console.log('[List Tools] Found', result.tools.length, 'tools');
 
-      // Get URL and transport from session store
-      const sessionData = await sessionStore['redis'].get(`${sessionStore['KEY_PREFIX']}${sessionId}`);
-      let url = null;
-      let transport = null;
-
-      if (sessionData) {
-        try {
-          const parsed = JSON.parse(sessionData);
-          url = parsed.serverUrl || null;
-          transport = parsed.transportType || null;
-        } catch (parseError) {
-          console.log('[List Tools] Could not parse session data:', parseError);
-        }
-      }
-
       return NextResponse.json({
         tools: result.tools,
-        url, // Include server URL
-        transport, // Include transport type
+        url: sessionData.serverUrl,
+        transport: sessionData.transportType,
       });
     } catch (error: unknown) {
       console.log('[List Tools] Error fetching tools:', error);
@@ -97,9 +123,9 @@ export async function GET(request: NextRequest) {
     console.log('[List Tools] Unexpected error:', error);
 
     // Check for invalid refresh token error and clear session
-    if (sessionId && error instanceof Error && (error.message.includes('Invalid refresh token') || error.name === 'InvalidGrantError' || (error as any).code === 'InvalidGrantError')) {
-      console.log(`[List Tools] Clearing session ${sessionId} due to invalid refresh token`);
-      await sessionStore.removeSession(sessionId);
+    if (userId && serverId && error instanceof Error && (error.message.includes('Invalid refresh token') || error.name === 'InvalidGrantError' || (error as any).code === 'InvalidGrantError')) {
+      console.log(`[List Tools] Clearing session for server ${serverId} due to invalid refresh token`);
+      await sessionStore.removeSession(userId, serverId);
     }
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

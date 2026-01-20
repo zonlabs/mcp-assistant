@@ -25,7 +25,7 @@
 export { SessionStore, sessionStore } from './session-store';
 export { getMcpServerConfig } from './config';
 export { InMemoryOAuthClientProvider } from './oauth-provider';
-export { MCPOAuthClient, UnauthorizedError } from './oauth-client';
+export { MCPClient, UnauthorizedError } from './oauth-client';
 
 // Re-export types from MCP SDK for convenience
 export type {
