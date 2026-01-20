@@ -1,5 +1,6 @@
 import { sessionStore } from "./session-store";
 import type { McpServerConfig } from "@/types/mcp";
+import { MCPClient } from "./oauth-client";
 
 /**
  * Sanitize server name to create a valid server label
@@ -23,20 +24,20 @@ function sanitizeServerLabel(name: string): string {
 
 export async function getMcpServerConfig(userId: string): Promise<McpServerConfig> {
     const mcpConfig: McpServerConfig = {};
-    const mcpServerIds = await sessionStore.getUserMcpSessions(userId);
+    const sessionIds = await sessionStore.getUserMcpSessions(userId);
 
-    for (const serverId of mcpServerIds) {
+    for (const sessionId of sessionIds) {
         try {
-            const sessionData = await sessionStore.getSession(userId, serverId);
+            const sessionData = await sessionStore.getSession(userId, sessionId);
 
             // Filter only active sessions, remove others
             if (!sessionData || !sessionData.active) {
-                await sessionStore.removeSession(userId, serverId);
+                await sessionStore.removeSession(userId, sessionId);
                 continue;
             }
 
             if (!sessionData.userId || !sessionData.serverId) {
-                await sessionStore.removeSession(userId, serverId);
+                await sessionStore.removeSession(userId, sessionId);
                 continue;
             }
 
@@ -49,30 +50,27 @@ export async function getMcpServerConfig(userId: string): Promise<McpServerConfi
             let headers: Record<string, string> | undefined;
 
             try {
-                const { RedisOAuthClientProvider } = await import('./redis-oauth-client-provider');
-                const provider = new RedisOAuthClientProvider(
-                    sessionData.userId,
-                    sessionData.serverId,
-                    'MCP Assistant',
-                    sessionData.callbackUrl,
-                    undefined,
-                    sessionData.sessionId
-                );
+                // Use MCPClient to ensure tokens are valid and refreshed if needed
+                const client = new MCPClient({
+                    userId: sessionData.userId,
+                    sessionId: sessionData.sessionId,
+                });
 
-                const tokens = await provider.tokens();
+                const tokens = await client.oauthProvider?.tokens();
                 if (tokens?.access_token) {
                     headers = {
                         Authorization: `Bearer ${tokens.access_token}`,
                     };
                 }
+                
             } catch (error) {
                 console.warn(
-                    `[MCP] Failed to get OAuth token for serverId ${serverId}`,
+                    `[MCP] Failed to get OAuth token for session ${sessionData.sessionId}`,
                     error
                 );
             }
 
-            const label = sanitizeServerLabel(sessionData.serverName || serverId);
+            const label = sanitizeServerLabel(sessionData.serverName || sessionData.serverId || 'server');
             mcpConfig[label] = {
                 transport,
                 url,
@@ -83,9 +81,9 @@ export async function getMcpServerConfig(userId: string): Promise<McpServerConfi
                 ...(headers && { headers }),
             };
         } catch (error) {
-            await sessionStore.removeSession(userId, serverId);
+            await sessionStore.removeSession(userId, sessionId);
             console.warn(
-                `[MCP] Failed to process serverId ${serverId}`,
+                `[MCP] Failed to process session ${sessionId}`,
                 error
             );
         }
