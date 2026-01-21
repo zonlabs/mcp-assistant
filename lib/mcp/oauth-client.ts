@@ -45,7 +45,7 @@ export interface MCPOAuthClientOptions {
 }
 
 /**
- * Custom error for OAuth authorization requirements
+ * Custom error thrown when OAuth authorization is required
  */
 export class UnauthorizedError extends Error {
   constructor(message: string) {
@@ -55,18 +55,16 @@ export class UnauthorizedError extends Error {
 }
 
 /**
- * MCP Client
- *
- * Manages connection to MCP servers with OAuth 2.0 authentication,
- * tool discovery, and tool execution.
+ * MCP Client with OAuth 2.0 authentication support
+ * Manages connections to MCP servers with automatic token refresh and session restoration
  */
 export class MCPClient {
   private client: Client | null = null;
-  public oauthProvider: AgentsOAuthProvider | null = null; // Make public for session restoration
+  public oauthProvider: AgentsOAuthProvider | null = null;
   private transport: StreamableHTTPClientTransport | SSEClientTransport | null = null;
   private userId: string;
-  private serverId?: string; // Optional - loaded from session if not provided
-  private sessionId: string; // Required - primary key
+  private serverId?: string;
+  private sessionId: string;
   private serverName?: string;
   private transportType: TransportType | undefined;
   private serverUrl: string | undefined;
@@ -80,9 +78,12 @@ export class MCPClient {
   private onSaveTokens?: (tokens: OAuthTokens) => void;
   private headers?: Record<string, string>;
 
-  constructor(
-    options: MCPOAuthClientOptions
-  ) {
+  /**
+   * Creates a new MCP client instance
+   * Can be initialized with minimal options (userId + sessionId) for session restoration
+   * @param options - Client configuration options
+   */
+  constructor(options: MCPOAuthClientOptions) {
     this.serverUrl = options.serverUrl;
     this.serverName = options.serverName;
     this.callbackUrl = options.callbackUrl;
@@ -98,27 +99,23 @@ export class MCPClient {
     this.clientSecret = options.clientSecret;
     this.onSaveTokens = options.onSaveTokens;
     this.headers = options.headers;
-
-    // console.log('[MCPOAuthClient] Initializing with tokens:', this.tokens ? 'Yes' : 'No', this.tokens);
   }
 
   /**
-   * Initialize the client, transport, and OAuth provider.
-   * This is necessary because in serverless environments, the client may be
-   * recreated for each request and needs to be set up from stored state.
+   * Initializes client components (client, transport, OAuth provider)
+   * Loads missing configuration from Redis session store if needed
+   * This method is idempotent and safe to call multiple times
+   * @private
    */
   private async initialize(): Promise<void> {
     if (this.client && this.oauthProvider && this.transport) {
       return;
     }
 
-    // Load session data if any metadata is missing
     if (!this.serverUrl || !this.callbackUrl || !this.serverId) {
-      console.log('[MCPClient] Missing connection metadata, loading from session store...');
-
       const sessionData = await sessionStore.getSession(this.userId, this.sessionId);
       if (!sessionData) {
-        throw new Error(`Session not found for sessionId: ${this.sessionId}`);
+        throw new Error(`Session not found: ${this.sessionId}`);
       }
 
       this.serverUrl = this.serverUrl || sessionData.serverUrl;
@@ -127,11 +124,10 @@ export class MCPClient {
       this.serverName = this.serverName || sessionData.serverName;
       this.serverId = this.serverId || sessionData.serverId || 'unknown';
       this.headers = this.headers || sessionData.headers;
-      console.log('[MCPClient] Metadata loaded from session store');
     }
 
     if (!this.serverUrl || !this.callbackUrl || !this.serverId) {
-      throw new Error('Connection metadata (serverUrl, callbackUrl, serverId) missing and could not be loaded from session');
+      throw new Error('Missing required connection metadata');
     }
 
     const clientMetadata: OAuthClientMetadata = {
@@ -151,7 +147,7 @@ export class MCPClient {
 
     if (!this.oauthProvider) {
       if (!this.serverId) {
-        throw new Error('serverId must be loaded from session before initializing OAuth provider');
+        throw new Error('serverId required for OAuth provider initialization');
       }
 
       this.oauthProvider = new RedisOAuthClientProvider(
@@ -161,11 +157,8 @@ export class MCPClient {
         clientMetadata.client_name ?? 'MCP Assistant',
         this.callbackUrl,
         (redirectUrl: string) => {
-          console.log('[OAuth Client] Redirect URI:', redirectUrl);
           if (this.onRedirect) {
             this.onRedirect(redirectUrl);
-          } else {
-            console.warn('[OAuth Client] onRedirect called but not provided');
           }
         }
       );
@@ -203,12 +196,15 @@ export class MCPClient {
   }
 
   /**
-   * Save the current session state to Redis
+   * Saves current session state to Redis
+   * @param active - Whether the session is active (connected and authenticated)
+   * @private
    */
   private async saveSession(active: boolean = true): Promise<void> {
-    if (!this.sessionId || !this.serverId || !this.serverUrl || !this.callbackUrl) return;
+    if (!this.sessionId || !this.serverId || !this.serverUrl || !this.callbackUrl) {
+      return;
+    }
 
-    console.log(`[MCPOAuthClient] Saving session (active=${active})`);
     await sessionStore.setClient({
       sessionId: this.sessionId,
       serverId: this.serverId,
@@ -222,21 +218,13 @@ export class MCPClient {
   }
 
   /**
-   * Connect to the MCP server
-
-   *
-   * @throws {UnauthorizedError} If OAuth authorization is required
-   * @throws {Error} For other connection errors
+   * Connects to the MCP server
+   * Automatically validates and refreshes OAuth tokens if needed
+   * Saves session to Redis on first successful connection
+   * @throws {UnauthorizedError} When OAuth authorization is required
+   * @throws {Error} When connection fails for other reasons
    */
   async connect(): Promise<void> {
-    await this.initialize();
-    await this.attemptConnection();
-  }
-
-  /**
-   * Attempt to establish connection with the MCP server
-   */
-  private async attemptConnection(): Promise<void> {
     await this.initialize();
 
     if (!this.client || !this.transport) {
@@ -244,35 +232,30 @@ export class MCPClient {
     }
 
     try {
-      // Load existing tokens from Redis before attempting connection
       await this.getValidTokens();
       await this.client.connect(this.transport);
 
-      // Only save session if it doesn't exist yet (first-time registration)
-      // For reloads, the session already exists and we don't need to save again
       const existingSession = await sessionStore.getSession(this.userId, this.sessionId);
       if (!existingSession) {
-        console.log('[MCPClient] New connection - saving session');
         await this.saveSession(true);
       }
     } catch (error) {
-      // Check if it's the SDK's UnauthorizedError or contains 'unauthorized' in message
-      if (error instanceof SDKUnauthorizedError ||
-        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))) {
-
-        // Save session as inactive (requiring auth) to persist params
+      if (
+        error instanceof SDKUnauthorizedError ||
+        (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))
+      ) {
         await this.saveSession(false);
         throw new UnauthorizedError('OAuth authorization required');
-      } else {
-        throw error;
       }
+      throw error;
     }
   }
 
   /**
-   * Complete OAuth authorization with the authorization code
-   *
-   * @param authCode - Authorization code from OAuth callback
+   * Completes OAuth authorization flow by exchanging authorization code for tokens
+   * Creates new authenticated client and transport, then establishes connection
+   * Saves active session to Redis after successful authentication
+   * @param authCode - Authorization code received from OAuth callback
    */
   async finishAuth(authCode: string): Promise<void> {
     await this.initialize();
@@ -281,18 +264,7 @@ export class MCPClient {
       throw new Error('OAuth provider or transport not initialized');
     }
 
-    console.log('[OAuth Client] Finishing OAuth authorization...');
-
-    // Complete the OAuth flow - this exchanges the code for tokens
-    // This updates the OAuth provider with valid tokens
-    if (this.transport) {
-      await this.transport.finishAuth(authCode);
-      console.log('[OAuth Client] OAuth tokens exchanged successfully');
-    }
-
-    // Now create a fresh client and transport with the authenticated OAuth provider
-    // The old client/transport were in a partial state from the failed initial connection
-    console.log('[OAuth Client] Creating new authenticated client...');
+    await this.transport.finishAuth(authCode);
 
     this.client = new Client(
       {
@@ -303,9 +275,8 @@ export class MCPClient {
     );
 
     const baseUrl = new URL(this.serverUrl!);
-
-    // Create appropriate transport based on type
     const tt = this.transportType || 'streamable_http';
+
     if (tt === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider!,
@@ -318,27 +289,19 @@ export class MCPClient {
       });
     }
 
-    // Now connect with authenticated transport
-    console.log('[OAuth Client] Connecting with authenticated transport...');
     await this.client.connect(this.transport);
-    console.log('[OAuth Client] MCP session established, client ready');
-
-    // Save active session
     await this.saveSession(true);
   }
 
   /**
-   * List all available tools from the MCP server
-   *
-   * @returns List of tools with their names, descriptions, and input schemas
+   * Lists all available tools from the connected MCP server
+   * @returns List of tools with their schemas and descriptions
+   * @throws {Error} When client is not connected
    */
   async listTools(): Promise<ListToolsResult> {
     if (!this.client) {
       throw new Error('Not connected to server');
     }
-
-    // Get valid tokens before making request
-    // await this.getValidTokens();
 
     const request: ListToolsRequest = {
       method: 'tools/list',
@@ -349,22 +312,16 @@ export class MCPClient {
   }
 
   /**
-   * Call a tool on the MCP server
-   *
-   * @param toolName - Name of the tool to call
+   * Executes a tool on the connected MCP server
+   * @param toolName - Name of the tool to execute
    * @param toolArgs - Arguments to pass to the tool
    * @returns Tool execution result
+   * @throws {Error} When client is not connected
    */
-  async callTool(
-    toolName: string,
-    toolArgs: Record<string, unknown>
-  ): Promise<CallToolResult> {
+  async callTool(toolName: string, toolArgs: Record<string, unknown>): Promise<CallToolResult> {
     if (!this.client) {
       throw new Error('Not connected to server');
     }
-
-    // Get valid tokens before making request
-    // await this.getValidTokens();
 
     const request: CallToolRequest = {
       method: 'tools/call',
@@ -378,113 +335,75 @@ export class MCPClient {
   }
 
   /**
-   * Refresh the access token using the refresh token
-   *
+   * Refreshes the OAuth access token using the refresh token
+   * Discovers OAuth metadata from server and exchanges refresh token for new access token
    * @returns True if refresh was successful, false otherwise
    */
   async refreshToken(): Promise<boolean> {
     await this.initialize();
 
     if (!this.oauthProvider) {
-      console.error('[OAuth Client] Cannot refresh: OAuth provider not initialized');
       return false;
     }
 
-    console.log('[OAuth Client] Loading tokens from Redis...');
     const tokens = await this.oauthProvider.tokens();
     if (!tokens || !tokens.refresh_token) {
-      console.error('[OAuth Client] Cannot refresh: No refresh token available');
       return false;
     }
-    console.log('[OAuth Client] Refresh token found');
 
-    console.log('[OAuth Client] Loading client information from Redis...');
     const clientInformation = await this.oauthProvider.clientInformation();
     if (!clientInformation) {
-      console.error('[OAuth Client] Cannot refresh: No client information available');
       return false;
     }
-    console.log('[OAuth Client] Client information found:', clientInformation.client_id);
 
     try {
-      console.log('[OAuth Client] Refreshing access token...');
-
-      // Discover OAuth metadata from the server
       const resourceMetadata = await discoverOAuthProtectedResourceMetadata(this.serverUrl!);
       const authServerUrl = resourceMetadata?.authorization_servers?.[0] || this.serverUrl!;
       const authMetadata = await discoverAuthorizationServerMetadata(authServerUrl);
-      console.log('[OAuth Client] Discovered OAuth metadata:', authMetadata);
-      console.log('[OAuth Client] Discovered auth server URL:', authServerUrl);
-      console.log('[OAuth Client] Client information:', clientInformation);
-      console.log('[OAuth Client] Refresh token:', tokens.refresh_token);
 
-      // Use the MCP SDK's refreshAuthorization function
       const newTokens = await refreshAuthorization(authServerUrl, {
         metadata: authMetadata,
         clientInformation,
         refreshToken: tokens.refresh_token,
       });
 
-      // Save the new tokens
       await this.oauthProvider.saveTokens(newTokens);
-
-      /** saving tokens in oauthProvider (handling the case where server doesnt expose oauthprotected resource metadata which is required during initial authorization and refreshing tokens) */
-
-      // Notify about token update
-      // if (this.onSaveTokens) {
-      //   this.onSaveTokens(newTokens);
-      // }
-
-      console.log('[OAuth Client] ✅ Token refresh successful');
-
       return true;
     } catch (error) {
-      console.error('[OAuth Client] ❌ Token refresh failed:', error);
+      console.error('[OAuth] Token refresh failed:', error);
       return false;
     }
   }
 
   /**
-   * Get valid tokens, refreshing if expired
-   *
-   * @returns True if tokens are valid (either not expired or successfully refreshed)
+   * Ensures OAuth tokens are valid, refreshing them if expired
+   * Called automatically by connect() - rarely needs to be called manually
+   * @returns True if valid tokens are available, false otherwise
    */
   async getValidTokens(): Promise<boolean> {
-    console.log('[OAuth Client] Checking token validity...');
     await this.initialize();
 
     if (!this.oauthProvider) {
-      console.error('[OAuth Client] Cannot get valid tokens: OAuth provider not initialized');
       return false;
     }
 
-    // Load tokens first - this restores tokenExpiresAt from Redis
     const tokens = await this.oauthProvider.tokens();
     if (!tokens) {
-      console.error('[OAuth Client] No tokens available');
       return false;
     }
 
-    // Check if token is expired
     if (this.oauthProvider.isTokenExpired()) {
-      console.log('[OAuth Client] Token expired, attempting refresh...');
-      const refreshSuccess = await this.refreshToken();
-      if (!refreshSuccess) {
-        console.error('[OAuth Client] Token refresh failed');
-        return false;
-      }
-      console.log('[OAuth Client] Token refresh succeeded');
-      return true;
+      return await this.refreshToken();
     }
 
-    console.log('[OAuth Client] Token is still valid');
-    return true; // Token is still valid
+    return true;
   }
 
   /**
-   * Reconnect using existing OAuth provider
-   * Used for session restoration from Redis in serverless environments
-   * Recreates client and transport without creating a new OAuth provider
+   * Reconnects to MCP server using existing OAuth provider from Redis
+   * Used for session restoration in serverless environments
+   * Creates new client and transport without re-initializing OAuth provider
+   * @throws {Error} When OAuth provider is not initialized
    */
   async reconnect(): Promise<void> {
     await this.initialize();
@@ -493,7 +412,6 @@ export class MCPClient {
       throw new Error('OAuth provider not initialized');
     }
 
-    // Create fresh client and transport with existing OAuth provider
     this.client = new Client(
       {
         name: 'mcp-assistant-oauth-client',
@@ -503,8 +421,8 @@ export class MCPClient {
     );
 
     const baseUrl = new URL(this.serverUrl!);
-
     const tt = this.transportType || 'streamable_http';
+
     if (tt === 'sse') {
       this.transport = new SSEClientTransport(baseUrl, {
         authProvider: this.oauthProvider,
@@ -519,39 +437,38 @@ export class MCPClient {
   }
 
   /**
-   * Complete cleanup of the session and all associated OAuth data in Redis
+   * Completely removes the session from Redis including all OAuth data
+   * Invalidates credentials and disconnects the client
    */
   async clearSession(): Promise<void> {
-    // Attempt to initialize to get the provider if we don't have it
     try {
       await this.initialize();
     } catch (error) {
-      console.warn('[MCPClient] Could not initialize during clearSession, proceeding with partial cleanup:', error);
+      console.warn('[MCPClient] Initialization failed during clearSession:', error);
     }
 
     if (this.oauthProvider) {
-      console.log(`[MCPClient] Invalidating OAuth credentials for ${this.serverId}`);
       await (this.oauthProvider as any).invalidateCredentials('all');
     }
 
-    console.log(`[MCPClient] Removing session for ${this.serverId}`);
-    await sessionStore.removeSession(this.userId, this.serverId);
+    await sessionStore.removeSession(this.userId, this.sessionId);
     this.disconnect();
   }
 
   /**
-   * Check if the client is connected
+   * Checks if the client is currently connected to an MCP server
+   * @returns True if connected, false otherwise
    */
   isConnected(): boolean {
     return this.client !== null;
   }
 
   /**
-   * Disconnect from the MCP server and cleanup resources
+   * Disconnects from the MCP server and cleans up resources
+   * Does not remove session from Redis - use clearSession() for that
    */
   disconnect(): void {
     if (this.client) {
-      // Close the client connection
       this.client.close();
     }
     this.client = null;
@@ -560,45 +477,50 @@ export class MCPClient {
   }
 
   /**
-   * Get the server URL
+   * Gets the server URL
+   * @returns Server URL or empty string if not set
    */
   getServerUrl(): string {
     return this.serverUrl || '';
   }
 
   /**
-   * Get the callback URL
+   * Gets the OAuth callback URL
+   * @returns Callback URL or empty string if not set
    */
   getCallbackUrl(): string {
     return this.callbackUrl || '';
   }
 
   /**
-   * Get the transport type
+   * Gets the transport type being used
+   * @returns Transport type (defaults to 'streamable_http')
    */
   getTransportType(): TransportType {
     return this.transportType || 'streamable_http';
   }
 
   /**
-   * Get the server name
+   * Gets the human-readable server name
+   * @returns Server name or undefined
    */
   getServerName(): string | undefined {
     return this.serverName;
   }
 
   /**
-   * Get the server ID
+   * Gets the server ID
+   * @returns Server ID or undefined
    */
   getServerId(): string | undefined {
     return this.serverId;
   }
 
   /**
-   * Get additional data from the MCP server
-   * Fetches server capabilities, prompts, resources, and resource templates
-   *
-   * @returns Combined server metadata including capabilities, prompts, resources, etc.
+   * Fetches comprehensive server metadata
+   * Includes version, capabilities, instructions, prompts, resources, and tools
+   * @returns Object containing all available server metadata
+   * @throws {Error} When client is not connected
    */
   async getAdditionalData(): Promise<{
     serverVersion?: any;
@@ -613,55 +535,34 @@ export class MCPClient {
       throw new Error('Not connected to server');
     }
 
-    const result: {
-      serverVersion?: any;
-      serverCapabilities?: any;
-      instructions?: string;
-      prompts?: any[];
-      resources?: any[];
-      resourceTemplates?: any[];
-      tools?: any[];
-    } = {};
-
     try {
-      // Get server version
-      result.serverVersion = await this.client.getServerVersion()
-
-      // Get server capabilities
-      result.serverCapabilities = await this.client.getServerCapabilities()
-
-      // Get instructions if supported
-      result.instructions = await this.client.getInstructions()
-
-      // List prompts if supported
       const promptsResponse = await this.client.listPrompts();
-      result.prompts = (promptsResponse as any).prompts || [];
-
-      // List resources if supported
       const resourcesResponse = await this.client.listResources();
-      result.resources = (resourcesResponse as any).resources || [];
-
-      // List resource templates if supported
       const templatesResponse = await this.client.listResourceTemplates();
-      result.resourceTemplates = (templatesResponse as any).resourceTemplates || [];
-
-      // List tools (already implemented but include for completeness)
       const toolsResponse = await this.listTools();
-      result.tools = toolsResponse.tools || [];
 
-      return result;
+      return {
+        serverVersion: await this.client.getServerVersion(),
+        serverCapabilities: await this.client.getServerCapabilities(),
+        instructions: await this.client.getInstructions(),
+        prompts: (promptsResponse as any).prompts || [],
+        resources: (resourcesResponse as any).resources || [],
+        resourceTemplates: (templatesResponse as any).resourceTemplates || [],
+        tools: toolsResponse.tools || [],
+      };
     } catch (error) {
-      console.error('[getAdditionalData] Failed to retrieve additional data:', error);
+      console.error('[MCPClient] Failed to retrieve server data:', error);
       throw error;
     }
   }
 
   /**
-   * Get MCP server configuration for all user sessions
-   * Automatically handles token refresh and returns ready-to-use server configs
-   *
+   * Gets MCP server configuration for all active user sessions
+   * Loads sessions from Redis, validates OAuth tokens, refreshes if expired
+   * Returns ready-to-use configuration with valid auth headers
    * @param userId - User ID to fetch sessions for
-   * @returns Server configuration object keyed by sanitized server labels
+   * @returns Object keyed by sanitized server labels containing transport, url, headers, etc.
+   * @static
    */
   static async getMcpServerConfig(userId: string): Promise<Record<string, any>> {
     const mcpConfig: Record<string, any> = {};

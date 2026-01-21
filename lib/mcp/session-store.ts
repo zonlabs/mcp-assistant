@@ -50,27 +50,51 @@ const rest = customAlphabet(
   11
 );
 
+/**
+ * Manages MCP session data in Redis with automatic TTL management
+ * Sessions are keyed by userId:sessionId and have a 12-hour TTL
+ */
 export class SessionStore {
-  private readonly SESSION_TTL = 43200; // 12 hours
+  private readonly SESSION_TTL = 43200;
   private readonly KEY_PREFIX = 'mcp:session:';
 
-  constructor(private redis: Redis) {
+  constructor(private redis: Redis) {}
 
-  }
-
+  /**
+   * Generates Redis key for a specific session
+   * @param userId - User identifier
+   * @param sessionId - Session identifier
+   * @returns Redis key in format mcp:session:userId:sessionId
+   * @private
+   */
   private getSessionKey(userId: string, sessionId: string): string {
     return `${this.KEY_PREFIX}${userId}:${sessionId}`;
   }
 
+  /**
+   * Generates Redis key for tracking all sessions for a user
+   * @param userId - User identifier
+   * @returns Redis key for user's session set
+   * @private
+   */
   private getUserKey(userId: string): string {
     return `mcp:user:${userId}:sessions`;
   }
 
+  /**
+   * Generates a unique session ID starting with a letter (OpenAI compatible)
+   * @returns Random session ID string
+   */
   generateSessionId(): string {
-    // must start with letter for (OpenAI compatibility)
     return firstChar() + rest();
   }
 
+  /**
+   * Stores or updates a session in Redis with 12-hour TTL
+   * Preserves existing OAuth data (tokens, client info) when updating
+   * @param options - Session configuration options
+   * @throws {Error} When required fields (serverUrl, callbackUrl, userId, sessionId) are missing
+   */
   async setClient(options: SetClientOptions): Promise<void> {
     const {
       sessionId,
@@ -84,30 +108,28 @@ export class SessionStore {
       active = false
     } = options;
 
+    if (!serverUrl || !callbackUrl) {
+      throw new Error('serverUrl and callbackUrl required');
+    }
+
+    if (!userId || !sessionId) {
+      throw new Error('userId and sessionId required');
+    }
+
     try {
-      if (!serverUrl || !callbackUrl) {
-        throw new Error('serverUrl and callbackUrl must be provided');
-      }
-
-      if (!userId || !sessionId) {
-        throw new Error('userId and sessionId are required for session storage');
-      }
-
       const sessionKey = this.getSessionKey(userId, sessionId);
-
-      // Load existing data to preserve OAuth tokens
       const existingDataStr = await this.redis.get(sessionKey);
       const existingData = existingDataStr ? JSON.parse(existingDataStr) : {};
 
       const sessionData: SessionData = {
-        ...existingData, // Preserve existing data (including OAuth tokens)
+        ...existingData,
         sessionId,
         serverId,
         serverName,
         serverUrl,
         callbackUrl,
         transportType,
-        createdAt: existingData.createdAt || Date.now(), // Keep original creation time
+        createdAt: existingData.createdAt || Date.now(),
         active,
         userId,
         headers,
@@ -115,23 +137,26 @@ export class SessionStore {
 
       await this.redis.setex(sessionKey, this.SESSION_TTL, JSON.stringify(sessionData));
 
-      // Track session IDs for this user
       const userKey = this.getUserKey(userId);
       await this.redis.sadd(userKey, sessionId);
-
-      console.log(`✅ Redis SET: ${sessionKey} (TTL: ${this.SESSION_TTL}s)`);
     } catch (error) {
-      console.error('❌ Failed to store session in Redis:', error);
+      console.error('[SessionStore] Failed to store session:', error);
       throw error;
     }
   }
 
+  /**
+   * Retrieves a session from Redis and refreshes its TTL
+   * @param userId - User identifier
+   * @param sessionId - Session identifier
+   * @returns Session data or null if not found
+   */
   async getSession(userId: string, sessionId: string): Promise<SessionData | null> {
     try {
       const sessionKey = this.getSessionKey(userId, sessionId);
       const sessionDataStr = await this.redis.get(sessionKey);
+
       if (!sessionDataStr) {
-        console.log(`❓ Session not found: ${sessionKey}`);
         return null;
       }
 
@@ -139,83 +164,89 @@ export class SessionStore {
       await this.redis.expire(sessionKey, this.SESSION_TTL);
       return sessionData;
     } catch (error) {
-      console.error('❌ Failed to get session:', error);
+      console.error('[SessionStore] Failed to get session:', error);
       return null;
     }
   }
 
+  /**
+   * Gets all session IDs for a specific user
+   * @param userId - User identifier
+   * @returns Array of session IDs
+   */
   async getUserMcpSessions(userId: string): Promise<string[]> {
     const userKey = this.getUserKey(userId);
     try {
-      const sessionIds = await this.redis.smembers(userKey);
-      return sessionIds;
+      return await this.redis.smembers(userKey);
     } catch (error) {
-      console.error(`❌ Failed to get user sessions from Redis for user ${userId}:`, error);
+      console.error(`[SessionStore] Failed to get sessions for ${userId}:`, error);
       return [];
     }
   }
 
+  /**
+   * Gets full session data for all of a user's sessions
+   * Filters out null/invalid sessions automatically
+   * @param userId - User identifier
+   * @returns Array of session data objects
+   */
   async getUserSessionsData(userId: string): Promise<SessionData[]> {
-    const userKey = this.getUserKey(userId);
-
     try {
-      const sessionIds = await this.redis.smembers(userKey);
+      const sessionIds = await this.redis.smembers(this.getUserKey(userId));
       if (sessionIds.length === 0) return [];
-
-      const validSessions: SessionData[] = [];
 
       const results = await Promise.all(
         sessionIds.map(async (sessionId) => {
-          const sessionKey = this.getSessionKey(userId, sessionId);
-          const data = await this.redis.get(sessionKey);
-
-          if (!data) {
-            return null;
-          }
-
-          return JSON.parse(data) as SessionData;
+          const data = await this.redis.get(this.getSessionKey(userId, sessionId));
+          return data ? (JSON.parse(data) as SessionData) : null;
         })
       );
 
-      for (const sessionData of results) {
-        if (sessionData) {
-          validSessions.push(sessionData);
-        }
-      }
-
-      return validSessions;
+      return results.filter((session): session is SessionData => session !== null);
     } catch (error) {
-      console.error(`❌ Failed to get user sessions for ${userId}:`, error);
+      console.error(`[SessionStore] Failed to get session data for ${userId}:`, error);
       return [];
     }
   }
 
+  /**
+   * Removes a session from Redis
+   * Cleans up both the session data and user's session tracking
+   * @param userId - User identifier
+   * @param sessionId - Session identifier
+   */
   async removeSession(userId: string, sessionId: string): Promise<void> {
     try {
       const sessionKey = this.getSessionKey(userId, sessionId);
-
-      // Remove session tracking for user
       const userKey = this.getUserKey(userId);
-      await this.redis.srem(userKey, sessionId);
 
+      await this.redis.srem(userKey, sessionId);
       await this.redis.del(sessionKey);
-      console.log(`✅ Removed session: ${sessionKey}`);
     } catch (error) {
-      console.error('❌ Failed to remove session from Redis:', error);
+      console.error('[SessionStore] Failed to remove session:', error);
     }
   }
 
+  /**
+   * Gets all session IDs across all users
+   * Warning: Can be expensive with many sessions
+   * @returns Array of all session IDs
+   */
   async getAllSessionIds(): Promise<string[]> {
     try {
       const pattern = `${this.KEY_PREFIX}*`;
       const keys = await this.redis.keys(pattern);
       return keys.map((key) => key.replace(this.KEY_PREFIX, ''));
     } catch (error) {
-      console.error('❌ Failed to get sessions from Redis:', error);
+      console.error('[SessionStore] Failed to get all sessions:', error);
       return [];
     }
   }
 
+  /**
+   * Removes all sessions from Redis
+   * Warning: Use with caution - deletes all user sessions
+   */
   async clearAll(): Promise<void> {
     try {
       const pattern = `${this.KEY_PREFIX}*`;
@@ -223,12 +254,15 @@ export class SessionStore {
       if (keys.length > 0) {
         await this.redis.del(...keys);
       }
-      console.log('✅ Cleared all sessions from Redis');
     } catch (error) {
-      console.error('❌ Failed to clear sessions from Redis:', error);
+      console.error('[SessionStore] Failed to clear sessions:', error);
     }
   }
 
+  /**
+   * Manually removes expired sessions from Redis
+   * Note: Redis TTL handles this automatically, but can be useful for cleanup
+   */
   async cleanupExpiredSessions(): Promise<void> {
     try {
       const pattern = `${this.KEY_PREFIX}*`;
@@ -241,16 +275,19 @@ export class SessionStore {
         }
       }
     } catch (error) {
-      console.error('❌ Failed to cleanup expired sessions:', error);
+      console.error('[SessionStore] Failed to cleanup expired sessions:', error);
     }
   }
 
+  /**
+   * Closes the Redis connection
+   * Should be called when shutting down the application
+   */
   async disconnect(): Promise<void> {
     try {
       await this.redis.quit();
-      console.log('✅ Session Store: Redis disconnected');
     } catch (error) {
-      console.error('❌ Failed to disconnect Redis:', error);
+      console.error('[SessionStore] Failed to disconnect:', error);
     }
   }
 }
