@@ -24,8 +24,7 @@ import { ServerDetails } from "./ServerDetails";
 import { ServerPlaceholder } from "./ServerPlaceholder";
 import ToolsExplorer from "./ToolsExplorer";
 import ToolExecutionPanel from "./ToolExecutionPanel";
-import { connectionStore } from "@/lib/mcp/connection-store";
-import { useConnectionContext } from "@/components/providers/ConnectionProvider";
+import { useMcpStore, type McpStore } from "@/lib/stores/mcp-store";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
 import { UserSession } from "@/components/providers/AuthProvider";
 
@@ -88,7 +87,8 @@ export default function McpClientLayout({
   const [activeTab, setActiveTab] = useState<'public' | 'user'>('public');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const { activeCount: activeServersCount } = useConnectionContext();
+  const activeServersCount = useMcpStore((state: McpStore) => state.activeConnectionCount);
+  const getConnectionByServerId = useMcpStore((state: McpStore) => state.getConnectionByServerId);
   const { mergeWithStoredState } = useMcpConnection();
 
   const searchParams = useSearchParams();
@@ -117,7 +117,7 @@ export default function McpClientLayout({
       if (updatedServer) {
         setSelectedServer(updatedServer);
       } else {
-        const storedConnection = connectionStore.get(selectedServer.id);
+        const storedConnection = getConnectionByServerId(selectedServer.id);
         if (storedConnection) {
           setSelectedServer(prev => prev ? ({
             ...prev,

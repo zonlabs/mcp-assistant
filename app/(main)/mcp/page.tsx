@@ -1,12 +1,9 @@
 "use client";
 import { Suspense } from "react";
 import McpClientLayout from "@/components/mcp-client/McpClientLayout";
-import OAuthCallbackHandler from "@/components/mcp-client/OAuthCallbackHandler";
 import { McpServer } from "@/types/mcp";
-import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { McpStoreProvider } from "@/components/providers/McpStoreProvider";
-import { ConnectionProvider } from "@/components/providers/ConnectionProvider";
 import {
   usePublicServers,
   useUserServers,
@@ -90,12 +87,8 @@ function McpPageContent() {
     fetchUserServers();
   };
 
-  // Handle OAuth callback redirect
-  useOAuthCallback();
-
   return (
     <>
-      <OAuthCallbackHandler onRefreshServers={refreshAllServers} />
       <McpClientLayout
         publicServers={publicServers}
         userServers={userServers}
@@ -127,9 +120,7 @@ export default function McpPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <McpStoreProvider>
-        <ConnectionProvider>
-          <McpPageContent />
-        </ConnectionProvider>
+        <McpPageContent />
       </McpStoreProvider>
     </Suspense>
   );

@@ -1,11 +1,25 @@
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import toast from 'react-hot-toast';
 import type { McpServer, ToolInfo, ParsedRegistryServer } from '@/types/mcp';
-import type { StoredConnection } from '@/lib/mcp/connection-store';
 import { query } from '@/lib/graphql-client';
 import { MCP_SERVERS_QUERY } from '@/lib/graphql';
 import { openAuthPopup } from '@/lib/auth-popup-utils';
+
+/**
+ * Stored Connection Type
+ * Represents an active MCP server connection with its state
+ */
+export interface StoredConnection {
+  sessionId: string;
+  serverId: string;
+  serverName: string;
+  url?: string;
+  transport?: string;
+  connectionStatus: 'CONNECTED' | 'DISCONNECTED' | 'VALIDATING' | 'FAILED';
+  tools: ToolInfo[];
+  connectedAt: string;
+}
 
 /**
  * Server State Slice
@@ -108,10 +122,13 @@ interface ServerActions {
  * Operations for managing connections
  */
 interface ConnectionActions {
-  fetchConnections: () => Promise<void>;
   connect: (server: McpServer) => Promise<void>;
   disconnect: (sessionId: string) => Promise<void>;
+  validateSession: (sessionId: string) => Promise<void>;
+  validateAllSessions: () => Promise<void>;
+  fetchSessionTools: (sessionId: string) => Promise<ToolInfo[]>;
   getConnection: (sessionId: string) => StoredConnection | undefined;
+  getConnectionByServerId: (serverId: string) => StoredConnection | undefined;
   getConnectionStatus: (sessionId: string) => string | undefined;
   isServerConnected: (serverId: string) => boolean;
   getServerTools: (sessionId: string) => ToolInfo[] | undefined;
@@ -197,14 +214,16 @@ const initialUIState: UIState = {
 /**
  * Main MCP Zustand Store
  * Centralized state management for all MCP-related data
+ * Uses persist middleware to store connections in localStorage
  */
 export const useMcpStore = create<McpStore>()(
   devtools(
-    (set, get) => ({
-      // ==================== STATE ====================
-      ...initialServerState,
-      ...initialConnectionState,
-      ...initialUIState,
+    persist(
+      (set, get) => ({
+        // ==================== STATE ====================
+        ...initialServerState,
+        ...initialConnectionState,
+        ...initialUIState,
 
       // ==================== SERVER ACTIONS ====================
 
@@ -446,51 +465,11 @@ export const useMcpStore = create<McpStore>()(
       // ==================== CONNECTION ACTIONS ====================
 
       /**
-       * Fetch all active connections
-       */
-      fetchConnections: async () => {
-        set({ connectionsLoading: true });
-
-        try {
-          const response = await fetch('/api/mcp/connections');
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch connections');
-          }
-
-          const data = await response.json();
-          const connectionsArray = Array.isArray(data) ? data : (data.connections || []);
-
-          const connections = connectionsArray.reduce((acc: Record<string, StoredConnection>, conn: StoredConnection) => {
-            acc[conn.sessionId] = conn;
-            return acc;
-          }, {} as Record<string, StoredConnection>);
-
-          const activeCount = (Object.values(connections) as StoredConnection[]).filter(
-            (c) => c.connectionStatus === 'CONNECTED'
-          ).length;
-
-          // Merge with existing connections instead of replacing
-          set((state) => ({
-            connections: {
-              ...state.connections,
-              ...connections,
-            },
-            activeConnectionCount: activeCount,
-            connectionsLoading: false,
-          }));
-        } catch (error) {
-          console.error('Error fetching connections:', error);
-          set({ connectionsLoading: false });
-        }
-      },
-
-      /**
        * Connect to a server
+       * Immediately stores the connection with VALIDATING status and fetches tools
        */
       connect: async (server) => {
         try {
-          // Get callback URL from current origin
           const callbackUrl = `${window.location.origin}/api/mcp/auth/callback`;
 
           const response = await fetch('/api/mcp/connect', {
@@ -514,6 +493,31 @@ export const useMcpStore = create<McpStore>()(
 
           let sessionId = result.sessionId;
 
+          // Immediately store connection with VALIDATING status
+          if (sessionId) {
+            console.log('[MCP Store] Storing connection with VALIDATING status:', {
+              sessionId,
+              serverId: server.id,
+              serverName: server.name,
+            });
+
+            set((state) => ({
+              connections: {
+                ...state.connections,
+                [sessionId]: {
+                  sessionId,
+                  serverId: server.id,
+                  serverName: server.name,
+                  url: server.url || undefined,
+                  transport: server.transport,
+                  connectionStatus: 'VALIDATING',
+                  tools: [],
+                  connectedAt: new Date().toISOString(),
+                },
+              },
+            }));
+          }
+
           // If OAuth redirect is needed, handle it with popup
           if (result.requiresAuth || result.authUrl) {
             try {
@@ -527,57 +531,33 @@ export const useMcpStore = create<McpStore>()(
               toast.success('Authorization completed successfully');
             } catch (error) {
               toast.dismiss('auth-popup');
+
+              // Mark as FAILED on auth error
+              if (sessionId) {
+                set((state) => ({
+                  connections: {
+                    ...state.connections,
+                    [sessionId]: {
+                      ...state.connections[sessionId],
+                      connectionStatus: 'FAILED',
+                    },
+                  },
+                }));
+              }
+
               const errorMessage = error instanceof Error ? error.message : 'Authorization failed';
               toast.error(errorMessage);
               throw error;
             }
           }
 
-          // Update connection state and fetch tools
+          // Validate the session (fetch tools)
           if (sessionId) {
-            // Fetch tools for the connected server
-            let tools: ToolInfo[] = [];
-            try {
-              const toolsResponse = await fetch(`/api/mcp/tool/list?sessionId=${sessionId}`);
-
-              if (toolsResponse.ok) {
-                const toolsData = await toolsResponse.json();
-                tools = toolsData.tools || [];
-              }
-            } catch (error) {
-              console.error('Failed to fetch tools:', error);
-            }
-
-            console.log('[MCP Store] Setting connection:', {
-              sessionId,
-              serverId: server.id,
-              serverName: server.name,
-              connectionStatus: 'CONNECTED',
-              toolCount: tools.length,
-            });
-
-            set((state) => ({
-              connections: {
-                ...state.connections,
-                [sessionId]: {
-                  sessionId,
-                  serverId: server.id,
-                  serverName: server.name,
-                  url: server.url || undefined,
-                  transport: server.transport,
-                  connectionStatus: 'CONNECTED',
-                  tools,
-                  connectedAt: new Date().toISOString(),
-                },
-              },
-              activeConnectionCount: state.activeConnectionCount + 1,
-            }));
-
-            toast.success(`Connected to ${server.name}${tools.length > 0 ? ` (${tools.length} tools available)` : ''}`);
+            await get().validateSession(sessionId);
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to connect to server';
-          console.error('Error connecting to server:', error);
+          console.error('[MCP Store] Connection error:', error);
           toast.error(errorMessage);
           throw error;
         }
@@ -604,17 +584,140 @@ export const useMcpStore = create<McpStore>()(
           // Remove from connections
           set((state) => {
             const { [sessionId]: removed, ...rest } = state.connections;
+            const activeCount = Object.values(rest).filter(
+              (c) => c.connectionStatus === 'CONNECTED'
+            ).length;
+
             return {
               connections: rest,
-              activeConnectionCount: Math.max(0, state.activeConnectionCount - 1),
+              activeConnectionCount: activeCount,
             };
           });
 
           toast.success(`Disconnected from ${serverName}`);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to disconnect from server';
-          console.error('Error disconnecting from server:', error);
+          console.error('[MCP Store] Disconnect error:', error);
           toast.error(errorMessage);
+          throw error;
+        }
+      },
+
+      /**
+       * Validate a single session
+       * Fetches tools and updates connection status
+       */
+      validateSession: async (sessionId) => {
+        const connection = get().connections[sessionId];
+        if (!connection) {
+          console.warn('[MCP Store] Cannot validate non-existent session:', sessionId);
+          return;
+        }
+
+        try {
+          // Set to VALIDATING if not already
+          if (connection.connectionStatus !== 'VALIDATING') {
+            set((state) => ({
+              connections: {
+                ...state.connections,
+                [sessionId]: {
+                  ...state.connections[sessionId],
+                  connectionStatus: 'VALIDATING',
+                },
+              },
+            }));
+          }
+
+          const tools = await get().fetchSessionTools(sessionId);
+
+          // Update connection with tools and CONNECTED status
+          set((state) => {
+            const prevConnection = state.connections[sessionId];
+            const prevActiveCount = Object.values(state.connections).filter(
+              (c) => c.connectionStatus === 'CONNECTED'
+            ).length;
+
+            const wasConnected = prevConnection?.connectionStatus === 'CONNECTED';
+            const isNowConnected = true;
+
+            return {
+              connections: {
+                ...state.connections,
+                [sessionId]: {
+                  ...prevConnection,
+                  connectionStatus: 'CONNECTED',
+                  tools,
+                },
+              },
+              activeConnectionCount: wasConnected
+                ? prevActiveCount
+                : prevActiveCount + 1,
+            };
+          });
+
+          console.log('[MCP Store] Session validated:', {
+            sessionId,
+            toolCount: tools.length,
+          });
+        } catch (error) {
+          console.error('[MCP Store] Session validation failed:', sessionId, error);
+
+          // Mark as FAILED
+          set((state) => ({
+            connections: {
+              ...state.connections,
+              [sessionId]: {
+                ...state.connections[sessionId],
+                connectionStatus: 'FAILED',
+              },
+            },
+          }));
+        }
+      },
+
+      /**
+       * Validate all sessions
+       * Runs validation for all stored sessions progressively
+       */
+      validateAllSessions: async () => {
+        const connections = get().connections;
+        const sessionIds = Object.keys(connections);
+
+        if (sessionIds.length === 0) return;
+
+        set({ isValidating: true, validationProgress: { validated: 0, total: sessionIds.length } });
+
+        // Validate each session progressively
+        for (let i = 0; i < sessionIds.length; i++) {
+          await get().validateSession(sessionIds[i]);
+
+          set({
+            validationProgress: { validated: i + 1, total: sessionIds.length },
+          });
+        }
+
+        set({ isValidating: false, validationProgress: null });
+      },
+
+      /**
+       * Fetch tools for a specific session
+       */
+      fetchSessionTools: async (sessionId) => {
+        try {
+          const response = await fetch(`/api/mcp/tool/list?sessionId=${sessionId}`);
+
+          if (!response.ok) {
+            // Auth errors (401, 403) should mark connection as invalid
+            if (response.status === 401 || response.status === 403) {
+              throw new Error('Session expired or unauthorized');
+            }
+            throw new Error('Failed to fetch tools');
+          }
+
+          const data = await response.json();
+          return data.tools || [];
+        } catch (error) {
+          console.error('[MCP Store] Failed to fetch tools:', sessionId, error);
           throw error;
         }
       },
@@ -624,6 +727,13 @@ export const useMcpStore = create<McpStore>()(
        */
       getConnection: (sessionId) => {
         return get().connections[sessionId];
+      },
+
+      /**
+       * Get connection by server ID
+       */
+      getConnectionByServerId: (serverId) => {
+        return Object.values(get().connections).find((c) => c.serverId === serverId);
       },
 
       /**
@@ -674,7 +784,17 @@ export const useMcpStore = create<McpStore>()(
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
       resetUIState: () => set({ ...initialUIState }),
-    }),
+      }),
+      {
+        name: 'mcp-store',
+        storage: createJSONStorage(() => localStorage),
+        // Only persist connection state
+        partialize: (state) => ({
+          connections: state.connections,
+          activeConnectionCount: state.activeConnectionCount,
+        }),
+      }
+    ),
     { name: 'MCP Store' }
   )
 );

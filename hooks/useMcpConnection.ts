@@ -1,19 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
 import { toast } from "react-hot-toast";
 import { McpServer, ToolInfo } from '@/types/mcp';
-import { useConnectionContext } from '@/components/providers/ConnectionProvider';
+import { useMcpStore, type McpStore, type StoredConnection } from '@/lib/stores/mcp-store';
 
-export interface StoredConnection {
-  sessionId: string;
-  serverId?: string; // Database server ID for mapping
-  serverUrl: string;
-  transport: string;
-  active: boolean;
-  connectionStatus: 'CONNECTED' | 'DISCONNECTED' | 'VALIDATING' | 'FAILED';
-  createdAt: string;
-  tokenExpiresAt: string | null;
-  tools: ToolInfo[];
-}
+// Re-export StoredConnection for backward compatibility
+export type { StoredConnection };
 
 interface UseMcpConnectionProps {
   servers?: McpServer[] | null;
@@ -45,8 +36,10 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Get shared connections from context
-  const { connections, isValidating: isLoading, refresh: fetchConnections } = useConnectionContext();
+  // Get shared connections from Zustand store
+  const connections = useMcpStore((state: McpStore) => state.connections);
+  const isLoading = useMcpStore((state: McpStore) => state.isValidating);
+  const validateAllSessions = useMcpStore((state: McpStore) => state.validateAllSessions);
 
   // Get connection by sessionId
   const getConnection = useCallback((id: string) => {
@@ -90,7 +83,8 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
   // Merge with server list
   const mergeWithStoredState = useCallback(<T extends { id: string, connectionStatus?: string | null | undefined, tools?: ToolInfo[] }>(serverList: T[]): T[] => {
     return serverList.map((server) => {
-      const stored = connections[server.id];
+      // Find connection by serverId (not sessionId)
+      const stored = Object.values(connections).find((c) => c.serverId === server.id);
       if (stored) {
         return {
           ...server,
@@ -152,7 +146,7 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
 
       if (result.success && result.sessionId) {
         toast.success("Connected successfully!");
-        await fetchConnections(); // Refresh after connect
+        await validateAllSessions(); // Refresh after connect
       } else {
         throw new Error(result.error || "Failed to connect");
       }
@@ -163,7 +157,7 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
     } finally {
       setIsConnecting(false);
     }
-  }, [fetchConnections]);
+  }, [validateAllSessions]);
 
   const disconnect = useCallback(async (server: ConnectableServer) => {
     const connection = getConnection(server.id);
@@ -183,14 +177,14 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
 
       if (result.success) {
         toast.success("Disconnected successfully");
-        await fetchConnections(); // Refresh after disconnect
+        await validateAllSessions(); // Refresh after disconnect
       } else {
         throw new Error(result.error || "Failed to disconnect");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to disconnect");
     }
-  }, [getConnection, fetchConnections]);
+  }, [getConnection, validateAllSessions]);
 
   // Backward compatibility for validateConnections
   const validateConnections = useCallback(
@@ -198,13 +192,13 @@ export function useMcpConnection({ servers, setServers, serverId }: UseMcpConnec
       filterFn?: (serverId: string) => boolean,
       onProgress?: (validated: number, total: number) => void
     ) => {
-      await fetchConnections();
+      await validateAllSessions();
       if (onProgress) {
         const total = Object.keys(connections).length;
         onProgress(total, total);
       }
     },
-    [fetchConnections, connections]
+    [validateAllSessions, connections]
   );
 
   return {

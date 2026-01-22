@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ServerIcon } from '../common/ServerIcon';
 import { openAuthPopup } from '@/lib/auth-popup-utils';
+import { useMcpStore, type McpStore } from '@/lib/stores/mcp-store';
 
 interface MCPConnectionApprovalProps {
   serverName: string;
@@ -25,6 +26,7 @@ export function MCPConnectionApproval({
   onDeny,
 }: MCPConnectionApprovalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const validateSession = useMcpStore((state: McpStore) => state.validateSession);
 
   const handleConnect = async () => {
     setIsLoading(true);
@@ -49,7 +51,26 @@ export function MCPConnectionApproval({
       console.log('Connect API response:', data);
 
       // Store sessionId for later reference
-      const sessionId = data.sessionId;
+      let sessionId = data.sessionId;
+
+      // Immediately store connection with VALIDATING status in Zustand
+      if (sessionId) {
+        useMcpStore.setState((state) => ({
+          connections: {
+            ...state.connections,
+            [sessionId]: {
+              sessionId,
+              serverId,
+              serverName,
+              url: serverUrl,
+              transport: transportType,
+              connectionStatus: 'VALIDATING' as const,
+              tools: [],
+              connectedAt: new Date().toISOString(),
+            },
+          },
+        }));
+      }
 
       // If response contains an auth URL, open popup window
       const authUrl = data.authUrl || data.url;
@@ -60,16 +81,36 @@ export function MCPConnectionApproval({
           // Use reusable auth popup utility
           const authResult = await openAuthPopup({ url: authUrl });
 
-          console.log('Auth success, approving tool');
+          // Update sessionId if it changed after OAuth
+          sessionId = authResult.sessionId || sessionId;
+
+          console.log('Auth success, validating session in Zustand');
+
+          // Validate session to fetch tools and update status to CONNECTED
+          await validateSession(sessionId);
+
           setIsLoading(false);
 
-          // Approve the tool - connection already established in Redis
+          // Approve the tool - connection already established in Redis and Zustand
           onApprove({
-            sessionId: authResult.sessionId || sessionId,
+            sessionId,
           });
         } catch (popupError) {
           console.error('Authentication error:', popupError);
           setIsLoading(false);
+
+          // Mark as FAILED in Zustand
+          if (sessionId) {
+            useMcpStore.setState((state) => ({
+              connections: {
+                ...state.connections,
+                [sessionId]: {
+                  ...state.connections[sessionId],
+                  connectionStatus: 'FAILED' as const,
+                },
+              },
+            }));
+          }
 
           // Show user-friendly error message
           const errorMessage = popupError instanceof Error ? popupError.message : 'Authentication failed';
@@ -85,10 +126,14 @@ export function MCPConnectionApproval({
         }
       } else {
         // No URL returned, connection successful without OAuth
-        console.log('No auth URL, connection successful');
+        console.log('No auth URL, validating session in Zustand');
+
+        // Validate session to fetch tools and update status to CONNECTED
+        await validateSession(sessionId);
+
         setIsLoading(false);
         onApprove({
-          sessionId: data.sessionId || sessionId,
+          sessionId,
         });
       }
     } catch (error) {

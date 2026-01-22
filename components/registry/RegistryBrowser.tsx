@@ -12,12 +12,12 @@ import { ServerDetail } from "./ServerDetail";
 import type { ParsedRegistryServer } from "@/types/mcp";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { connectionStore } from "@/lib/mcp/connection-store";
-import { useConnectionContext } from "@/components/providers/ConnectionProvider";
+import { useMcpStore, type McpStore } from "@/lib/stores/mcp-store";
 import { useMcpConnection } from "@/hooks/useMcpConnection";
 
 export function RegistryBrowser() {
-  const { activeCount, connections } = useConnectionContext();
+  const activeCount = useMcpStore((state: McpStore) => state.activeConnectionCount);
+  const connections = useMcpStore((state: McpStore) => state.connections);
   const { mergeWithStoredState } = useMcpConnection();
   const {
     servers: rawServers,
