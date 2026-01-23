@@ -30,13 +30,13 @@ export function useMcpTools(): UseMcpToolsReturn {
   const currentServers = Object.values(connections)
     .filter(connection => connection.connectionStatus === 'CONNECTED')
     .map(connection => ({
-      serverName: connection.serverUrl, // Using serverUrl as serverName
+      serverName: connection.serverName,
       sessionId: connection.sessionId,
       connectionStatus: connection.connectionStatus,
       tools: connection.tools,
-      connectedAt: connection.createdAt,
+      connectedAt: connection.connectedAt,
       transport: connection.transport,
-      url: connection.serverUrl,
+      url: connection.url,
     } as McpServerWithTools));
 
   const loadMcpServers = async () => {

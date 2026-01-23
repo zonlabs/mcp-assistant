@@ -10,13 +10,27 @@ import { openAuthPopup } from '@/lib/auth-popup-utils';
  * Stored Connection Type
  * Represents an active MCP server connection with its state
  */
+/**
+ * Connection Status Types
+ * Granular states for real-time connection tracking
+ */
+export type ConnectionStatus =
+  | 'DISCONNECTED'      // Not connected
+  | 'CONNECTING'        // Initial connection attempt
+  | 'AUTHENTICATING'    // OAuth flow in progress
+  | 'AUTHENTICATED'     // OAuth complete, pre-connect
+  | 'DISCOVERING'       // Fetching tools from server
+  | 'CONNECTED'         // Fully connected with tools
+  | 'VALIDATING'        // Legacy: validating existing session
+  | 'FAILED';           // Connection error
+
 export interface StoredConnection {
   sessionId: string;
   serverId: string;
   serverName: string;
   url?: string;
   transport?: string;
-  connectionStatus: 'CONNECTED' | 'DISCONNECTED' | 'VALIDATING' | 'FAILED';
+  connectionStatus: ConnectionStatus;
   tools: ToolInfo[];
   connectedAt: string;
 }
@@ -127,9 +141,10 @@ interface ConnectionActions {
   validateSession: (sessionId: string) => Promise<void>;
   validateAllSessions: () => Promise<void>;
   fetchSessionTools: (sessionId: string) => Promise<ToolInfo[]>;
+  updateConnectionStatus: (sessionId: string, status: ConnectionStatus, tools?: ToolInfo[]) => void;
   getConnection: (sessionId: string) => StoredConnection | undefined;
   getConnectionByServerId: (serverId: string) => StoredConnection | undefined;
-  getConnectionStatus: (sessionId: string) => string | undefined;
+  getConnectionStatus: (sessionId: string) => ConnectionStatus | undefined;
   isServerConnected: (serverId: string) => boolean;
   getServerTools: (sessionId: string) => ToolInfo[] | undefined;
 }
@@ -720,6 +735,51 @@ export const useMcpStore = create<McpStore>()(
           console.error('[MCP Store] Failed to fetch tools:', sessionId, error);
           throw error;
         }
+      },
+
+      /**
+       * Update connection status and optionally tools
+       * Used by SSE stream to provide real-time status updates
+       */
+      updateConnectionStatus: (sessionId, status, tools) => {
+        set((state) => {
+          const connection = state.connections[sessionId];
+          if (!connection) {
+            console.warn('[MCP Store] Cannot update status for non-existent connection:', sessionId);
+            return state;
+          }
+
+          const prevActiveCount = Object.values(state.connections).filter(
+            (c) => c.connectionStatus === 'CONNECTED'
+          ).length;
+
+          const wasConnected = connection.connectionStatus === 'CONNECTED';
+          const isNowConnected = status === 'CONNECTED';
+
+          const newActiveCount = wasConnected && !isNowConnected
+            ? prevActiveCount - 1
+            : !wasConnected && isNowConnected
+            ? prevActiveCount + 1
+            : prevActiveCount;
+
+          return {
+            connections: {
+              ...state.connections,
+              [sessionId]: {
+                ...connection,
+                connectionStatus: status,
+                ...(tools && { tools }),
+              },
+            },
+            activeConnectionCount: newActiveCount,
+          };
+        });
+
+        console.log('[MCP Store] Connection status updated:', {
+          sessionId,
+          status,
+          toolCount: tools?.length,
+        });
       },
 
       /**

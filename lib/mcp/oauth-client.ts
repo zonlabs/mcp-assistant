@@ -20,6 +20,7 @@ import type { OAuthClientMetadata, OAuthTokens, OAuthClientInformationFull } fro
 import { RedisOAuthClientProvider, AgentsOAuthProvider } from './redis-oauth-client-provider';
 import { sessionStore } from './session-store';
 import { sanitizeServerLabel } from './utils';
+import { Emitter, type McpConnectionEvent, type McpObservabilityEvent, type McpConnectionState } from './events';
 
 /**
  * Supported MCP transport types
@@ -57,6 +58,7 @@ export class UnauthorizedError extends Error {
 /**
  * MCP Client with OAuth 2.0 authentication support
  * Manages connections to MCP servers with automatic token refresh and session restoration
+ * Emits connection lifecycle events for observability
  */
 export class MCPClient {
   private client: Client | null = null;
@@ -77,6 +79,15 @@ export class MCPClient {
   private clientSecret?: string;
   private onSaveTokens?: (tokens: OAuthTokens) => void;
   private headers?: Record<string, string>;
+
+  // Event emitters for connection lifecycle
+  private readonly _onConnectionEvent = new Emitter<McpConnectionEvent>();
+  public readonly onConnectionEvent = this._onConnectionEvent.event;
+
+  private readonly _onObservabilityEvent = new Emitter<McpObservabilityEvent>();
+  public readonly onObservabilityEvent = this._onObservabilityEvent.event;
+
+  private currentState: McpConnectionState = 'DISCONNECTED';
 
   /**
    * Creates a new MCP client instance
@@ -99,6 +110,92 @@ export class MCPClient {
     this.clientSecret = options.clientSecret;
     this.onSaveTokens = options.onSaveTokens;
     this.headers = options.headers;
+  }
+
+  /**
+   * Emit a connection state change event
+   * @private
+   */
+  private emitStateChange(newState: McpConnectionState): void {
+    const previousState = this.currentState;
+    this.currentState = newState;
+
+    if (!this.serverId) return;
+
+    this._onConnectionEvent.fire({
+      type: 'state_changed',
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      serverName: this.serverName || this.serverId,
+      state: newState,
+      previousState,
+      timestamp: Date.now(),
+    });
+
+    this._onObservabilityEvent.fire({
+      level: 'info',
+      message: `Connection state: ${previousState} → ${newState}`,
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Emit an error event
+   * @private
+   */
+  private emitError(error: string, errorType: 'connection' | 'auth' | 'validation' | 'unknown' = 'unknown'): void {
+    if (!this.serverId) return;
+
+    this._onConnectionEvent.fire({
+      type: 'error',
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      error,
+      errorType,
+      timestamp: Date.now(),
+    });
+
+    this._onObservabilityEvent.fire({
+      level: 'error',
+      message: error,
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      metadata: { errorType },
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Emit a progress event
+   * @private
+   */
+  private emitProgress(message: string): void {
+    if (!this.serverId) return;
+
+    this._onConnectionEvent.fire({
+      type: 'progress',
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      message,
+      timestamp: Date.now(),
+    });
+
+    this._onObservabilityEvent.fire({
+      level: 'debug',
+      message,
+      sessionId: this.sessionId,
+      serverId: this.serverId,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Get current connection state
+   */
+  getConnectionState(): McpConnectionState {
+    return this.currentState;
   }
 
   /**
@@ -225,15 +322,27 @@ export class MCPClient {
    * @throws {Error} When connection fails for other reasons
    */
   async connect(): Promise<void> {
+    this.emitStateChange('CONNECTING');
+    this.emitProgress('Initializing connection...');
+
     await this.initialize();
 
     if (!this.client || !this.transport) {
-      throw new Error('Client or transport not initialized');
+      const error = 'Client or transport not initialized';
+      this.emitError(error, 'connection');
+      this.emitStateChange('FAILED');
+      throw new Error(error);
     }
 
     try {
+      this.emitProgress('Validating OAuth tokens...');
       await this.getValidTokens();
+
+      this.emitProgress('Connecting to MCP server...');
       await this.client.connect(this.transport);
+
+      this.emitStateChange('CONNECTED');
+      this.emitProgress('Connected successfully');
 
       const existingSession = await sessionStore.getSession(this.userId, this.sessionId);
       if (!existingSession) {
@@ -244,9 +353,26 @@ export class MCPClient {
         error instanceof SDKUnauthorizedError ||
         (error instanceof Error && error.message.toLowerCase().includes('unauthorized'))
       ) {
+        this.emitStateChange('AUTHENTICATING');
         await this.saveSession(false);
+
+        // Emit auth required event
+        if (this.serverId) {
+          this._onConnectionEvent.fire({
+            type: 'auth_required',
+            sessionId: this.sessionId,
+            serverId: this.serverId,
+            authUrl: '', // Will be provided by caller
+            timestamp: Date.now(),
+          });
+        }
+
         throw new UnauthorizedError('OAuth authorization required');
       }
+
+      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+      this.emitError(errorMessage, 'connection');
+      this.emitStateChange('FAILED');
       throw error;
     }
   }
@@ -258,39 +384,60 @@ export class MCPClient {
    * @param authCode - Authorization code received from OAuth callback
    */
   async finishAuth(authCode: string): Promise<void> {
+    this.emitStateChange('AUTHENTICATING');
+    this.emitProgress('Exchanging authorization code for tokens...');
+
     await this.initialize();
 
     if (!this.oauthProvider || !this.transport) {
-      throw new Error('OAuth provider or transport not initialized');
+      const error = 'OAuth provider or transport not initialized';
+      this.emitError(error, 'auth');
+      this.emitStateChange('FAILED');
+      throw new Error(error);
     }
 
-    await this.transport.finishAuth(authCode);
+    try {
+      await this.transport.finishAuth(authCode);
 
-    this.client = new Client(
-      {
-        name: 'mcp-assistant-oauth-client',
-        version: '2.0',
-      },
-      { capabilities: {} }
-    );
+      this.emitStateChange('AUTHENTICATED');
+      this.emitProgress('Creating authenticated client...');
 
-    const baseUrl = new URL(this.serverUrl!);
-    const tt = this.transportType || 'streamable_http';
+      this.client = new Client(
+        {
+          name: 'mcp-assistant-oauth-client',
+          version: '2.0',
+        },
+        { capabilities: {} }
+      );
 
-    if (tt === 'sse') {
-      this.transport = new SSEClientTransport(baseUrl, {
-        authProvider: this.oauthProvider!,
-        ...(this.headers && { headers: this.headers }),
-      });
-    } else {
-      this.transport = new StreamableHTTPClientTransport(baseUrl, {
-        authProvider: this.oauthProvider!,
-        ...(this.headers && { headers: this.headers }),
-      });
+      const baseUrl = new URL(this.serverUrl!);
+      const tt = this.transportType || 'streamable_http';
+
+      if (tt === 'sse') {
+        this.transport = new SSEClientTransport(baseUrl, {
+          authProvider: this.oauthProvider!,
+          ...(this.headers && { headers: this.headers }),
+        });
+      } else {
+        this.transport = new StreamableHTTPClientTransport(baseUrl, {
+          authProvider: this.oauthProvider!,
+          ...(this.headers && { headers: this.headers }),
+        });
+      }
+
+      this.emitProgress('Connecting with authenticated client...');
+      await this.client.connect(this.transport);
+
+      this.emitStateChange('CONNECTED');
+      this.emitProgress('Authentication completed successfully');
+
+      await this.saveSession(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      this.emitError(errorMessage, 'auth');
+      this.emitStateChange('FAILED');
+      throw error;
     }
-
-    await this.client.connect(this.transport);
-    await this.saveSession(true);
   }
 
   /**
@@ -303,12 +450,39 @@ export class MCPClient {
       throw new Error('Not connected to server');
     }
 
-    const request: ListToolsRequest = {
-      method: 'tools/list',
-      params: {},
-    };
+    this.emitStateChange('DISCOVERING');
+    this.emitProgress('Discovering available tools...');
 
-    return await this.client.request(request, ListToolsResultSchema);
+    try {
+      const request: ListToolsRequest = {
+        method: 'tools/list',
+        params: {},
+      };
+
+      const result = await this.client.request(request, ListToolsResultSchema);
+
+      // Emit tools discovered event
+      if (this.serverId) {
+        this._onConnectionEvent.fire({
+          type: 'tools_discovered',
+          sessionId: this.sessionId,
+          serverId: this.serverId,
+          toolCount: result.tools.length,
+          tools: result.tools,
+          timestamp: Date.now(),
+        });
+      }
+
+      this.emitStateChange('CONNECTED');
+      this.emitProgress(`Discovered ${result.tools.length} tools`);
+
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to list tools';
+      this.emitError(errorMessage, 'validation');
+      this.emitStateChange('FAILED');
+      throw error;
+    }
   }
 
   /**
@@ -467,13 +641,35 @@ export class MCPClient {
    * Disconnects from the MCP server and cleans up resources
    * Does not remove session from Redis - use clearSession() for that
    */
-  disconnect(): void {
+  disconnect(reason?: string): void {
     if (this.client) {
       this.client.close();
     }
     this.client = null;
     this.oauthProvider = null;
     this.transport = null;
+
+    // Emit disconnected event
+    if (this.serverId) {
+      this._onConnectionEvent.fire({
+        type: 'disconnected',
+        sessionId: this.sessionId,
+        serverId: this.serverId,
+        reason,
+        timestamp: Date.now(),
+      });
+    }
+
+    this.emitStateChange('DISCONNECTED');
+  }
+
+  /**
+   * Dispose of all event emitters
+   * Call this when the client is no longer needed
+   */
+  dispose(): void {
+    this._onConnectionEvent.dispose();
+    this._onObservabilityEvent.dispose();
   }
 
   /**

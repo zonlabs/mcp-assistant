@@ -194,14 +194,14 @@ export function ServerDetails({
                   </Button>
                 </div>
               )}
-              {connection?.createdAt && (
+              {connection?.connectedAt && (
                 <div className="flex items-center gap-2 text-xs">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="font-medium whitespace-nowrap">
                     Connected At:
                   </span>
                   <span className="text-muted-foreground text-[10px]">
-                    {new Date(connection.createdAt).toLocaleString("en-US", {
+                    {new Date(connection.connectedAt).toLocaleString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",

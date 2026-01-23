@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ServerIcon } from '../common/ServerIcon';
-import { openAuthPopup } from '@/lib/auth-popup-utils';
-import { useMcpStore, type McpStore } from '@/lib/stores/mcp-store';
+import { useMcpConnectionObservable } from '@/hooks/useMcpConnectionObservable';
+import type { ConnectionPhase } from '@/lib/mcp/connection-manager';
 
 interface MCPConnectionApprovalProps {
   serverName: string;
@@ -16,6 +16,28 @@ interface MCPConnectionApprovalProps {
   onDeny: () => void;
 }
 
+/**
+ * Get user-friendly status message for connection phase
+ */
+function getStatusMessage(phase: ConnectionPhase): string {
+  switch (phase) {
+    case 'connecting':
+      return 'Connecting to server...';
+    case 'authenticating':
+      return 'Authenticating...';
+    case 'authenticated':
+      return 'Authentication successful...';
+    case 'discovering':
+      return 'Discovering tools...';
+    case 'connected':
+      return 'Connected!';
+    case 'error':
+      return 'Connection failed';
+    default:
+      return 'Connecting...';
+  }
+}
+
 export function MCPConnectionApproval({
   serverName,
   serverUrl,
@@ -25,120 +47,33 @@ export function MCPConnectionApproval({
   onApprove,
   onDeny,
 }: MCPConnectionApprovalProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const validateSession = useMcpStore((state: McpStore) => state.validateSession);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  const { connect, getPhase, isConnecting } = useMcpConnectionObservable({
+    onConnected: (event) => {
+      console.log('[MCPConnectionApproval] Connection completed:', event);
+      setSessionId(event.sessionId);
+      onApprove({ sessionId: event.sessionId });
+    },
+    onError: (event) => {
+      console.error('[MCPConnectionApproval] Connection error:', event);
+      onDeny();
+    },
+  });
+
+  const currentPhase = getPhase(serverId);
+  const connecting = isConnecting(serverId);
 
   const handleConnect = async () => {
-    setIsLoading(true);
     try {
-      // Make API call to initiate connection
-      const response = await fetch('/api/mcp/connect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          serverName,
-          serverUrl,
-          serverId,
-          callbackUrl: `${window.location.origin}/api/mcp/auth/callback`,
-          sourceUrl: `${window.location.origin}/auth/callback/success`,
-          transportType,
-        }),
+      await connect({
+        serverId,
+        serverName,
+        serverUrl,
+        transport: transportType as 'sse' | 'streamable-http',
       });
-
-      const data = await response.json();
-      console.log('Connect API response:', data);
-
-      // Store sessionId for later reference
-      let sessionId = data.sessionId;
-
-      // Immediately store connection with VALIDATING status in Zustand
-      if (sessionId) {
-        useMcpStore.setState((state) => ({
-          connections: {
-            ...state.connections,
-            [sessionId]: {
-              sessionId,
-              serverId,
-              serverName,
-              url: serverUrl,
-              transport: transportType,
-              connectionStatus: 'VALIDATING' as const,
-              tools: [],
-              connectedAt: new Date().toISOString(),
-            },
-          },
-        }));
-      }
-
-      // If response contains an auth URL, open popup window
-      const authUrl = data.authUrl || data.url;
-      if (authUrl) {
-        console.log('Opening popup with URL:', authUrl);
-
-        try {
-          // Use reusable auth popup utility
-          const authResult = await openAuthPopup({ url: authUrl });
-
-          // Update sessionId if it changed after OAuth
-          sessionId = authResult.sessionId || sessionId;
-
-          console.log('Auth success, validating session in Zustand');
-
-          // Validate session to fetch tools and update status to CONNECTED
-          await validateSession(sessionId);
-
-          setIsLoading(false);
-
-          // Approve the tool - connection already established in Redis and Zustand
-          onApprove({
-            sessionId,
-          });
-        } catch (popupError) {
-          console.error('Authentication error:', popupError);
-          setIsLoading(false);
-
-          // Mark as FAILED in Zustand
-          if (sessionId) {
-            useMcpStore.setState((state) => ({
-              connections: {
-                ...state.connections,
-                [sessionId]: {
-                  ...state.connections[sessionId],
-                  connectionStatus: 'FAILED' as const,
-                },
-              },
-            }));
-          }
-
-          // Show user-friendly error message
-          const errorMessage = popupError instanceof Error ? popupError.message : 'Authentication failed';
-          if (errorMessage.includes('popup')) {
-            alert('Please allow popups for this site to connect your account.');
-          } else if (errorMessage.includes('cancelled')) {
-            console.log('User cancelled authentication');
-          } else {
-            alert(`Authentication failed: ${errorMessage}`);
-          }
-
-          onDeny();
-        }
-      } else {
-        // No URL returned, connection successful without OAuth
-        console.log('No auth URL, validating session in Zustand');
-
-        // Validate session to fetch tools and update status to CONNECTED
-        await validateSession(sessionId);
-
-        setIsLoading(false);
-        onApprove({
-          sessionId,
-        });
-      }
     } catch (error) {
-      console.error('Connection error:', error);
-      setIsLoading(false);
+      console.error('[MCPConnectionApproval] Connection failed:', error);
       onDeny();
     }
   };
@@ -164,7 +99,7 @@ export function MCPConnectionApproval({
           size="default"
           onClick={onDeny}
           variant="outline"
-          disabled={isLoading}
+          disabled={connecting}
         >
           Deny
         </Button>
@@ -173,11 +108,11 @@ export function MCPConnectionApproval({
           onClick={handleConnect}
           variant="default"
           className="cursor-pointer gap-2"
-          disabled={isLoading}
+          disabled={connecting}
         >
-          {isLoading ? (
+          {connecting && currentPhase ? (
             <>
-              Connecting...
+              <span className="text-sm">{getStatusMessage(currentPhase)}</span>
               <svg
                 className="animate-spin"
                 xmlns="http://www.w3.org/2000/svg"
