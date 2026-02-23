@@ -55,7 +55,7 @@
     "tailwind-merge": "^3.4.0",
     "tw-shimmer": "^0.4.2",
     "use-stick-to-bottom": "^1.1.1",
-    "zod": "^3.25.76"
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
